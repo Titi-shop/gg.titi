@@ -306,6 +306,7 @@ export default function SellerStockPage() {
       src={shop.avatar_url || "/avatar.png"}
       alt="avatar"
       fill
+       unoptimized
       className="object-cover"
     />
   </div>
@@ -431,6 +432,7 @@ const ended =
             src={product.thumbnail}
             alt={product.name}
             fill
+             unoptimized
             className={`object-cover ${isOut || isOff ? "img-disabled" : ""}`}
           />
         ) : (
