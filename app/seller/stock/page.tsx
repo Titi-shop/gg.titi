@@ -307,7 +307,7 @@ export default function SellerStockPage() {
         <div className="flex items-center gap-3 mt-4">
 
   {/* AVATAR */}
-  <div className="w-16 h-16 relative">
+  <div className="w-24 h-24 relative">
     <Image
       src={shop.avatar_url || "/avatar.png"}
       alt="avatar"
