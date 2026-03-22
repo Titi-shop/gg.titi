@@ -312,6 +312,7 @@ export default function SellerStockPage() {
       className="object-cover"
     />
   </div>
+     </div>
 
   {/* TEXT */}
   <div className="flex-1 min-w-0">
@@ -324,7 +325,6 @@ export default function SellerStockPage() {
     </p>
   </div>
 
-</div>
 
         {/* STATS */}
 
