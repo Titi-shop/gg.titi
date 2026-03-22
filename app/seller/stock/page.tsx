@@ -378,26 +378,37 @@ export default function SellerStockPage() {
   const end = product.saleEnd ? new Date(product.saleEnd) : null;
 
   const isSale =
-    product.salePrice &&
-    start && end &&
-    now >= start && now <= end;
+  product.salePrice !== null &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end;
 
   const upcoming =
-    product.salePrice &&
-    start && now < start;
+  product.salePrice !== null &&
+  start !== null &&
+  now < start;
 
-  const ended =
-    product.salePrice &&
-    end && now > end;
+const ended =
+  product.salePrice !== null &&
+  end !== null &&
+  now > end;
 
   // ✅ BADGE (chuẩn nhất)
-  const badge =
-    isOut ? { text: t.out_of_stock, color: "bg-gray-600" } :
-    isOff ? { text: t.inactive, color: "bg-black" } :
-    isSale ? { text: "SALE", color: "bg-red-600" } :
-    upcoming ? { text: t.upcoming, color: "bg-blue-600" } :
-    ended ? { text: t.ended, color: "bg-gray-500" } :
-    null;
+  const badge:
+  | { text: string; className: string }
+  | null =
+  isOut
+    ? { text: t.out_of_stock, className: "badge badge-out" }
+    : isOff
+    ? { text: t.inactive, className: "badge badge-off" }
+    : isSale
+    ? { text: "SALE", className: "badge badge-sale" }
+    : upcoming
+    ? { text: t.upcoming, className: "badge badge-upcoming" }
+    : ended
+    ? { text: t.ended, className: "badge badge-ended" }
+    : null;
 
   return (
     <div
@@ -410,7 +421,7 @@ export default function SellerStockPage() {
       <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
 
         {badge && (
-          <span className={`absolute top-1 left-1 z-10 badge ${badge.color}`}>
+          <span className={`absolute top-1 left-1 z-10 ${badge.className}`}>
             {badge.text}
           </span>
         )}
