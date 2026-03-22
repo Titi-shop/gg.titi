@@ -368,177 +368,138 @@ export default function SellerStockPage() {
 
         <div className="space-y-4">
 
-          {products.map((product) => {
+{products.map((product) => {
 
-       const isOut = (product.stock ?? 0) <= 0;
-const isOff = product.isActive === false;
+  const isOut = (product.stock ?? 0) <= 0;
+  const isOff = product.isActive === false;
 
-            const now = new Date();
+  const now = new Date();
+  const start = product.saleStart ? new Date(product.saleStart) : null;
+  const end = product.saleEnd ? new Date(product.saleEnd) : null;
 
-            const start = product.saleStart
-              ? new Date(product.saleStart)
-              : null;
+  const isSale =
+    product.salePrice &&
+    start && end &&
+    now >= start && now <= end;
 
-            const end = product.saleEnd
-              ? new Date(product.saleEnd)
-              : null;
+  const upcoming =
+    product.salePrice &&
+    start && now < start;
 
-            const isSale =
-              product.salePrice !== null &&
-              start !== null &&
-              end !== null &&
-              now >= start &&
-              now <= end;
+  const ended =
+    product.salePrice &&
+    end && now > end;
 
-            const upcoming =
-              product.salePrice !== null &&
-              start !== null &&
-              now < start;
+  // ✅ BADGE (chuẩn nhất)
+  const badge =
+    isOut ? { text: t.out_of_stock, color: "bg-gray-600" } :
+    isOff ? { text: t.inactive, color: "bg-black" } :
+    isSale ? { text: "SALE", color: "bg-red-600" } :
+    upcoming ? { text: t.upcoming, color: "bg-blue-600" } :
+    ended ? { text: t.ended, color: "bg-gray-500" } :
+    null;
 
-            const ended =
-              product.salePrice !== null &&
-              end !== null &&
-              now > end;
+  return (
+    <div
+      key={product.id}
+      onClick={() => router.push(`/product/${product.id}`)}
+      className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
+    >
 
-            return (
+      {/* IMAGE */}
+      <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
 
-              <div
-                key={product.id}
-                onClick={() =>
-                  router.push(`/product/${product.id}`)
-                }
-                className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
-              >
+        {badge && (
+          <span className={`absolute top-1 left-1 z-10 badge ${badge.color}`}>
+            {badge.text}
+          </span>
+        )}
 
-                <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
+        {product.thumbnail ? (
+          <Image
+            src={product.thumbnail}
+            alt={product.name}
+            fill
+            className={`object-cover ${isOut || isOff ? "opacity-40" : ""}`}
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+            {t.no_image}
+          </div>
+        )}
 
-  {/* BADGES */}
-  <div className="absolute top-1 left-1 flex flex-col gap-1 z-10">
-    {isSale && (
-      <span className="badge bg-red-600">SALE</span>
-    )}
-    {upcoming && (
-      <span className="badge bg-blue-600">
-        {t.upcoming}
-      </span>
-    )}
-    {ended && (
-      <span className="badge bg-gray-500">
-        {t.ended}
-      </span>
-    )}
-    {isOut && (
-      <span className="badge bg-gray-600">
-        {t.out_of_stock || "Hết hàng"}
-      </span>
-    )}
-    {isOff && (
-      <span className="badge bg-black">
-        {t.inactive || "Ngưng"}
-      </span>
-    )}
-  </div>
+      </div>
 
-  {/* IMAGE */}
-  {product.thumbnail ? (
-    <Image
-      src={product.thumbnail}
-      alt={product.name}
-      fill
-      className={`object-cover ${isOut || isOff ? "opacity-40" : ""}`}
-    />
-  ) : (
-    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
-      {t.no_image}
+      {/* CONTENT */}
+      <div className="flex-1 min-w-0">
+
+        <h3 className="font-semibold text-sm line-clamp-2">
+          {product.name}
+        </h3>
+
+        {/* PRICE */}
+        <div className="mt-1">
+          {isSale ? (
+            <>
+              <p className="text-xs text-gray-400 line-through">
+                {formatPi(product.price)} π
+              </p>
+              <p className="text-[#ff6600] font-bold">
+                {formatPi(product.salePrice)} π
+              </p>
+            </>
+          ) : (
+            <p className="text-[#ff6600] font-bold">
+              {formatPi(product.price)} π
+            </p>
+          )}
+        </div>
+
+        {/* TIME */}
+        {product.saleStart && (
+          <p className="text-xs text-gray-500">
+            {t.sale_start}: {new Date(product.saleStart).toLocaleString()}
+          </p>
+        )}
+
+        {product.saleEnd && (
+          <p className="text-xs text-gray-500">
+            {t.sale_end}: {new Date(product.saleEnd).toLocaleString()}
+          </p>
+        )}
+
+        {/* ACTION */}
+        <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
+          <span>⭐ {product.rating_avg ?? 0}</span>
+          <span>📦 {product.stock ?? 0}</span>
+          <span>🛒 {product.sold ?? 0}</span>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/seller/edit/${product.id}`);
+            }}
+            className="text-green-600"
+          >
+            {t.edit}
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(product.id);
+            }}
+            className="text-red-600"
+          >
+            {t.delete}
+          </button>
+        </div>
+
+      </div>
+
     </div>
-  )}
-
-</div>
-
-                {/* CONTENT */}
-
-                <div className="flex-1 min-w-0">
-
-                  <h3 className="font-semibold text-sm line-clamp-2">
-                    {product.name}
-                  </h3>
-
-                  {/* PRICE */}
-
-                  <div className="mt-1">
-
-                    {isSale ? (
-                      <>
-                        <p className="text-sm text-gray-400 line-through">
-                          {formatPi(product.price)} π
-                        </p>
-
-                        <p className="text-[#ff6600] font-bold">
-                          {formatPi(product.salePrice)} π
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-[#ff6600] font-bold">
-                        {formatPi(product.price)} π
-                      </p>
-                    )}
-
-                  </div>
-
-                  {/* SALE TIME */}
-
-                  {product.saleStart && (
-                    <p className="text-xs text-gray-500">
-                      {t.sale_start}:{" "}
-                      {new Date(product.saleStart).toLocaleString()}
-                    </p>
-                  )}
-
-                  {product.saleEnd && (
-                    <p className="text-xs text-gray-500">
-                      {t.sale_end}:{" "}
-                      {new Date(product.saleEnd).toLocaleString()}
-                    </p>
-                  )}
-
-                  {/* ACTIONS */}
-
-                  <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
-
-  <span>⭐ {product.rating_avg ?? 0}</span>
-  <span>📦 {product.stock ?? 0}</span>
-  <span>🛒 {product.sold ?? 0}</span>
-
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      router.push(`/seller/edit/${product.id}`);
-    }}
-    className="text-green-600"
-  >
-    {t.edit}
-  </button>
-
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      handleDelete(product.id);
-    }}
-    className="text-red-600"
-  >
-    {t.delete}
-  </button>
-
-</div>
-
-                </div>
-
-              </div>
-
-            );
-
-          })}
-
+  );
+})}
         </div>
 
       </div>
