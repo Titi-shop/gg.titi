@@ -466,7 +466,7 @@
   "added_to_cart": "已加入购物车",
  "please_select_product": "请选择商品",
 "invalid_quantity": "数量无效",
-   "out_of_stock": 缺货",
+   "out_of_stock":"缺货",
 
 "inactive":  "已停用",
 
