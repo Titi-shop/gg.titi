@@ -110,7 +110,7 @@ export default function SellerStockPage() {
 
   return {
     id: String(p.id ?? ""),
-    name: p.name ?? "Unnamed",
+    name: String(p.name ?? "Unnamed"),
     price: Number(p.price ?? 0),
 
     salePrice:
@@ -431,7 +431,7 @@ const ended =
             src={product.thumbnail}
             alt={product.name}
             fill
-            className={`object-cover ${isOut || isOff ? "opacity-40" : ""}`}
+            className={`object-cover ${isOut || isOff ? "img-disabled" : ""}`}
           />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
