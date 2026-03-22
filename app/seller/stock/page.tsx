@@ -445,6 +445,23 @@ const isOff = product.isActive === false;
                       ENDED
                     </span>
                   )}
+                   {isSale && (
+  <span className="absolute top-1 left-1 bg-red-600 text-white text-xs px-2 py-0.5 rounded z-10">
+    SALE
+  </span>
+)}
+
+{isOut && (
+  <span className="absolute top-1 left-1 bg-gray-600 text-white text-xs px-2 py-0.5 rounded z-10">
+    {t.out_of_stock || "Hết hàng"}
+  </span>
+)}
+
+{isOff && (
+  <span className="absolute top-1 left-1 bg-black text-white text-xs px-2 py-0.5 rounded z-10">
+    {t.inactive || "Ngưng"}
+  </span>
+)}
 
                   {product.thumbnail ? (
               <Image
@@ -511,29 +528,33 @@ const isOff = product.isActive === false;
 
                   {/* ACTIONS */}
 
-                  <div className="flex gap-4 mt-2">
+                  <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/seller/edit/${product.id}`);
-                      }}
-                      className="text-green-600 underline"
-                    >
-                      {t.edit}
-                    </button>
+  <span>⭐ {product.rating_avg ?? 0}</span>
+  <span>📦 {product.stock ?? 0}</span>
+  <span>🛒 {product.sold ?? 0}</span>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(product.id);
-                      }}
-                      className="text-red-600 underline"
-                    >
-                      {t.delete}
-                    </button>
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      router.push(`/seller/edit/${product.id}`);
+    }}
+    className="text-green-600"
+  >
+    {t.edit}
+  </button>
 
-                  </div>
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      handleDelete(product.id);
+    }}
+    className="text-red-600"
+  >
+    {t.delete}
+  </button>
+
+</div>
 
                 </div>
 
