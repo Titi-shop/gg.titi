@@ -11,6 +11,11 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 
+function calcSalePercent(price: number, sale?: number) {
+  if (!sale || sale >= price) return 0;
+  return Math.round(((price - sale) / price) * 100);
+}
+
 interface ShippingInfo {
   name: string;
   phone: string;
@@ -352,27 +357,63 @@ export default function CartPage() {
                 onChange={() => toggleItem(item.id)}
               />
 
-              <img
-                src={item.thumbnail || "/placeholder.png"}
-                alt={item.name}
-                className="h-16 w-16 rounded object-cover"
-              />
+              <div className="relative">
+  {typeof item.sale_price === "number" &&
+    item.sale_price < item.price && (
+      <span className="absolute top-0 left-0 bg-red-500 text-white text-xs px-1 rounded">
+        SALE
+      </span>
+    )}
+
+  <img
+    src={item.thumbnail || "/placeholder.png"}
+    alt={item.name}
+    className="h-16 w-16 rounded object-cover"
+  />
+</div>
 
               <div className="flex-1">
                 <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
                 <div className="mt-1 flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={item.quantity}
-                    onChange={(e) => updateQty(item.id, Number(e.target.value))}
-                    className="w-16 rounded border text-center"
-                  />
-                  <span className="text-xs text-gray-500">
-                    × {formatPi(unit)} π
-                  </span>
+  <input
+    type="number"
+    min={1}
+    max={99}
+    value={item.quantity}
+    onChange={(e) => updateQty(item.id, Number(e.target.value))}
+    className="w-16 rounded border text-center"
+  />
+
+  <div className="flex flex-col text-xs">
+
+    {/* SALE */}
+    {typeof item.sale_price === "number" &&
+      item.sale_price < item.price && (
+        <span className="text-red-500 font-semibold">
+          -{calcSalePercent(item.price, item.sale_price)}%
+        </span>
+      )}
+
+    {/* PRICE */}
+    {typeof item.sale_price === "number" &&
+    item.sale_price < item.price ? (
+      <>
+        <span className="text-orange-600 font-semibold">
+          {formatPi(item.sale_price)} π
+        </span>
+        <span className="text-gray-400 line-through">
+          {formatPi(item.price)} π
+        </span>
+      </>
+    ) : (
+      <span className="text-gray-600">
+        {formatPi(item.price)} π
+      </span>
+    )}
+
+  </div>
+</div>
                 </div>
               </div>
 
