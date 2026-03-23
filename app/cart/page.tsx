@@ -462,8 +462,6 @@ export default function CartPage() {
         </span>
       )}
 
-    </div>
-
   </div>
 </div>
               </div>
