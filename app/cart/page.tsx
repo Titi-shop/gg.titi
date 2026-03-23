@@ -100,6 +100,31 @@ export default function CartPage() {
       void loadAddress();
     }
   }, [user]);
+  useEffect(() => {
+  async function syncCartPrice() {
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      cart.forEach((item) => {
+        const baseId = item.id.split("-")[0];
+
+        const latest = data.find((p: any) => p.id === baseId);
+        if (!latest) return;
+
+        const newPrice = latest.finalPrice ?? latest.price;
+
+        if (newPrice !== item.sale_price) {
+          updateQty(item.id, item.quantity); // trigger re-render
+        }
+      });
+    } catch {}
+  }
+
+  if (cart.length > 0) syncCartPrice();
+}, [cart]);
 
   useEffect(() => {
   if (!user) return;
@@ -372,11 +397,15 @@ export default function CartPage() {
             </span>
           )}
 
-        <img
-          src={item.thumbnail || "/placeholder.png"}
-          alt={item.name}
-          className="h-20 w-20 rounded object-cover"
-        />
+       <img
+  src={item.thumbnail || "/placeholder.png"}
+  alt={item.name}
+  className="h-20 w-20 rounded object-cover cursor-pointer"
+  onClick={() => {
+    const productId = item.id.split("-")[0]; // bỏ variant
+    router.push(`/product/${productId}`);
+  }}
+/>
       </div>
 
       {/* QUANTITY */}
@@ -401,12 +430,18 @@ export default function CartPage() {
             if (!/^\d*$/.test(e.target.value)) return;
 
             const maxStock = item.variant?.stock ?? item.stock ?? 99;
-            const val = Number(e.target.value || "0");
 
-            if (val > maxStock) {
-              updateQty(item.id, maxStock);
-              return;
-            }
+const val = Number(e.target.value || "0");
+
+if (val > maxStock) {
+  updateQty(item.id, maxStock);
+  return;
+}
+
+if (val < 1) {
+  updateQty(item.id, 1);
+  return;
+}
 
             updateQty(item.id, val);
           }}
@@ -441,8 +476,14 @@ export default function CartPage() {
     <div className="flex-1">
 
       <p className="text-sm font-medium line-clamp-2">
-        {item.name}
-      </p>
+  {item.name}
+</p>
+
+{item.variant && (
+  <p className="text-xs text-gray-500 mt-1">
+    {item.variant.optionValue}
+  </p>
+)}
 
     </div>
 
@@ -461,7 +502,7 @@ export default function CartPage() {
       {/* GIÁ CŨ */}
       {typeof item.sale_price === "number" &&
         item.sale_price < item.price && (
-          <p className="text-xs text-gray-400 line-through">
+          <p className="font-semibold text-orange-600">
             {formatPi(item.price * item.quantity)} π
           </p>
         )}
