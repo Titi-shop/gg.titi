@@ -108,7 +108,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
   };
-
+  const quantity = useMemo(() => {
   const maxStock = item?.stock ?? 99;
     const n = Number(qtyDraft);
     return Number.isInteger(n) && n >= 1 && n <= 99 ? n : 1;
