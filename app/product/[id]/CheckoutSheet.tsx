@@ -80,7 +80,6 @@ interface Props {
     price: number;
     finalPrice?: number;
     thumbnail?: string;
-    stock?: number;
   };
 }
 
@@ -122,7 +121,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       price: product.price,
       finalPrice: product.finalPrice,
       thumbnail: product.thumbnail || "",
-      stock: product.stock ?? 0,
     };
   }, [product]);
 
@@ -401,34 +399,21 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
               <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
               <input
-  type="text"
-  inputMode="numeric"
-  value={qtyDraft}
-  onChange={(e) => {
-    if (!/^\d*$/.test(e.target.value)) return;
-
-    const val = Number(e.target.value || "0");
-    const max = item?.stock ?? 99;
-
-    if (val > max) {
-      setQtyDraft(String(max)); // ✅ vượt thì tự về max
-      return;
-    }
-
-    setQtyDraft(e.target.value);
-  }}
-  onBlur={() => {
-    const val = Number(qtyDraft || "0");
-    const max = item?.stock ?? 99;
-
-    if (val < 1) {
-      setQtyDraft("1");
-    } else if (val > max) {
-      setQtyDraft(String(max)); // ✅ đảm bảo không vượt khi blur
-    }
-  }}
-  className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-/>
+                type="text"
+                inputMode="numeric"
+                value={qtyDraft}
+                onChange={(e) => {
+                  if (/^\d*$/.test(e.target.value)) {
+                    setQtyDraft(e.target.value);
+                  }
+                }}
+                onBlur={() => {
+                  if (!qtyDraft || Number(qtyDraft) < 1) {
+                    setQtyDraft("1");
+                  }
+                }}
+                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
+              />
             </div>
 
             <div className="text-right">
