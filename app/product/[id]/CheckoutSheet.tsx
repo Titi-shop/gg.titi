@@ -201,10 +201,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const validateBeforePay = () => {
 
-     if (!window.Pi || !piReady) {
-  showMessage(t.pi_not_ready || "Pi is not ready");
-  return false;
-}
+     
     if (!window.Pi || !piReady) {
       showMessage(t.pi_not_ready || "Pi is not ready");
       return false;
