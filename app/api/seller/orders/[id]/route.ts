@@ -37,8 +37,7 @@ select
         'id', oi.id,
         'product_id', oi.product_id,
         'product_name', oi.product_name,
-        'thumbnail', oi.thumbnail,
-        'images', oi.images,
+        'thumbnail', coalesce(oi.thumbnail, ''),
         'quantity', oi.quantity,
         'unit_price', oi.unit_price,
         'total_price', oi.total_price,
@@ -46,6 +45,7 @@ select
         'tracking_code', oi.tracking_code,
         'seller_message', oi.seller_message
       )
+      order by oi.created_at asc
     ) filter (where oi.id is not null),
     '[]'::json
   ) as order_items,
