@@ -589,7 +589,7 @@ const canBuy = hasVariants
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     image: product.thumbnail || product.images?.[0] || "",
-    images: product.images,
+    stock: p.stock,
   }}
 />
     </div>
