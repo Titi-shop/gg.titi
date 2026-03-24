@@ -11,11 +11,6 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 
-function calcSalePercent(price: number, sale?: number) {
-  if (!sale || sale >= price) return 0;
-  return Math.round(((price - sale) / price) * 100);
-}
-
 interface ShippingInfo {
   name: string;
   phone: string;
@@ -42,7 +37,7 @@ export default function CartPage() {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const { cart, updateQty, updateItem, removeFromCart, clearCart } = useCart();
+  const { cart, updateQty, removeFromCart, clearCart } = useCart();
   const { user, piReady, pilogin } = useAuth();
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -102,76 +97,8 @@ export default function CartPage() {
   }, [user]);
 
   useEffect(() => {
-  cart.forEach((item) => {
-    const maxStock =
-      item.variant?.stock ?? item.stock ?? 99;
-
-    if (item.quantity > maxStock) {
-      updateQty(item.id, maxStock);
-    }
-
-    if (item.quantity < 1) {
-      updateQty(item.id, 1);
-    }
-  });
-}, [cart, updateQty]);
-  useEffect(() => {
-  async function syncCartPrice() {
-    try {
-      const res = await fetch("/api/products");
-      if (!res.ok) return;
-
-      const data: unknown = await res.json();
-      if (!Array.isArray(data)) return;
-
-      type ProductLite = {
-        id: string;
-        price: number;
-        finalPrice?: number;
-      };
-
-      const list = data as ProductLite[];
-
-      cart.forEach((item) => {
-        const baseId =
-          "product_id" in item && typeof item.product_id === "string"
-            ? item.product_id
-            : item.id.includes("-")
-            ? item.id.split("-")[0]
-            : item.id;
-
-        const latest = list.find((p) => p.id === baseId);
-        if (!latest) return;
-
-        const newPrice =
-          typeof latest.finalPrice === "number"
-            ? latest.finalPrice
-            : latest.price;
-
-        const oldPrice =
-          typeof item.sale_price === "number"
-            ? item.sale_price
-            : item.price;
-
-        if (newPrice !== oldPrice) {
-  updateItem(item.id, {
-    price: latest.price,
-    sale_price: latest.finalPrice,
-  });
-}
-        
-      });
-    } catch {}
-  }
-
-  if (cart.length > 0) {
-    void syncCartPrice();
-  }
-}, [cart, updateQty]);
-
-  useEffect(() => {
   if (!user) return;
-  if (!shipping) return; 
+  if (!shipping) return; // ✅ QUAN TRỌNG
   if (processing) return;
 
   if (typeof window === "undefined") return;
@@ -259,12 +186,11 @@ export default function CartPage() {
     return false;
   }
 
-  const maxStock = item.variant?.stock ?? item.stock ?? 99;
-
-if (item.quantity < 1 || item.quantity > maxStock) {
-  showMessage(t.invalid_quantity || "Invalid quantity");
-  return false;
-}
+  // ✅ check quantity
+  if (item.quantity < 1 || item.quantity > 100) {
+    showMessage(t.invalid_quantity || "Invalid quantity");
+    return false;
+  }
 
   return true;
 };
@@ -272,7 +198,7 @@ if (item.quantity < 1 || item.quantity > maxStock) {
   const handlePay = async () => {
   if (!validateBeforePay()) return;
 
-  const item = selectedItems[0];
+  const item = selectedItems[0]; // ✅ FIX QUAN TRỌNG
 
   const unit =
     typeof item.sale_price === "number" ? item.sale_price : item.price;
@@ -419,161 +345,50 @@ if (item.quantity < 1 || item.quantity > maxStock) {
             typeof item.sale_price === "number" ? item.sale_price : item.price;
 
           return (
-  <div key={item.id} className="flex items-start gap-3 p-4">
+            <div key={item.id} className="flex items-center gap-3 p-4">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(item.id)}
+                onChange={() => toggleItem(item.id)}
+              />
 
-    {/* CHECKBOX */}
-    <input
-      type="checkbox"
-      checked={selectedIds.includes(item.id)}
-      onChange={() => toggleItem(item.id)}
-      className="mt-5"
-    />
+              <img
+                src={item.thumbnail || "/placeholder.png"}
+                alt={item.name}
+                className="h-16 w-16 rounded object-cover"
+              />
 
-    {/* IMAGE + QUANTITY */}
-    <div className="flex flex-col items-center gap-2">
+              <div className="flex-1">
+                <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
-      <div className="relative">
-        {/* % SALE */}
-        {typeof item.sale_price === "number" &&
-          item.sale_price < item.price && (
-            <span className="absolute top-0 left-0 bg-red-500 text-white text-xs px-1 rounded">
-              -{calcSalePercent(item.price, item.sale_price)}%
-            </span>
-          )}
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={item.quantity}
+                    onChange={(e) => updateQty(item.id, Number(e.target.value))}
+                    className="w-16 rounded border text-center"
+                  />
+                  <span className="text-xs text-gray-500">
+                    × {formatPi(unit)} π
+                  </span>
+                </div>
+              </div>
 
-       <img
-  src={item.thumbnail || "/placeholder.png"}
-  alt={item.name}
-  className="h-20 w-20 rounded object-cover cursor-pointer"
-  onClick={() => {
-  const productId = item.id.includes("-")
-    ? item.id.split("-")[0]
-    : item.id;
-
-  if (!productId) {
-    showMessage("Invalid product");
-    return;
-  }
-
-  router.push(`/product/${productId}`);
-}}
-/>
-      </div>
-
-      {/* QUANTITY */}
-      <div className="flex items-center gap-2">
-
-        <button
-  onClick={() => {
-    if (item.quantity <= 1) return;
-    updateQty(item.id, item.quantity - 1);
-  }}
-  disabled={item.quantity <= 1}
-  className="w-7 h-7 border rounded"
->
-  -
-</button>
-
-        <input
-          type="text"
-          inputMode="numeric"
-          value={item.quantity}
-          onChange={(e) => {
-  if (!/^\d*$/.test(e.target.value)) return;
-
-  const maxStock = item.variant?.stock ?? item.stock ?? 99;
-  const val = Number(e.target.value || "0");
-
-  if (val > maxStock) {
-    showMessage(t.out_of_stock || "Out of stock");
-    updateQty(item.id, maxStock);
-    return;
-  }
-
-  if (val < 1) {
-    updateQty(item.id, 1);
-    return;
-  }
-
-  updateQty(item.id, val);
-}}
-          onBlur={(e) => {
-            const maxStock = item.variant?.stock ?? item.stock ?? 99;
-            const val = Number(e.target.value || "0");
-
-            if (val < 1) updateQty(item.id, 1);
-            else if (val > maxStock) updateQty(item.id, maxStock);
-          }}
-          className="w-10 text-center border rounded"
-        />
-
-        <button
-  onClick={() => {
-    const maxStock = item.variant?.stock ?? item.stock ?? 99;
-
-    if (item.quantity >= maxStock) {
-      showMessage(t.out_of_stock || "Out of stock");
-      return;
-    }
-
-    updateQty(item.id, item.quantity + 1);
-  }}
-  disabled={item.quantity >= (item.variant?.stock ?? item.stock ?? 99)}
-  className="w-7 h-7 border rounded"
->
-  +
-</button>
-
-      </div>
-    </div>
-
-    {/* INFO */}
-    <div className="flex-1">
-
-      <p className="text-sm font-medium whitespace-normal break-words leading-snug">
-  {item.name}
-</p>
-
-{item.variant && (
-  <p className="text-xs text-gray-500 mt-1">
-    {item.variant.optionValue}
-  </p>
-)}
-
-    </div>
-
-    {/* RIGHT SIDE */}
-    <div className="text-right min-w-[90px]">
-
-      {/* GIÁ */}
-      <p className="font-semibold text-orange-600">
-        {formatPi(
-          (typeof item.sale_price === "number"
-            ? item.sale_price
-            : item.price) * item.quantity
-        )} π
-      </p>
-
-      {/* GIÁ CŨ */}
-      {typeof item.sale_price === "number" &&
-        item.sale_price < item.price && (
-          <p className="text-sm text-gray-400 line-through">
-            {formatPi(item.price * item.quantity)} π
-          </p>
-        )}
-
-      {/* DELETE */}
-      <button
-        onClick={() => removeFromCart(item.id)}
-        className="text-xs text-red-500 mt-1"
-      >
-        {t.delete}
-      </button>
-
-    </div>
-
-  </div>
-);
+              <div className="text-right">
+                <p className="font-semibold text-orange-600">
+                  {formatPi(unit * item.quantity)} π
+                </p>
+                <button
+                  onClick={() => removeFromCart(item.id)}
+                  className="text-xs text-red-500"
+                >
+                  {t.delete}
+                </button>
+              </div>
+            </div>
+          );
         })}
       </div>
 
