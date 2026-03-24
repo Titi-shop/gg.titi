@@ -93,7 +93,8 @@ interface Product {
 export default function ProductDetail() {
   const { t } = useTranslation();
   const params = useParams();
-  const id = String(params?.id ?? "");
+  const rawId = String(params?.id ?? "");
+  const id = rawId.split("-")[0];
   const router = useRouter();
   const { addToCart } = useCart();
 
@@ -191,7 +192,7 @@ export default function ProductDetail() {
 });
         setProducts(normalized);
 
-        const found = normalized.find((p) => p.id === id);
+       const found = normalized.find((p) => String(p.id) === String(id));
 
 if (found) {
   setProduct(found);
