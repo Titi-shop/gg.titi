@@ -1,10 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-
 export async function GET(req: NextRequest) {
   try {
     const user = await getUserFromBearer();
+
+    console.log("USER:", user);
 
     if (!user) {
       return NextResponse.json([]);
@@ -20,9 +18,11 @@ export async function GET(req: NextRequest) {
       [user.pi_uid]
     );
 
+    console.log("ROWS:", rows);
+
     return NextResponse.json(rows);
   } catch (err) {
-    console.error("CART GET ERROR:", err);
+    console.error("❌ CART GET ERROR:", err);
     return NextResponse.json([], { status: 500 });
   }
 }
