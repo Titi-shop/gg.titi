@@ -446,9 +446,14 @@ if (item.quantity < 1 || item.quantity > maxStock) {
   alt={item.name}
   className="h-20 w-20 rounded object-cover cursor-pointer"
   onClick={() => {
-  const productId =
-    item.product_id ??
-    (item.id.includes("-") ? item.id.split("-")[0] : item.id);
+  const productId = item.id.includes("-")
+    ? item.id.split("-")[0]
+    : item.id;
+
+  if (!productId) {
+    showMessage("Invalid product");
+    return;
+  }
 
   router.push(`/product/${productId}`);
 }}
