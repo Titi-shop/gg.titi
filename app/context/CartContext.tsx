@@ -172,7 +172,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(item),
+      body: JSON.stringify({
+  product_id: item.product_id ?? item.id,
+  quantity: item.quantity ?? 1,
+})
     });
   } catch {}
 };
@@ -218,14 +221,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   try {
     const token = await getPiAccessToken();
 
-    await fetch("/api/cart/add", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id, quantity: qty }),
-    });
+    const found = cart.find((p) => p.id === id);
+if (!found) return;
+
+await fetch("/api/cart/add", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    product_id: found.product_id ?? found.id,
+    quantity: qty,
+  }),
+});
   } catch {}
 };
 
