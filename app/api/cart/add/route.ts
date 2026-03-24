@@ -18,12 +18,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid product" }, { status: 400 });
     }
 
-    // 👉 UPSERT
     await query(
       `
-      insert into cart_items (user_id, product_id, variant_id, quantity)
+      insert into cart_items (buyer_id, product_id, variant_id, quantity)
       values ($1, $2, $3, $4)
-      on conflict (user_id, product_id, variant_id)
+      on conflict (buyer_id, product_id, variant_id)
       do update set
         quantity = cart_items.quantity + excluded.quantity,
         updated_at = now()
@@ -32,7 +31,8 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error("❌ CART ADD ERROR:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
