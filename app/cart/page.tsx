@@ -159,7 +159,7 @@ export default function CartPage() {
     sale_price: latest.finalPrice,
   });
 }
-        }
+        
       });
     } catch {}
   }
@@ -272,7 +272,7 @@ if (item.quantity < 1 || item.quantity > maxStock) {
   const handlePay = async () => {
   if (!validateBeforePay()) return;
 
-  const item = selectedItems[0]; /
+  const item = selectedItems[0];
 
   const unit =
     typeof item.sale_price === "number" ? item.sale_price : item.price;
@@ -459,23 +459,15 @@ if (item.quantity < 1 || item.quantity > maxStock) {
       <div className="flex items-center gap-2">
 
         <button
-          onClick={() => {
-            onClick={() => {
-  const maxStock = item.variant?.stock ?? item.stock ?? 99;
-
-  if (item.quantity >= maxStock) {
-    showMessage(t.out_of_stock || "Out of stock");
-    return;
-  }
-
-  updateQty(item.id, item.quantity + 1);
-
-          }}
-          disabled={item.quantity <= 1}
-          className="w-7 h-7 border rounded"
-        >
-          -
-        </button>
+  onClick={() => {
+    if (item.quantity <= 1) return;
+    updateQty(item.id, item.quantity - 1);
+  }}
+  disabled={item.quantity <= 1}
+  className="w-7 h-7 border rounded"
+>
+  -
+</button>
 
         <input
           type="text"
