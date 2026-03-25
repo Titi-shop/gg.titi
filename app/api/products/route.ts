@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { query } from "@/lib/db";
 import { requireSeller } from "@/lib/auth/guard";
 import {
   createProduct,
@@ -231,6 +232,20 @@ export async function POST(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
+  const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [auth.user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
+
   try {
     const body: unknown = await req.json();
 
@@ -273,7 +288,7 @@ export async function POST(req: Request) {
       ? stock
       : 0;
 
-    const product = await createProduct(auth.user.pi_uid, {
+    const product = await createProduct(userId , {
       name: name.trim(),
       price,
 
@@ -440,6 +455,17 @@ export async function PUT(req: Request) {
 
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
+
+  const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [auth.user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
+}
+
+const userId = userRes.rows[0].id;
   if (!auth.ok) return auth.response;
 
   try {
