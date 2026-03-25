@@ -31,6 +31,23 @@ export async function GET(req: Request) {
       );
     }
 
+    const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json({
+    pending: 0,
+    pickup: 0,
+    shipping: 0,
+    completed: 0,
+    cancelled: 0
+  });
+}
+
+const userId = userRes.rows[0].id;
+
     /* ================= DATABASE ================= */
 
     const { rows } = await query(
@@ -60,7 +77,7 @@ export async function GET(req: Request) {
 from orders o
 where o.buyer_id = $1
       `,
-      [user.pi_uid]
+       [userId]
     );
 
     return NextResponse.json(rows[0]);
