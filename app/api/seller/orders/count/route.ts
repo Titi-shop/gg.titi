@@ -40,6 +40,26 @@ export async function GET() {
       );
     }
 
+    const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    {
+      pending: 0,
+      confirmed: 0,
+      shipping: 0,
+      completed: 0,
+      returned: 0,
+      cancelled: 0,
+    },
+    { status: 200 }
+  );
+}
+
+const userId = userRes.rows[0].id;
     /* ================= DATABASE ================= */
 
     const { rows } = await query(
@@ -51,7 +71,7 @@ export async function GET() {
       where seller_id = $1
       group by status
       `,
-      [user.pi_uid]
+      [userId]
     );
 
     const counts = {
