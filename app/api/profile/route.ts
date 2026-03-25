@@ -29,6 +29,7 @@ function emptyProfile() {
     postal_code: null,
   };
 }
+
 /* ================= EMAIL CHECK ================= */
 
 function isValidEmail(email: string | null) {
@@ -47,25 +48,26 @@ function isValidEmail(email: string | null) {
 
 export async function GET() {
   const user = await getUserFromBearer();
-  if (!user) {
+  if (!user?.pi_uid) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
   try {
-
+    // 🔥 map pi_uid → uuid
     const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [user.pi_uid]
-);
+      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [user.pi_uid]
+    );
 
-if (userRes.rowCount === 0) {
-  return NextResponse.json({
-    success: true,
-    profile: emptyProfile(),
-  });
-}
+    if (userRes.rowCount === 0) {
+      return NextResponse.json({
+        success: true,
+        profile: emptyProfile(),
+      });
+    }
 
-const userId = userRes.rows[0].id;
+    const userId = userRes.rows[0].id;
+
     const { rows } = await query(
       `
       SELECT *
@@ -90,7 +92,7 @@ const userId = userRes.rows[0].id;
 
 export async function POST(req: Request) {
   const user = await getUserFromBearer();
-  if (!user) {
+  if (!user?.pi_uid) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
@@ -108,10 +110,13 @@ export async function POST(req: Request) {
   const email = normalize(body.email, 100);
   const phone = normalize(body.phone, 20);
   const bio = normalize(body.bio, 500);
-const shop_name = normalize(body.shop_name, 120);
-const shop_description = normalize(body.shop_description, 500);
-const shop_banner =
-  typeof body.shop_banner === "string" ? body.shop_banner : null;
+
+  const shop_name = normalize(body.shop_name, 120);
+  const shop_description = normalize(body.shop_description, 500);
+
+  const shop_banner =
+    typeof body.shop_banner === "string" ? body.shop_banner : null;
+
   const country =
     typeof body.country === "string" && body.country
       ? body.country.trim().slice(0, 10)
@@ -122,6 +127,7 @@ const shop_banner =
   const ward = normalize(body.ward, 100);
   const address_line = normalize(body.address_line, 255);
   const postal_code = normalize(body.postal_code, 20);
+
   const avatar_url =
     typeof body.avatar_url === "string" ? body.avatar_url : null;
 
@@ -133,22 +139,23 @@ const shop_banner =
   }
 
   try {
-
+    // 🔥 map pi_uid → uuid
     const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [user.pi_uid]
-);
+      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [user.pi_uid]
+    );
 
-if (userRes.rowCount === 0) {
-  return NextResponse.json(
-    { error: "User not found" },
-    { status: 404 }
-  );
-}
+    if (userRes.rowCount === 0) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
 
-const userId = userRes.rows[0].id;
+    const userId = userRes.rows[0].id;
+
     await query(
-`
+      `
 INSERT INTO user_profiles (
   user_id,
   full_name,
@@ -197,27 +204,28 @@ DO UPDATE SET
   postal_code = EXCLUDED.postal_code,
 
   updated_at = NOW()
-`,
-[
-  userId,
-  full_name,
-  email,
-  phone,
-  avatar_url,
-  bio,
+      `,
+      [
+        userId,
+        full_name,
+        email,
+        phone,
+        avatar_url,
+        bio,
 
-  shop_name,
-  shop_description,
-  shop_banner,
+        shop_name,
+        shop_description,
+        shop_banner,
 
-  country,
-  province,
-  district,
-  ward,
-  address_line,
-  postal_code
-]
-);
+        country,
+        province,
+        district,
+        ward,
+        address_line,
+        postal_code,
+      ]
+    );
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("PROFILE SAVE ERROR:", err);
