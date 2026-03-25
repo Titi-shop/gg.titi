@@ -56,7 +56,6 @@ export async function GET(req: NextRequest) {
 
         p.name,
         p.price,
-        p.final_price,
         p.thumbnail,
         p.stock
 
@@ -84,10 +83,7 @@ export async function GET(req: NextRequest) {
         name: r.name ?? "Unknown product",
 
         price: Number(r.price ?? 0),
-        sale_price:
-          typeof r.final_price === "number"
-            ? Number(r.final_price)
-            : null,
+        sale_price: null,
 
         thumbnail: r.thumbnail ?? "",
         stock: r.stock ?? 0,
