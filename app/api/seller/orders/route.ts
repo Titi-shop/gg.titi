@@ -44,7 +44,17 @@ export async function GET(req: Request) {
         { status: 401 }
       );
     }
+    
+const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
 
+if (userRes.rowCount === 0) {
+  return NextResponse.json([], { status: 200 });
+}
+
+const userId = userRes.rows[0].id;
     const role = await resolveRole(user);
 
     if (role !== "seller" && role !== "admin") {
@@ -63,7 +73,7 @@ export async function GET(req: Request) {
 
     let statusFilter = "";
 
-    const params: unknown[] = [user.pi_uid];
+    const params: unknown[] = [userId];
     let paramIndex = 2;
 
     if (status) {
