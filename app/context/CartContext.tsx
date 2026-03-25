@@ -83,17 +83,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   try {
     const token = await getPiAccessToken();
 
-    // 🔥 gửi local cart lên server
-    await fetch("/api/cart/sync", {
+    // 🔥 gửi toàn bộ cart
+    await fetch("/api/cart", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ items: cart }),
+      body: JSON.stringify(cart),
     });
 
-    // 🔥 lấy cart mới từ server
+    // 🔥 lấy lại cart
     const res = await fetch("/api/cart", {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -103,7 +103,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok) return;
 
     const data: unknown = await res.json();
-
     if (!Array.isArray(data)) return;
 
     setCart(data as CartItem[]);
