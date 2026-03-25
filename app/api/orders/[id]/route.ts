@@ -16,6 +16,19 @@ export async function GET(
       );
     }
 
+    const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
     const { rows } = await query(
   `
   select
@@ -45,7 +58,7 @@ export async function GET(
 
   group by o.id
   `,
-  [params.id, user.pi_uid]
+      [params.id, userId]
 );
     const order = rows[0];
 
