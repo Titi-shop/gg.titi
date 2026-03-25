@@ -206,9 +206,6 @@ export async function GET(req: Request) {
 sold: typeof p.sold === "number" ? p.sold : 0,
 rating_avg: typeof p.rating_avg === "number" ? p.rating_avg : 0,
 rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
-
-variants,
-
           variants,
         };
       })
@@ -480,7 +477,7 @@ const userId = userRes.rows[0].id;
     }
 
     const res = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${auth.user.pi_uid}`,
+      `${process.env.SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${userId}`,
       {
         method: "DELETE",
         headers: {
