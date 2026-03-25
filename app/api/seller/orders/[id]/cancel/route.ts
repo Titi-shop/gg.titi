@@ -23,6 +23,20 @@ export async function PATCH(
       );
     }
 
+
+    const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
     /* ================= RBAC ================= */
 
     const role = await resolveRole(user);
@@ -55,7 +69,7 @@ export async function PATCH(
       and seller_id = $2
       and status in ('pending','confirmed')
       `,
-      [params.id, user.pi_uid, cancelReason]
+     [params.id, userId, cancelReason]
     );
 
     if (!rowCount) {
