@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { resolveRole } from "@/lib/auth/resolveRole";
 import { getSellerProducts } from "@/lib/db/products";
-
+import { query } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,6 @@ export async function GET() {
     }
 
     const role = await resolveRole(user);
-    import { query } from "@/lib/db"; // 🔥 thêm ở đầu file nếu chưa có
 
 const userRes = await query(
   `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
