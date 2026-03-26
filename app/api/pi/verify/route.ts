@@ -124,12 +124,6 @@ const role =
 
 const userId = dbUser?.id;
 
-    const dbRole = rows?.[0]?.role;
-    const role =
-      dbRole === "seller" || dbRole === "admin" || dbRole === "customer"
-        ? dbRole
-        : "customer";
-
     /* =====================================================
        4️⃣ RETURN VERIFIED SESSION (NO COOKIE)
     ===================================================== */
