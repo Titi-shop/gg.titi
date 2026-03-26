@@ -1,4 +1,5 @@
 // app/api/upload/route.ts
+import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -12,14 +13,29 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
-    // ✅ AUTH – seller / user
     const user = await getUserFromBearer();
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
+if (!user?.pi_uid) {
+  return NextResponse.json(
+    { error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
+
+// 🔥 map pi_uid → userId
+const userRes = await query(
+  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+  [user.pi_uid]
+);
+
+if (userRes.rowCount === 0) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const userId = userRes.rows[0].id;
+      
 
     const form = await req.formData();
     const file = form.get("file");
@@ -34,8 +50,7 @@ export async function POST(req: Request) {
     // ✅ SAFE FILE EXT
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
 
-    // ✅ PATH: products/<pi_uid>/<uuid>.<ext>
-    const filePath = `products/${user.pi_uid}/${crypto.randomUUID()}.${ext}`;
+const filePath = `products/${userId}/${crypto.randomUUID()}.${ext}`;
 
     const { error } = await supabase.storage
       .from("products")
