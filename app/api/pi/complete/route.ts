@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     const pi_uid = authUser.pi_uid;
 
-    /* ================= MAP USER → UUID ================= */
+    /* ================= MAP USER ================= */
 
     const userRes = await client.query(
       `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
 
     const userId = userRes.rows[0].id;
 
-    /* ================= CHECK DUPLICATE ================= */
+    /* ================= CHECK DUP ================= */
 
     const existing = await client.query(
       `select id from orders where pi_payment_id=$1 limit 1`,
@@ -77,15 +77,10 @@ export async function POST(req: Request) {
       });
     }
 
-    /* ================= LOAD PRODUCT ================= */
+    /* ================= PRODUCT ================= */
 
     const productRes = await client.query(
-      `
-      select *
-      from products
-      where id = $1
-      limit 1
-      `,
+      `select * from products where id = $1 limit 1`,
       [productId]
     );
 
@@ -100,25 +95,7 @@ export async function POST(req: Request) {
 
     /* ================= PRICE ================= */
 
-    const now = Date.now();
-    const start = product.sale_start
-      ? new Date(product.sale_start).getTime()
-      : null;
-    const end = product.sale_end
-      ? new Date(product.sale_end).getTime()
-      : null;
-
-    const isSale =
-      product.sale_price &&
-      start &&
-      end &&
-      now >= start &&
-      now <= end;
-
-    const unitPrice = isSale
-      ? Number(product.sale_price)
-      : Number(product.price);
-
+    const unitPrice = Number(product.price);
     const total = Number((unitPrice * quantity).toFixed(6));
 
     /* ================= VERIFY PI ================= */
@@ -158,57 +135,48 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= COMPLETE PI ================= */
-// 🔥 LOG START
-console.log("COMPLETE START:", paymentId, txid);
+    /* ================= COMPLETE PI (QUAN TRỌNG NHẤT) ================= */
 
-const completeRes = await fetch(
-  `${PI_API}/payments/${paymentId}/complete`,
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Key ${PI_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ txid }),
-  }
-);
+    console.log("COMPLETE START:", paymentId, txid);
 
-// 🔥 PARSE RESPONSE
-const completeData = await completeRes.json().catch(() => null);
-
-// 🔥 LOG RESULT
-console.log("COMPLETE RESULT:", completeData);
-
-// 🔥 HANDLE ERROR
-if (!completeRes.ok) {
-  console.error("PI COMPLETE ERROR:", completeData);
-
-  if (
-    completeData?.error?.includes?.("already") ||
-    completeData?.message?.includes?.("completed")
-  ) {
-    console.log("Already completed, continue...");
-  } else {
-    return NextResponse.json(
-      { error: "PI_COMPLETE_FAILED" },
-      { status: 400 }
+    const completeRes = await fetch(
+      `${PI_API}/payments/${paymentId}/complete`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${PI_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ txid }),
+      }
     );
-  }
-}
 
-// 🔥 LOG DONE
-console.log("COMPLETE DONE");
+    const completeData = await completeRes.json().catch(() => null);
+
+    console.log("COMPLETE RESULT:", completeData);
+
+    if (!completeRes.ok) {
+      console.error("PI COMPLETE ERROR:", completeData);
+
+      if (
+        completeData?.error?.includes?.("already") ||
+        completeData?.message?.includes?.("completed")
+      ) {
+        console.log("Already completed, continue...");
+      } else {
+        return NextResponse.json(
+          { error: "PI_COMPLETE_FAILED" },
+          { status: 400 }
+        );
+      }
+    }
+
+    console.log("COMPLETE DONE");
+
     /* ================= ADDRESS ================= */
 
     const addrRes = await client.query(
-      `
-      select *
-      from addresses
-      where user_id = $1
-      and is_default = true
-      limit 1
-      `,
+      `select * from addresses where user_id = $1 and is_default = true limit 1`,
       [userId]
     );
 
@@ -224,8 +192,6 @@ console.log("COMPLETE DONE");
     /* ================= TRANSACTION ================= */
 
     await client.query("BEGIN");
-
-    /* STOCK UPDATE */
 
     const stock = await client.query(
       `
@@ -243,8 +209,6 @@ console.log("COMPLETE DONE");
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "OUT_OF_STOCK" }, { status: 400 });
     }
-
-    /* CREATE ORDER */
 
     const orderRes = await client.query(
       `
@@ -276,8 +240,6 @@ console.log("COMPLETE DONE");
     );
 
     const orderId = orderRes.rows[0].id;
-
-    /* ORDER ITEM */
 
     await client.query(
       `
