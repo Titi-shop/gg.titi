@@ -159,6 +159,9 @@ export async function POST(req: Request) {
     }
 
     /* ================= COMPLETE PI ================= */
+// 🔥 LOG START
+console.log("COMPLETE START:", paymentId, txid);
+
 const completeRes = await fetch(
   `${PI_API}/payments/${paymentId}/complete`,
   {
@@ -171,12 +174,31 @@ const completeRes = await fetch(
   }
 );
 
+// 🔥 PARSE RESPONSE
+const completeData = await completeRes.json().catch(() => null);
+
+// 🔥 LOG RESULT
+console.log("COMPLETE RESULT:", completeData);
+
+// 🔥 HANDLE ERROR
 if (!completeRes.ok) {
-  return NextResponse.json(
-    { error: "PI_COMPLETE_FAILED" },
-    { status: 400 }
-  );
+  console.error("PI COMPLETE ERROR:", completeData);
+
+  if (
+    completeData?.error?.includes?.("already") ||
+    completeData?.message?.includes?.("completed")
+  ) {
+    console.log("Already completed, continue...");
+  } else {
+    return NextResponse.json(
+      { error: "PI_COMPLETE_FAILED" },
+      { status: 400 }
+    );
+  }
 }
+
+// 🔥 LOG DONE
+console.log("COMPLETE DONE");
     /* ================= ADDRESS ================= */
 
     const addrRes = await client.query(
