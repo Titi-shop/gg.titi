@@ -241,19 +241,6 @@ if (userRes.rowCount === 0) {
 }
 
 const userId = userRes.rows[0].id;
-  const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [auth.user.pi_uid]
-);
-
-if (userRes.rowCount === 0) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
-
-const userId = userRes.rows[0].id;
 
   try {
     const body: unknown = await req.json();
