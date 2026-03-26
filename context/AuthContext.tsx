@@ -13,9 +13,11 @@ import { getPiAccessToken } from "@/lib/piAuth";
    TYPES
 ========================= */
 export type PiUser = {
+  id: string; 
   pi_uid: string;
   username: string;
   wallet_address?: string | null;
+  role?: string;
 };
 
 type AuthContextType = {
