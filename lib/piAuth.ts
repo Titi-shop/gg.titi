@@ -99,24 +99,17 @@ export async function verifyPiToken(
   token: string
 ): Promise<PiUser> {
 
-export async function verifyPiToken(
-  token: string
-): Promise<PiUser> {
-
   if (!token) {
     throw new Error("UNAUTHORIZED");
   }
 
-  const res = await fetch(
-    `${PI_API_URL}/me`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
-    }
-  );
+  const res = await fetch(`${PI_API_URL}/me`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
 
   if (!res.ok) {
     throw new Error("PI_TOKEN_INVALID");
@@ -136,7 +129,6 @@ export async function verifyPiToken(
     username: data.username,
   };
 }
-
 
 /* =========================================================
    SERVER: GET PI USER FROM REQUEST TOKEN
