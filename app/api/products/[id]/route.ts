@@ -370,19 +370,62 @@ export async function GET(
       );
     }
 
-    const result = await query(
+    /* =========================
+       1️⃣ PRODUCT
+    ========================= */
+    const productRes = await query(
       `SELECT * FROM products WHERE id = $1 LIMIT 1`,
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (productRes.rows.length === 0) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(result.rows[0]);
+    const product = productRes.rows[0];
+
+    /* =========================
+       2️⃣ VARIANTS
+    ========================= */
+    const variantsRes = await query(
+      `
+      SELECT 
+        id,
+        option_name AS "optionName",
+        option_value AS "optionValue",
+        stock,
+        sku,
+        sort_order AS "sortOrder",
+        is_active AS "isActive"
+      FROM product_variants
+      WHERE product_id = $1
+      ORDER BY sort_order ASC
+      `,
+      [id]
+    );
+
+    const variants = variantsRes.rows;
+
+    /* =========================
+       3️⃣ CATEGORIES
+    ========================= */
+    const categoryRes = await query(
+      `SELECT id, name FROM categories ORDER BY name ASC`
+    );
+
+    /* =========================
+       4️⃣ RESPONSE (GIỐNG POST)
+    ========================= */
+    return NextResponse.json({
+      product: {
+        ...product,
+        variants,
+      },
+      categories: categoryRes.rows,
+    });
 
   } catch (err) {
     console.error("❌ GET PRODUCT ERROR:", err);
