@@ -109,3 +109,34 @@ DO UPDATE SET
     ]
   );
 }
+
+/* ================= GET BANNER ================= */
+export async function getUserShopBanner(userId: string) {
+  const res = await query(
+    `SELECT shop_banner FROM user_profiles WHERE user_id = $1 LIMIT 1`,
+    [userId]
+  );
+
+  return res.rows[0]?.shop_banner ?? null;
+}
+
+/* ================= UPDATE BANNER ================= */
+export async function updateShopBanner(
+  userId: string,
+  url: string
+) {
+  await query(
+    `
+    INSERT INTO user_profiles (user_id, shop_banner, updated_at)
+    VALUES ($1, $2, NOW())
+    ON CONFLICT (user_id)
+    DO UPDATE SET
+      shop_banner = EXCLUDED.shop_banner,
+      updated_at = NOW()
+    `,
+    [userId, url]
+  );
+}
+
+
+
