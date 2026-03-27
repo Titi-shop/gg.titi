@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
+import { getUserIdByPiUid, getUserRoleByPiUid } from "@/lib/db/users";
 import { requireSeller } from "@/lib/auth/guard";
 import {
   createProduct,
@@ -228,19 +228,16 @@ rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
 export async function POST(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
-const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [auth.user.pi_uid]
-);
+const userId = await getUserIdByPiUid(user.pi_uid);
 
-if (userRes.rowCount === 0) {
+if (!userId) {
   return NextResponse.json(
     { error: "USER_NOT_FOUND" },
     { status: 404 }
   );
 }
 
-const userId = userRes.rows[0].id;
+const role = await getUserRoleByPiUid(user.pi_uid);
 
   try {
     const body: unknown = await req.json();
@@ -344,19 +341,16 @@ const userId = userRes.rows[0].id;
 export async function PUT(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
-const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [auth.user.pi_uid]
-);
+const userId = await getUserIdByPiUid(user.pi_uid);
 
-if (userRes.rowCount === 0) {
+if (!userId) {
   return NextResponse.json(
     { error: "USER_NOT_FOUND" },
     { status: 404 }
   );
 }
 
-const userId = userRes.rows[0].id;
+const role = await getUserRoleByPiUid(user.pi_uid);
   try {
     const body: unknown = await req.json();
 
@@ -464,19 +458,16 @@ const userId = userRes.rows[0].id;
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
 if (!auth.ok) return auth.response;
-  const userRes = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [auth.user.pi_uid]
-);
+  const userId = await getUserIdByPiUid(user.pi_uid);
 
-if (userRes.rowCount === 0) {
+if (!userId) {
   return NextResponse.json(
     { error: "USER_NOT_FOUND" },
     { status: 404 }
   );
 }
 
-const userId = userRes.rows[0].id;
+const role = await getUserRoleByPiUid(user.pi_uid);
 
   try {
     const { searchParams } = new URL(req.url);
