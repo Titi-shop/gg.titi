@@ -1,3 +1,4 @@
+// app/api/upload/route.ts
 import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -10,12 +11,17 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function POST(req: Request) {
+type UserRow = {
+  id: string;
+  role: "seller" | "admin" | "customer";
+};
+
+export async function POST(req: Request): Promise<NextResponse> {
   try {
     /* =========================
        1️⃣ AUTH
     ========================= */
-    const user = await getUserFromBearer();
+    const user = await getUserFromBearer(req); // ✅ FIX
 
     if (!user?.pi_uid) {
       return NextResponse.json(
@@ -25,32 +31,25 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       2️⃣ MAP USER
+       2️⃣ MAP USER + ROLE (1 QUERY)
     ========================= */
-    const userRes = await query(
-      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+    const userRes = await query<UserRow>(
+      `SELECT id, role FROM users WHERE pi_uid = $1 LIMIT 1`,
       [user.pi_uid]
     );
 
-    if (userRes.rowCount === 0) {
+    if (userRes.rows.length === 0) {
       return NextResponse.json(
         { error: "USER_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    const userId = userRes.rows[0].id;
+    const { id: userId, role } = userRes.rows[0];
 
     /* =========================
-       3️⃣ ROLE CHECK
+       3️⃣ RBAC
     ========================= */
-    const roleRes = await query(
-      `SELECT role FROM users WHERE id = $1 LIMIT 1`,
-      [userId]
-    );
-
-    const role = roleRes.rows[0]?.role;
-
     if (role !== "seller" && role !== "admin") {
       return NextResponse.json(
         { error: "FORBIDDEN" },
@@ -71,7 +70,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ SIZE LIMIT
+    // ✅ SIZE LIMIT (5MB)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { error: "FILE_TOO_LARGE" },
@@ -90,12 +89,14 @@ export async function POST(req: Request) {
     /* =========================
        5️⃣ PATH
     ========================= */
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const ext = file.name.split(".").pop()?.toLowerCase();
 
-    const filePath = `products/${userId}/${crypto.randomUUID()}.${ext}`;
+    const safeExt = ext && ext.length <= 5 ? ext : "jpg"; // ✅ tránh lỗi
+
+    const filePath = `products/${userId}/${crypto.randomUUID()}.${safeExt}`;
 
     /* =========================
-       6️⃣ UPLOAD
+       6️⃣ UPLOAD (SUPABASE STORAGE)
     ========================= */
     const { error } = await supabase.storage
       .from("products")
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       7️⃣ URL
+       7️⃣ GET URL
     ========================= */
     const { data } = supabase.storage
       .from("products")
