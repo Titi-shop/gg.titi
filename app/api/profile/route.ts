@@ -50,19 +50,6 @@ function isValidEmail(email: string | null) {
   return true;
 }
 
-/* ================= GET USER ID ================= */
-
-async function getUserId(pi_uid: string): Promise<string | null> {
-  const res = await query(
-    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [pi_uid]
-  );
-
-  if (res.rowCount === 0) return null;
-
-  return res.rows[0].id;
-}
-
 /* ================= GET ================= */
 
 export async function GET(req: Request) {
