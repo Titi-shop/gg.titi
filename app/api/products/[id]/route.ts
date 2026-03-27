@@ -360,7 +360,7 @@ const p = result.rows[0];
    GET /api/products/[id]
 ========================= */
 export async function GET(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -373,66 +373,73 @@ export async function GET(
       );
     }
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?id=eq.${encodeURIComponent(id)}&select=*`,
-      {
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-        },
-        cache: "no-store",
-      }
-    );
+    /* =========================
+       🔐 AUTH (NÊN CÓ)
+    ========================= */
+    const user = await getUserFromBearer(req);
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ FETCH PRODUCT ERROR:", text);
+    if (!user?.pi_uid) {
       return NextResponse.json(
-        { error: "FAILED_TO_FETCH_PRODUCT" },
-        { status: 500 }
+        { error: "UNAUTHENTICATED" },
+        { status: 401 }
       );
     }
 
-    const data: ProductRow[] = await res.json();
+    /* =========================
+       🔁 MAP USER
+    ========================= */
+    const userRes = await query<{ id: string }>(
+      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [user.pi_uid]
+    );
 
-    if (data.length === 0) {
+    if (userRes.rows.length === 0) {
+      return NextResponse.json(
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const userId = userRes.rows[0].id;
+
+    /* =========================
+       📦 GET PRODUCT (DB LAYER)
+    ========================= */
+    const product = await getProductById(id);
+
+    if (!product) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    const p = data[0];
+    /* =========================
+       🔐 OPTIONAL: OWNERSHIP CHECK
+    ========================= */
+    if (product.seller_id !== userId) {
+      return NextResponse.json(
+        { error: "FORBIDDEN" },
+        { status: 403 }
+      );
+    }
+
+    /* =========================
+       📦 VARIANTS
+    ========================= */
     const variants = await getVariantsByProductId(id);
 
+    /* =========================
+       ✅ RESPONSE
+    ========================= */
     return NextResponse.json({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-
-      salePrice: p.sale_price ?? null,
-      saleStart: p.sale_start ?? null,
-      saleEnd: p.sale_end ?? null,
-
-      description: p.description ?? "",
-      detail: p.detail ?? "",
-
-      images: p.images ?? [],
-      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-
-      categoryId: p.category_id ?? "",
-      stock: p.stock ?? 0,
-      is_active: p.is_active ?? true,
-
-      views: p.views ?? 0,
-sold: p.sold ?? 0,
-rating_avg: p.rating_avg ?? 0,
-rating_count: p.rating_count ?? 0,
-
+      ...product,
       variants,
     });
+
   } catch (err) {
     console.error("❌ PRODUCT [ID] ERROR:", err);
+
     return NextResponse.json(
       { error: "INTERNAL_SERVER_ERROR" },
       { status: 500 }
