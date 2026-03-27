@@ -99,9 +99,13 @@ export async function verifyPiToken(
   token: string
 ): Promise<PiUser> {
 
-if (!auth || !auth.startsWith("Bearer ")) {
-  return Promise.reject("UNAUTHORIZED");
-}
+export async function verifyPiToken(
+  token: string
+): Promise<PiUser> {
+
+  if (!token) {
+    throw new Error("UNAUTHORIZED");
+  }
 
   const res = await fetch(
     `${PI_API_URL}/me`,
