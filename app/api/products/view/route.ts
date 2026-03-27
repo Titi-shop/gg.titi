@@ -1,17 +1,7 @@
 import { NextResponse } from "next/server";
-
-/* ================= ENV ================= */
-
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-if (!SUPABASE_URL) {
-  throw new Error("SUPABASE_URL is missing");
-}
-
-if (!SERVICE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
-}
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { query } from "@/lib/db";
+import { incrementProductView } from "@/lib/db/products";
 
 /* ================= TYPES ================= */
 
@@ -19,21 +9,39 @@ interface ViewBody {
   id: string;
 }
 
-/* ================= HELPERS ================= */
-
-function supabaseHeaders() {
-  return {
-    apikey: SERVICE_KEY,
-    Authorization: `Bearer ${SERVICE_KEY}`,
-    "Content-Type": "application/json",
-  };
-}
-
 /* ================= POST ================= */
 
 export async function POST(req: Request) {
   try {
-    /* ================= BODY ================= */
+    /* ================= 1️⃣ AUTH ================= */
+
+    const user = await getUserFromBearer();
+
+    if (!user?.pi_uid) {
+      return NextResponse.json(
+        { success: false, message: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    /* ================= 2️⃣ MAP UUID ================= */
+
+    const userRes = await query(
+      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [user.pi_uid]
+    );
+
+    if (userRes.rowCount === 0) {
+      return NextResponse.json(
+        { success: false, message: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    // ⚠️ không cần dùng userId nhưng vẫn phải map theo rule
+    const userId = userRes.rows[0].id;
+
+    /* ================= 3️⃣ BODY ================= */
 
     const body: unknown = await req.json();
 
@@ -51,7 +59,7 @@ export async function POST(req: Request) {
 
     const { id } = body as ViewBody;
 
-    /* ================= VALIDATE ID ================= */
+    /* ================= 4️⃣ VALIDATE ================= */
 
     if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
       return NextResponse.json(
@@ -60,7 +68,7 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= OPTIONAL: LOG IP ================= */
+    /* ================= 5️⃣ LOG ================= */
 
     const ip =
       req.headers.get("x-forwarded-for") ||
@@ -69,32 +77,15 @@ export async function POST(req: Request) {
 
     console.log("👁 VIEW FROM:", ip, "PRODUCT:", id);
 
-    /* ================= CALL RPC ================= */
+    /* ================= 6️⃣ DB CALL ================= */
 
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/rpc/increment_product_view`,
-      {
-        method: "POST",
-        headers: supabaseHeaders(),
-        body: JSON.stringify({ pid: id }),
-      }
-    );
+    const views = await incrementProductView(id);
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ VIEW RPC ERROR:", text);
-
-      return NextResponse.json(
-        { success: false },
-        { status: 500 }
-      );
-    }
-
-    const data: { views: number }[] = await res.json();
+    /* ================= 7️⃣ RESPONSE ================= */
 
     return NextResponse.json({
       success: true,
-      views: data[0]?.views ?? 0,
+      views,
     });
 
   } catch (err) {
