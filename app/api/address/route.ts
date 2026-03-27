@@ -22,16 +22,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const userRes = await query(
-    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [user.pi_uid]
+  const userId = await getUserIdByPiUid(user.pi_uid);
+
+if (!userId) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
   );
+}
 
-  if (userRes.rowCount === 0) {
-    return NextResponse.json({ success: true, items: [] });
-  }
-
-  const userId = userRes.rows[0].id;
+const role = await getUserRoleByPiUid(user.pi_uid);
 
   const items = await getAddressesByUser(userId);
 
