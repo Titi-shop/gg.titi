@@ -373,6 +373,9 @@ export async function GET(
       );
     }
 
+    /* =========================
+       1️⃣ PRODUCT
+    ========================= */
     const result = await query(
       `SELECT * FROM products WHERE id = $1 LIMIT 1`,
       [id]
@@ -385,7 +388,47 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(result.rows[0]);
+    const p = result.rows[0];
+
+    /* =========================
+       2️⃣ VARIANTS (QUAN TRỌNG)
+    ========================= */
+    const variants = await getVariantsByProductId(id);
+
+    /* =========================
+       3️⃣ MAP → FRONTEND FORMAT
+    ========================= */
+    return NextResponse.json({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+
+      salePrice: p.sale_price ?? null,
+      saleStart: p.sale_start ?? null,
+      saleEnd: p.sale_end ?? null,
+
+      description: p.description ?? "",
+      detail: p.detail ?? "",
+
+      images: p.images ?? [],
+      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
+
+      categoryId: p.category_id ?? "",
+      stock: p.stock ?? 0,
+      is_active: p.is_active ?? true,
+
+      views: p.views ?? 0,
+      sold: p.sold ?? 0,
+      rating_avg: p.rating_avg ?? 0,
+      rating_count: p.rating_count ?? 0,
+
+      variants: variants.map((v) => ({
+        optionName: v.optionName ?? "size",
+        optionValue: v.optionValue ?? "",
+        stock: v.stock ?? 0,
+        sku: v.sku ?? "",
+      })),
+    });
 
   } catch (err) {
     console.error("❌ GET PRODUCT ERROR:", err);
