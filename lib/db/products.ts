@@ -369,7 +369,7 @@ export async function updateProductBySeller(
     method: "PATCH",
     headers: {
       ...supabaseHeaders(),
-      Prefer: "return=minimal",
+      Prefer: "return=representation",
     },
     body: JSON.stringify(payload),
   });
@@ -380,7 +380,9 @@ export async function updateProductBySeller(
     throw new Error("FAILED_TO_UPDATE_PRODUCT");
   }
 
-  return true;
+  const rows: ProductRow[] = await res.json();
+
+return rows.length > 0;
 }
 
 /* =========================================================
