@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { query } from "@/lib/db";
 import { blockedEmailDomains } from "@/data/validEmailDomains";
+
+import {
+  getUserProfile,
+  upsertUserProfile,
+} from "@/lib/db/userProfiles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,69 +48,77 @@ function isValidEmail(email: string | null) {
 
   return true;
 }
-async function getUserIdOrThrow(pi_uid: string): Promise<string> {
+
+/* ================= GET USER ID ================= */
+
+async function getUserId(pi_uid: string): Promise<string | null> {
   const res = await query(
     `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
     [pi_uid]
   );
 
-  if (res.rowCount === 0) {
-    throw new Error("USER_NOT_FOUND");
-  }
+  if (res.rowCount === 0) return null;
 
   return res.rows[0].id;
 }
+
 /* ================= GET ================= */
 
-export async function GET() {
-  const user = await getUserFromBearer();
+export async function GET(req: Request) {
+  const user = await getUserFromBearer(req);
+
   if (!user?.pi_uid) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return NextResponse.json(
+      { error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
   }
 
   try {
-    let userId: string;
+    const userId = await getUserId(user.pi_uid);
 
-try {
-  userId = await getUserIdOrThrow(user.pi_uid);
-} catch {
-  return NextResponse.json({
-    success: true,
-    profile: emptyProfile(),
-  });
-}
+    if (!userId) {
+      return NextResponse.json({
+        success: true,
+        profile: emptyProfile(),
+      });
+    }
 
-    const { rows } = await query(
-      `
-      SELECT *
-      FROM user_profiles
-      WHERE user_id = $1
-      LIMIT 1
-      `,
-      [userId]
-    );
+    const profile = await getUserProfile(userId);
 
     return NextResponse.json({
       success: true,
-      profile: rows[0] ?? emptyProfile(),
+      profile: profile ?? emptyProfile(),
     });
   } catch (err) {
     console.error("PROFILE GET ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+
+    return NextResponse.json(
+      { success: false },
+      { status: 500 }
+    );
   }
 }
 
 /* ================= POST ================= */
 
 export async function POST(req: Request) {
-  const user = await getUserFromBearer();
+  const user = await getUserFromBearer(req);
+
   if (!user?.pi_uid) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    return NextResponse.json(
+      { error: "UNAUTHORIZED" },
+      { status: 401 }
+    );
   }
 
   const raw = await req.json().catch(() => null);
+
   if (!raw || typeof raw !== "object") {
-    return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
+    return NextResponse.json(
+      { error: "INVALID_BODY" },
+      { status: 400 }
+    );
   }
 
   const body = raw as Record<string, unknown>;
@@ -146,92 +159,41 @@ export async function POST(req: Request) {
   }
 
   try {
-let userId: string;
+    const userId = await getUserId(user.pi_uid);
 
-try {
-  userId = await getUserIdOrThrow(user.pi_uid);
-} catch {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
+    if (!userId) {
+      return NextResponse.json(
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
-    await query(
-      `
-INSERT INTO user_profiles (
-  user_id,
-  full_name,
-  email,
-  phone,
-  avatar_url,
-  bio,
+    await upsertUserProfile(userId, {
+      full_name,
+      email,
+      phone,
+      avatar_url,
+      bio,
 
-  shop_name,
-  shop_description,
-  shop_banner,
+      shop_name,
+      shop_description,
+      shop_banner,
 
-  country,
-  province,
-  district,
-  ward,
-  address_line,
-  postal_code,
-
-  created_at,
-  updated_at
-)
-VALUES (
-  $1,$2,$3,$4,$5,$6,
-  $7,$8,$9,
-  $10,$11,$12,$13,$14,$15,
-  NOW(),NOW()
-)
-ON CONFLICT (user_id)
-DO UPDATE SET
-  full_name = EXCLUDED.full_name,
-  email = EXCLUDED.email,
-  phone = EXCLUDED.phone,
-  avatar_url = EXCLUDED.avatar_url,
-  bio = EXCLUDED.bio,
-
-  shop_name = EXCLUDED.shop_name,
-  shop_description = EXCLUDED.shop_description,
-  shop_banner = EXCLUDED.shop_banner,
-
-  country = EXCLUDED.country,
-  province = EXCLUDED.province,
-  district = EXCLUDED.district,
-  ward = EXCLUDED.ward,
-  address_line = EXCLUDED.address_line,
-  postal_code = EXCLUDED.postal_code,
-
-  updated_at = NOW()
-      `,
-      [
-        userId,
-        full_name,
-        email,
-        phone,
-        avatar_url,
-        bio,
-
-        shop_name,
-        shop_description,
-        shop_banner,
-
-        country,
-        province,
-        district,
-        ward,
-        address_line,
-        postal_code,
-      ]
-    );
+      country,
+      province,
+      district,
+      ward,
+      address_line,
+      postal_code,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("PROFILE SAVE ERROR:", err);
-    return NextResponse.json({ success: false }, { status: 500 });
+
+    return NextResponse.json(
+      { success: false },
+      { status: 500 }
+    );
   }
 }
