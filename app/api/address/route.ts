@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { query } from "@/lib/db";
+import { getUserIdByPiUid, getUserRoleByPiUid } from "@/lib/db/users";
 
 import {
   getAddressesByUser,
@@ -51,16 +51,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const userRes = await query(
-    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [user.pi_uid]
+  const userId = await getUserIdByPiUid(user.pi_uid);
+
+if (!userId) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
   );
+}
 
-  if (userRes.rowCount === 0) {
-    return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
-  }
-
-  const userId = userRes.rows[0].id;
+const role = await getUserRoleByPiUid(user.pi_uid);
 
   let body: unknown;
 
@@ -127,16 +127,16 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const userRes = await query(
-    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [user.pi_uid]
+  const userId = await getUserIdByPiUid(user.pi_uid);
+
+if (!userId) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
   );
+}
 
-  if (userRes.rowCount === 0) {
-    return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
-  }
-
-  const userId = userRes.rows[0].id;
+const role = await getUserRoleByPiUid(user.pi_uid);
 
   const body = await req.json();
 
@@ -161,16 +161,16 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const userRes = await query(
-    `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-    [user.pi_uid]
+  const userId = await getUserIdByPiUid(user.pi_uid);
+
+if (!userId) {
+  return NextResponse.json(
+    { error: "USER_NOT_FOUND" },
+    { status: 404 }
   );
+}
 
-  if (userRes.rowCount === 0) {
-    return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
-  }
-
-  const userId = userRes.rows[0].id;
+const role = await getUserRoleByPiUid(user.pi_uid);
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
