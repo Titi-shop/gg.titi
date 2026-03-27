@@ -1,4 +1,4 @@
-// app/api/uploadAvatar/route.ts
+
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
 import { query } from "@/lib/db";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     // ==============================
-    // 🔐 AUTH (PI NETWORK)
+    // 🔐 AUTH
     // ==============================
     const user = await getUserFromBearer(req);
 
@@ -21,8 +21,23 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+    // 🔥 QUAN TRỌNG: lấy UUID từ DB
+    const userRes = await query<{ id: string }>(
+      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [user.pi_uid]
+    );
+
+    if (userRes.rows.length === 0) {
+      return NextResponse.json(
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const userId = userRes.rows[0].id;
+
     // ==============================
-    // 📥 READ FILE
+    // 📥 FILE
     // ==============================
     const formData = await req.formData();
     const file = formData.get("file");
@@ -35,18 +50,18 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     // ==============================
-    // 📄 LOAD CURRENT AVATAR
+    // 📄 LOAD OLD AVATAR
     // ==============================
     const result = await query<{ avatar_url: string | null }>(
       `SELECT avatar_url FROM user_profiles WHERE user_id = $1`,
-      [user.pi_uid]
+      [userId] // ✅ FIX
     );
 
     const oldAvatarUrl =
       result.rows.length > 0 ? result.rows[0].avatar_url : null;
 
     // ==============================
-    // 🗑 DELETE OLD AVATAR
+    // 🗑 DELETE OLD
     // ==============================
     if (oldAvatarUrl) {
       try {
@@ -58,10 +73,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     // ==============================
-    // ☁️ UPLOAD NEW AVATAR
+    // ☁️ UPLOAD
     // ==============================
     const blob = await put(
-      `avatars/${user.pi_uid}-${Date.now()}`,
+      `avatars/${userId}-${Date.now()}`, // ✅ dùng UUID luôn
       file,
       {
         access: "public",
@@ -70,7 +85,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
 
     // ==============================
-    // 💾 UPSERT PROFILE
+    // 💾 UPSERT
     // ==============================
     await query(
       `
@@ -81,11 +96,11 @@ export async function POST(req: Request): Promise<NextResponse> {
         avatar_url = EXCLUDED.avatar_url,
         updated_at = NOW()
       `,
-      [user.pi_uid, blob.url]
+      [userId, blob.url] // ✅ FIX
     );
 
     // ==============================
-    // ✅ RESPONSE (CACHE BUST)
+    // ✅ RESPONSE
     // ==============================
     return NextResponse.json({
       success: true,
