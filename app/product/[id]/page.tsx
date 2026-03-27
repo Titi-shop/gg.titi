@@ -10,8 +10,8 @@ import { formatPi } from "@/lib/pi";
 
 function formatDetail(text: string) {
   return text
-    .replace(/\\n/g, "<br/>")   
     .replace(/\r\n/g, "<br/>")
+    .replace(/\n/g, "<br/>") 
     .trim();
 }
 
@@ -495,10 +495,10 @@ const canBuy = hasVariants
 
   {product.detail ? (
     <div
-  className="text-sm text-gray-700 leading-relaxed [&_img]:rounded-lg [&_img]:my-2 [&_img]:w-full"
+  className="text-sm text-gray-700 leading-relaxed whitespace-pre-line [&_img]:rounded-lg [&_img]:my-2 [&_img]:w-full"
   dangerouslySetInnerHTML={{
-    __html: formatDetail(product.detail),
-  }}
+  __html: product.detail,
+}}
 />
   ) : (
     <p className="text-sm text-gray-400">
