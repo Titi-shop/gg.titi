@@ -13,35 +13,28 @@ interface ViewBody {
 
 export async function POST(req: Request) {
   try {
-    /* ================= 1️⃣ AUTH ================= */
+    /* ================= 1️⃣ OPTIONAL AUTH ================= */
 
-    const user = await getUserFromBearer();
+    let userId: string | null = null;
 
-    if (!user?.pi_uid) {
-      return NextResponse.json(
-        { success: false, message: "UNAUTHORIZED" },
-        { status: 401 }
-      );
+    try {
+      const user = await getUserFromBearer(req); // ✅ FIX: thêm req
+
+      if (user?.pi_uid) {
+        const userRes = await query<{ id: string }>(
+          `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+          [user.pi_uid]
+        );
+
+        if (userRes.rows.length > 0) {
+          userId = userRes.rows[0].id;
+        }
+      }
+    } catch {
+      // ❗ ignore auth error → vẫn cho xem
     }
 
-    /* ================= 2️⃣ MAP UUID ================= */
-
-    const userRes = await query(
-      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-      [user.pi_uid]
-    );
-
-    if (userRes.rowCount === 0) {
-      return NextResponse.json(
-        { success: false, message: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
-
-    // ⚠️ không cần dùng userId nhưng vẫn phải map theo rule
-    const userId = userRes.rows[0].id;
-
-    /* ================= 3️⃣ BODY ================= */
+    /* ================= 2️⃣ BODY ================= */
 
     const body: unknown = await req.json();
 
@@ -59,7 +52,7 @@ export async function POST(req: Request) {
 
     const { id } = body as ViewBody;
 
-    /* ================= 4️⃣ VALIDATE ================= */
+    /* ================= 3️⃣ VALIDATE ================= */
 
     if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
       return NextResponse.json(
@@ -68,20 +61,20 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= 5️⃣ LOG ================= */
+    /* ================= 4️⃣ LOG ================= */
 
     const ip =
       req.headers.get("x-forwarded-for") ||
       req.headers.get("x-real-ip") ||
       "unknown";
 
-    console.log("👁 VIEW FROM:", ip, "PRODUCT:", id);
+    console.log("👁 VIEW:", { ip, productId: id, userId });
 
-    /* ================= 6️⃣ DB CALL ================= */
+    /* ================= 5️⃣ DB ================= */
 
     const views = await incrementProductView(id);
 
-    /* ================= 7️⃣ RESPONSE ================= */
+    /* ================= 6️⃣ RESPONSE ================= */
 
     return NextResponse.json({
       success: true,
