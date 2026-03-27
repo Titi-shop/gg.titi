@@ -36,7 +36,6 @@ if (!userId) {
   );
 }
 
-const role = await getUserRoleByPiUid(user.pi_uid);
 
     /* =========================
        3️⃣ RBAC
