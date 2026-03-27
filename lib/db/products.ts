@@ -418,3 +418,29 @@ export async function deleteProductBySeller(
   const rows: ProductRow[] = await res.json();
   return rows.length > 0;
 }
+
+
+/* =========================================================
+   GET — SOLD BY PRODUCT (ORDER-BASED)
+========================================================= */
+
+export async function getSoldByProduct(
+  productId: string
+): Promise<number> {
+  if (!productId) {
+    throw new Error("INVALID_PRODUCT_ID");
+  }
+
+  const { rows } = await query(
+    `
+    SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.product_id = $1
+    AND o.status != 'cancelled'
+    `,
+    [productId]
+  );
+
+  return rows[0]?.sold ?? 0;
+}
