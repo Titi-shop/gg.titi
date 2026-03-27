@@ -1,17 +1,16 @@
+import { getPiAccessToken } from "@/lib/piAuth";
+
 export async function apiAuthFetch(
   input: RequestInfo,
   init?: RequestInit
 ) {
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("pi_token")
-      : null;
+  const token = await getPiAccessToken();
 
   return fetch(input, {
     ...init,
     headers: {
       ...(init?.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Authorization: `Bearer ${token}`,
     },
   });
 }
