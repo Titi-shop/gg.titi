@@ -1,3 +1,4 @@
+// app/api/uploadShopBanner/route.ts
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
 import { query } from "@/lib/db";
@@ -6,6 +7,10 @@ import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type UserRow = {
+  id: string;
+};
+
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     // ==============================
@@ -13,12 +18,29 @@ export async function POST(req: Request): Promise<NextResponse> {
     // ==============================
     const user = await getUserFromBearer(req);
 
-    if (!user) {
+    if (!user?.pi_uid) {
       return NextResponse.json(
         { error: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
+
+    // ==============================
+    // 🔥 MAP pi_uid → userId (UUID)
+    // ==============================
+    const userRes = await query<UserRow>(
+      `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
+      [user.pi_uid]
+    );
+
+    if (userRes.rows.length === 0) {
+      return NextResponse.json(
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const userId = userRes.rows[0].id;
 
     // ==============================
     // 📥 READ FILE
@@ -33,19 +55,27 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
 
+    // (optional nhưng nên có)
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json(
+        { error: "INVALID_FILE_TYPE" },
+        { status: 400 }
+      );
+    }
+
     // ==============================
     // 📄 LOAD CURRENT BANNER
     // ==============================
     const result = await query<{ shop_banner: string | null }>(
       `SELECT shop_banner FROM user_profiles WHERE user_id = $1`,
-      [user.pi_uid]
+      [userId] // ✅ FIX
     );
 
     const oldBanner =
       result.rows.length > 0 ? result.rows[0].shop_banner : null;
 
     // ==============================
-    // 🗑 DELETE OLD BANNER
+    // 🗑 DELETE OLD
     // ==============================
     if (oldBanner) {
       try {
@@ -57,10 +87,10 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     // ==============================
-    // ☁️ UPLOAD NEW BANNER
+    // ☁️ UPLOAD
     // ==============================
     const blob = await put(
-      `shop-banners/${user.pi_uid}-${Date.now()}`,
+      `shop-banners/${userId}-${Date.now()}`, // ✅ dùng UUID
       file,
       {
         access: "public",
@@ -69,7 +99,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
 
     // ==============================
-    // 💾 UPDATE PROFILE
+    // 💾 UPSERT PROFILE
     // ==============================
     await query(
       `
@@ -80,7 +110,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         shop_banner = EXCLUDED.shop_banner,
         updated_at = NOW()
       `,
-      [user.pi_uid, blob.url]
+      [userId, blob.url] // ✅ FIX
     );
 
     // ==============================
@@ -90,6 +120,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       success: true,
       banner: `${blob.url}?t=${Date.now()}`,
     });
+
   } catch (err) {
     console.error("❌ UPLOAD SHOP BANNER ERROR:", err);
 
