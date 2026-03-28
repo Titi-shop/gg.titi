@@ -1,4 +1,4 @@
-import { getUserIdByPiUid, getUserRoleByPiUid } from "@/lib/db/users";
+import { getUserIdByPiUid } from "@/lib/db/users";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
@@ -27,7 +27,11 @@ export async function POST(req: Request): Promise<NextResponse> {
     /* =========================
        2️⃣ MAP USER + ROLE (1 QUERY)
     ========================= */
-    const userId = await getUserIdByPiUid(user.pi_uid);
+    const auth = await requireSeller();
+if (!auth.ok) return auth.response;
+
+const user = auth.user;
+const userId = await getUserIdByPiUid(user.pi_uid);
 
 if (!userId) {
   return NextResponse.json(
@@ -35,18 +39,6 @@ if (!userId) {
     { status: 404 }
   );
 }
-
-
-    /* =========================
-       3️⃣ RBAC
-    ========================= */
-    if (role !== "seller" && role !== "admin") {
-      return NextResponse.json(
-        { error: "FORBIDDEN" },
-        { status: 403 }
-      );
-    }
-
     /* =========================
        4️⃣ FILE
     ========================= */
