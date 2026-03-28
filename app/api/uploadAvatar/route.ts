@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { put, del } from "@vercel/blob";
-import { query } from "@/lib/db";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { getUserIdByPiUid } from "@/lib/db/users";
+
 
 import {
   getUserAvatar,
@@ -15,25 +14,16 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     /* ================= AUTH ================= */
-    const user = await getUserFromBearer(req);
+    const auth = await getUserFromBearer();
 
-    if (!user?.pi_uid) {
-      return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
-      );
-    }
-
-    /* ================= MAP USER ================= */
-    const userId = await getUserIdByPiUid(user.pi_uid);
-
-if (!userId) {
+if (!auth) {
   return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
+    { error: "UNAUTHORIZED" },
+    { status: 401 }
   );
 }
 
+const userId = auth.userId;
     
 
     /* ================= FILE ================= */
