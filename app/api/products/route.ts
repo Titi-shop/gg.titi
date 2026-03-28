@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import {
-  import {
   createProduct,
   updateProductBySeller,
   getAllProducts,
