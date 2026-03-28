@@ -1,4 +1,3 @@
-import { getUserIdByPiUid } from "@/lib/db/users";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireSeller } from "@/lib/auth/guard";
@@ -16,18 +15,10 @@ export async function POST(req: Request): Promise<NextResponse> {
        1️⃣ AUTH + RBAC
     ========================= */
     const auth = await requireSeller();
-    if (!auth.ok) return auth.response;
+if (!auth.ok) return auth.response;
 
-    const user = auth.user;
+const userId = auth.userId;
 
-    const userId = await getUserIdByPiUid(user.pi_uid);
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
 
     /* =========================
        2️⃣ FILE
@@ -57,9 +48,6 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
 
-    console.log("FILE SIZE:", file.size);
-console.log("FILE TYPE:", file.type);
-console.log("FILE NAME:", file.name);
     /* =========================
        3️⃣ PATH
     ========================= */
