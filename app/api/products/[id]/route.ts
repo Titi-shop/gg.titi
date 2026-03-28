@@ -297,24 +297,19 @@ export async function GET(
     }
 
     /* =========================
-       1️⃣ PRODUCT
+       1️⃣ PRODUCT (DB LAYER)
     ========================= */
-    const result = await query(
-      `SELECT * FROM products WHERE id = $1 LIMIT 1`,
-      [id]
-    );
+    const p = await getProductById(id);
 
-    if (result.rows.length === 0) {
+    if (!p) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    const p = result.rows[0];
-
     /* =========================
-       2️⃣ VARIANTS (QUAN TRỌNG)
+       2️⃣ VARIANTS
     ========================= */
     const variants = await getVariantsByProductId(id);
 
