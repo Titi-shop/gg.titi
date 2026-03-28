@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
-import { getUserIdByPiUid } from "@/lib/db/users";
 import { requireSeller } from "@/lib/auth/guard";
 import {
+  import {
   createProduct,
   updateProductBySeller,
+  getAllProducts,
+  getProductsByIds,
+  deleteProductBySeller
 } from "@/lib/db/products";
 import {
   getVariantsByProductId,
   createVariantsForProduct,
   replaceVariantsByProductId,
 } from "@/lib/db/variants";
-import {
-  getAllProducts,
-  getProductsByIds,
-  deleteProductBySeller
-} from "@/lib/db/products";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -89,6 +87,7 @@ export async function GET(req: Request) {
 
     let products: any[] = [];
 
+    /* ================= DB LAYER ================= */
     if (ids) {
       const idArray = ids
         .split(",")
@@ -99,56 +98,12 @@ export async function GET(req: Request) {
         return NextResponse.json([]);
       }
 
-      const inFilter = idArray.map((id) => `"${id}"`).join(",");
-
-      let products: any[] = [];
-
-if (ids) {
-  const idArray = ids
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
-
-  if (idArray.length === 0) {
-    return NextResponse.json([]);
-  }
-
-  products = await getProductsByIds(idArray);
-} else {
-  products = await getAllProducts();
-}
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.text();
-        console.error("❌ FETCH PRODUCTS BY IDS ERROR:", err);
-        return NextResponse.json([]);
-      }
-
-      products = await res.json();
+      products = await getProductsByIds(idArray);
     } else {
-      const res = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/products?select=*`,
-        {
-          headers: {
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.text();
-        console.error("❌ FETCH ALL PRODUCTS ERROR:", err);
-        return NextResponse.json([]);
-      }
-
-      products = await res.json();
+      products = await getAllProducts();
     }
 
+    /* ================= ENRICH ================= */
     const now = Date.now();
 
     const enriched = await Promise.all(
@@ -171,7 +126,9 @@ if (ids) {
           now <= end;
 
         const baseStock =
-          typeof p.stock === "number" && !Number.isNaN(p.stock) ? p.stock : 0;
+          typeof p.stock === "number" && !Number.isNaN(p.stock)
+            ? p.stock
+            : 0;
 
         const isActive = p.is_active !== false;
 
@@ -182,7 +139,7 @@ if (ids) {
           console.error(`❌ GET VARIANTS ERROR: ${p.id}`, error);
         }
 
-        const hasVariants = Array.isArray(variants) && variants.length > 0;
+        const hasVariants = variants.length > 0;
 
         const totalVariantStock = hasVariants
           ? variants.reduce((sum, item) => sum + (item.stock || 0), 0)
@@ -194,7 +151,8 @@ if (ids) {
           id: p.id,
           name: p.name,
 
-          description: typeof p.description === "string" ? p.description : "",
+          description:
+            typeof p.description === "string" ? p.description : "",
           detail: typeof p.detail === "string" ? p.detail : "",
 
           images: Array.isArray(p.images) ? p.images : [],
@@ -216,9 +174,12 @@ if (ids) {
           isOutOfStock: finalStock <= 0 || !isActive,
 
           views: typeof p.views === "number" ? p.views : 0,
-sold: typeof p.sold === "number" ? p.sold : 0,
-rating_avg: typeof p.rating_avg === "number" ? p.rating_avg : 0,
-rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
+          sold: typeof p.sold === "number" ? p.sold : 0,
+          rating_avg:
+            typeof p.rating_avg === "number" ? p.rating_avg : 0,
+          rating_count:
+            typeof p.rating_count === "number" ? p.rating_count : 0,
+
           variants,
         };
       })
@@ -227,6 +188,7 @@ rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
     return NextResponse.json(enriched);
   } catch (err) {
     console.error("❌ GET PRODUCTS ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
@@ -492,6 +454,3 @@ export async function DELETE(req: Request) {
   }
 }
 
-
-  
-}
