@@ -534,9 +534,6 @@ export async function incrementProductView(
   return data[0]?.views ?? 0;
 }
 
-/* =========================================================
-              SOLD
-========================================================= */
 import { query } from "@/lib/db";
 
 export async function getSoldByProduct(
@@ -552,11 +549,10 @@ export async function getSoldByProduct(
     FROM order_items oi
     JOIN orders o ON o.id = oi.order_id
     WHERE oi.product_id = $1
-    AND o.status != 'cancelled'
+    AND o.status IN ('completed', 'received')
     `,
     [productId]
   );
 
   return result.rows[0]?.sold ?? 0;
 }
-
