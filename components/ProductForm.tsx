@@ -384,14 +384,17 @@ if (!name || Number(price) <= 0 || !categoryId) {
       </div>
 
       <input
-        name="price"
-        type="number"
-        step="0.00001"
-        defaultValue={initialData?.price}
-        placeholder={t.price_pi}
-        className="w-full border p-2 rounded"
-        required
-      />
+  name="price"
+  type="number"
+  step="0.00001"
+  value={price}
+  onChange={(e) =>
+    setPrice(e.target.value ? Number(e.target.value) : "")
+  }
+  placeholder={t.price_pi}
+  className="w-full border p-2 rounded"
+  required
+/>
 
       <input
         type="number"
