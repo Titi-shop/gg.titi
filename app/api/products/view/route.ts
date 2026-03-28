@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { query } from "@/lib/db";
 import { incrementProductView } from "@/lib/db/products";
 
 /* ================= TYPES ================= */
@@ -18,21 +17,9 @@ export async function POST(req: Request) {
     let userId: string | null = null;
 
     try {
-      const user = await getUserFromBearer(req); // ✅ FIX: thêm req
-
-      if (user?.pi_uid) {
-        const userRes = await query<{ id: string }>(
-          `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-          [user.pi_uid]
-        );
-
-        if (userRes.rows.length > 0) {
-          userId = userRes.rows[0].id;
-        }
-      }
-    } catch {
-      // ❗ ignore auth error → vẫn cho xem
-    }
+      const auth = await getUserFromBearer(req);
+      userId = auth?.userId ?? null;
+    } catch {}
 
     /* ================= 2️⃣ BODY ================= */
 
