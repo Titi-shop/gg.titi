@@ -227,16 +227,9 @@ rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
 
 export async function POST(req: Request) {
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
-  const user = auth.user;
-const userId = await getUserIdByPiUid(user.pi_uid);
+if (!auth.ok) return auth.response;
 
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
+const userId = auth.userId;
 
 
   try {
@@ -340,16 +333,9 @@ if (!userId) {
 
 export async function PUT(req: Request) {
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
-  const user = auth.user;
-const userId = await getUserIdByPiUid(user.pi_uid);
+if (!auth.ok) return auth.response;
 
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
+const userId = auth.userId;
 
 
   try {
@@ -459,15 +445,8 @@ if (!userId) {
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
 if (!auth.ok) return auth.response;
-  const user = auth.user;
-  const userId = await getUserIdByPiUid(user.pi_uid);
 
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
+const userId = auth.userId;
 
 
   try {
