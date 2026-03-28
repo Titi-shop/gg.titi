@@ -10,7 +10,11 @@ import {
   createVariantsForProduct,
   replaceVariantsByProductId,
 } from "@/lib/db/variants";
-
+import {
+  getAllProducts,
+  getProductsByIds,
+  deleteProductBySeller
+} from "@/lib/db/products";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -97,13 +101,22 @@ export async function GET(req: Request) {
 
       const inFilter = idArray.map((id) => `"${id}"`).join(",");
 
-      const res = await fetch(
-        `${process.env.SUPABASE_URL}/rest/v1/products?id=in.(${inFilter})&select=*`,
-        {
-          headers: {
-            apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          },
+      let products: any[] = [];
+
+if (ids) {
+  const idArray = ids
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  if (idArray.length === 0) {
+    return NextResponse.json([]);
+  }
+
+  products = await getProductsByIds(idArray);
+} else {
+  products = await getAllProducts();
+}
           cache: "no-store",
         }
       );
@@ -441,13 +454,11 @@ const userId = auth.userId;
 /* =========================================================
    DELETE — DELETE PRODUCT (SELLER ONLY)
 ========================================================= */
-
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
-if (!auth.ok) return auth.response;
+  if (!auth.ok) return auth.response;
 
-const userId = auth.userId;
-
+  const userId = auth.userId;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -460,30 +471,9 @@ const userId = auth.userId;
       );
     }
 
-    const res = await fetch(
-      `${process.env.SUPABASE_URL}/rest/v1/products?id=eq.${id}&seller_id=eq.${userId}`,
-      {
-        method: "DELETE",
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
-          Prefer: "return=representation",
-        },
-      }
-    );
+    const deleted = await deleteProductBySeller(userId, id);
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("❌ DELETE ERROR:", text);
-      return NextResponse.json(
-        { error: "FAILED_TO_DELETE_PRODUCT" },
-        { status: 500 }
-      );
-    }
-
-    const deleted = await res.json();
-
-    if (!deleted.length) {
+    if (!deleted) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
@@ -491,11 +481,17 @@ const userId = auth.userId;
     }
 
     return NextResponse.json({ success: true });
+
   } catch (err) {
     console.error("❌ DELETE PRODUCT ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_DELETE_PRODUCT" },
       { status: 500 }
     );
   }
+}
+
+
+  
 }
