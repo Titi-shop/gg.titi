@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { getUserIdByPiUid } from "@/lib/db/users";
 
 import {
   getAddressesByUser,
@@ -16,47 +15,37 @@ export const dynamic = "force-dynamic";
    GET
 ========================= */
 export async function GET(req: Request) {
-  const user = await getUserFromBearer(req);
+  try {
+    const auth = await getUserFromBearer();
 
-  if (!user?.pi_uid) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    if (!auth) {
+      return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
+
+    const userId = auth.userId;
+
+    const items = await getAddressesByUser(userId);
+
+    return NextResponse.json({
+      success: true,
+      items,
+    });
+  } catch (err) {
+    console.error("ADDRESS GET ERROR:", err);
+    return NextResponse.json({ success: false }, { status: 500 });
   }
-
-  const userId = await getUserIdByPiUid(user.pi_uid);
-
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
 }
-
-  const items = await getAddressesByUser(userId);
-
-  return NextResponse.json({
-    success: true,
-    items,
-  });
-}
-
 /* =========================
    POST
 ========================= */
 export async function POST(req: Request) {
-  const user = await getUserFromBearer(req);
+  const auth = await getUserFromBearer();
 
-  if (!user?.pi_uid) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
-
-  const userId = await getUserIdByPiUid(user.pi_uid);
-
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
+if (!auth) {
+  return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 }
+
+const userId = auth.userId;
 
 
   let body: unknown;
@@ -118,21 +107,13 @@ if (!userId) {
    PUT (SET DEFAULT)
 ========================= */
 export async function PUT(req: Request) {
-  const user = await getUserFromBearer(req);
+  const auth = await getUserFromBearer();
 
-  if (!user?.pi_uid) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
-
-  const userId = await getUserIdByPiUid(user.pi_uid);
-
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
+if (!auth) {
+  return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 }
 
+const userId = auth.userId;
 
   const body = await req.json();
 
@@ -151,20 +132,13 @@ if (!userId) {
    DELETE
 ========================= */
 export async function DELETE(req: Request) {
-  const user = await getUserFromBearer(req);
+  const auth = await getUserFromBearer();
 
-  if (!user?.pi_uid) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
-
-  const userId = await getUserIdByPiUid(user.pi_uid);
-
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
+if (!auth) {
+  return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 }
+
+const userId = auth.userId;
 
 
 
