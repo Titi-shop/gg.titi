@@ -145,37 +145,64 @@ export default function ProductForm({
 };
 
   const uploadDetailImages = async (files: File[]) => {
-    if (!files.length) return;
+  if (!files.length) return;
 
-    setUploadingImage(true);
+  if (uploadingImage) return; // tránh spam click
 
-    try {
-      for (const file of files) {
-        const form = new FormData();
-        form.append("file", file);
+  setUploadingImage(true);
 
-        const res = await apiAuthFetch("/api/upload", {
-          method: "POST",
-          body: form,
-        });
-
-        if (!res.ok) throw new Error("UPLOAD_DETAIL_FAILED");
-
-        const data = (await res.json()) as { url?: string };
-        if (!data.url) throw new Error("NO_URL_RETURNED");
-
-        setDetail((prev) => `${prev}\n<img src="${data.url}" />\n`);
+  try {
+    const uploads = files.map(async (file) => {
+      // ✅ check size
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error("FILE_TOO_LARGE");
       }
-    } catch {
-      setMessage({
-        text: t.upload_detail_failed,
-        type: "error",
-      });
-    } finally {
-      setUploadingImage(false);
-    }
-  };
 
+      // ✅ check type
+      if (!file.type.startsWith("image/")) {
+        throw new Error("INVALID_FILE_TYPE");
+      }
+
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await apiAuthFetch("/api/upload", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!res.ok) throw new Error("UPLOAD_DETAIL_FAILED");
+
+      const data = (await res.json()) as { url?: string };
+
+      if (!data.url) throw new Error("NO_URL_RETURNED");
+
+      return data.url;
+    });
+
+    // 🚀 chạy song song
+    const urls = await Promise.all(uploads);
+
+    // ✅ update 1 lần (tránh re-render nhiều)
+    setDetail((prev) => {
+      const html = urls
+        .map((url) => `<img src="${url}" />`)
+        .join("\n");
+
+      return `${prev}\n${html}\n`;
+    });
+
+  } catch (err) {
+    console.error("❌ upload detail error:", err);
+
+    setMessage({
+      text: t.upload_detail_failed,
+      type: "error",
+    });
+  } finally {
+    setUploadingImage(false);
+  }
+};
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
