@@ -1,7 +1,7 @@
 import { getUserIdByPiUid } from "@/lib/db/users";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+import { requireSeller } from "@/lib/auth/guard";
 
 export const runtime = "nodejs";
 
@@ -13,34 +13,24 @@ const supabase = createClient(
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     /* =========================
-       1️⃣ AUTH
+       1️⃣ AUTH + RBAC
     ========================= */
-    const user = await getUserFromBearer(req); // ✅ FIX
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-    if (!user?.pi_uid) {
+    const user = auth.user;
+
+    const userId = await getUserIdByPiUid(user.pi_uid);
+
+    if (!userId) {
       return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
+        { error: "USER_NOT_FOUND" },
+        { status: 404 }
       );
     }
 
     /* =========================
-       2️⃣ MAP USER + ROLE (1 QUERY)
-    ========================= */
-    const auth = await requireSeller();
-if (!auth.ok) return auth.response;
-
-const user = auth.user;
-const userId = await getUserIdByPiUid(user.pi_uid);
-
-if (!userId) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
-    /* =========================
-       4️⃣ FILE
+       2️⃣ FILE
     ========================= */
     const form = await req.formData();
     const file = form.get("file");
@@ -52,7 +42,6 @@ if (!userId) {
       );
     }
 
-    // ✅ SIZE LIMIT (5MB)
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { error: "FILE_TOO_LARGE" },
@@ -60,7 +49,6 @@ if (!userId) {
       );
     }
 
-    // ✅ TYPE CHECK
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
         { error: "INVALID_FILE_TYPE" },
@@ -69,16 +57,15 @@ if (!userId) {
     }
 
     /* =========================
-       5️⃣ PATH
+       3️⃣ PATH
     ========================= */
     const ext = file.name.split(".").pop()?.toLowerCase();
-
-    const safeExt = ext && ext.length <= 5 ? ext : "jpg"; // ✅ tránh lỗi
+    const safeExt = ext && ext.length <= 5 ? ext : "jpg";
 
     const filePath = `products/${userId}/${crypto.randomUUID()}.${safeExt}`;
 
     /* =========================
-       6️⃣ UPLOAD (SUPABASE STORAGE)
+       4️⃣ UPLOAD
     ========================= */
     const { error } = await supabase.storage
       .from("products")
@@ -97,7 +84,7 @@ if (!userId) {
     }
 
     /* =========================
-       7️⃣ GET URL
+       5️⃣ GET URL
     ========================= */
     const { data } = supabase.storage
       .from("products")
