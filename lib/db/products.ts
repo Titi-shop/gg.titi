@@ -533,26 +533,3 @@ export async function incrementProductView(
 
   return data[0]?.views ?? 0;
 }
-
-import { query } from "@/lib/db";
-
-export async function getSoldByProduct(
-  productId: string
-): Promise<number> {
-  if (!productId) {
-    throw new Error("INVALID_PRODUCT_ID");
-  }
-
-  const result = await query<{ sold: number }>(
-    `
-    SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold
-    FROM order_items oi
-    JOIN orders o ON o.id = oi.order_id
-    WHERE oi.product_id = $1
-    AND o.status IN ('completed', 'received')
-    `,
-    [productId]
-  );
-
-  return result.rows[0]?.sold ?? 0;
-}
