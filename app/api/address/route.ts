@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { getUserIdByPiUid, getUserRoleByPiUid } from "@/lib/db/users";
+import { getUserIdByPiUid } from "@/lib/db/users";
 
 import {
   getAddressesByUser,
@@ -30,8 +30,6 @@ if (!userId) {
     { status: 404 }
   );
 }
-
-const role = await getUserRoleByPiUid(user.pi_uid);
 
   const items = await getAddressesByUser(userId);
 
