@@ -1,91 +1,42 @@
 import { headers } from "next/headers";
-import type { AuthUser } from "./types";
+import { getUserIdByPiUid } from "@/lib/db/users";
 
-/* =========================================================
-   PI AUTH — NETWORK FIRST (NO APP_ID)
-   - Verify directly with Pi /v2/me
-   - AccessToken only
-========================================================= */
+type AuthUser = {
+  userId: string; // ✅ UUID ONLY
+};
+
 export async function getUserFromBearer(): Promise<AuthUser | null> {
   try {
-    /* =========================
-       1️⃣ READ AUTH HEADER
-    ========================= */
     const authHeader = headers().get("authorization");
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return null;
     }
 
     const accessToken = authHeader.slice(7).trim();
-    if (!accessToken) {
-      return null;
-    }
-
-    /* =========================
-       2️⃣ VERIFY WITH PI
-    ========================= */
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    if (!accessToken) return null;
 
     const response = await fetch("https://api.minepi.com/v2/me", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
+      headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+    });
 
-    if (!response.ok) {
-      return null;
-    }
+    if (!response.ok) return null;
 
-    const data: unknown = await response.json();
+    const data = await response.json();
 
-    /* =========================
-       3️⃣ STRICT TYPE CHECK
-    ========================= */
-    if (
-      !data ||
-      typeof data !== "object" ||
-      !("uid" in data)
-    ) {
-      return null;
-    }
+    if (!data?.uid) return null;
 
-    const {
-      uid,
-      username,
-      wallet_address,
-    } = data as {
-      uid: string | number;
-      username?: string;
-      wallet_address?: string | null;
-    };
+    const pi_uid = String(data.uid);
 
-    if (!uid) return null;
+    // 🔥 CONVERT NGAY TẠI ĐÂY
+    const userId = await getUserIdByPiUid(pi_uid);
 
-    /* =========================
-       4️⃣ RETURN AUTH USER
-    ========================= */
-    return {
-      pi_uid: String(uid),
-      username: typeof username === "string" ? username : "",
-      wallet_address:
-        typeof wallet_address === "string"
-          ? wallet_address
-          : null,
-    };
+    if (!userId) return null;
 
-  } catch (error) {
-    if ((error as { name?: string })?.name === "AbortError") {
-      console.warn("⚠️ Pi auth timeout");
-      return null;
-    }
+    return { userId };
 
-    console.error("❌ getUserFromBearer error:", error);
+  } catch {
     return null;
   }
 }
