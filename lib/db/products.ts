@@ -537,26 +537,25 @@ export async function incrementProductView(
 /* =========================================================
               SOLD
 ========================================================= */
-export async function incrementProductSold(
-  productId: string,
-  quantity: number
-): Promise<number> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/rpc/increment_product_sold`,
-    {
-      method: "POST",
-      headers: supabaseHeaders(),
-      body: JSON.stringify({
-        pid: productId,
-        qty: quantity,
-      }),
-    }
-  );
 
-  if (!res.ok) {
-    throw new Error("FAILED_TO_INCREMENT_SOLD");
+
+export async function getSoldByProduct(
+  productId: string
+): Promise<number> {
+  if (!productId) {
+    throw new Error("INVALID_PRODUCT_ID");
   }
 
-  const data = await res.json();
-  return data[0]?.sold ?? 0;
+  const result = await query<{ sold: number }>(
+    `
+    SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id
+    WHERE oi.product_id = $1
+    AND o.status != 'cancelled'
+    `,
+    [productId]
+  );
+
+  return result.rows[0]?.sold ?? 0;
 }
