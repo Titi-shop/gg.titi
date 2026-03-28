@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserIdByPiUid, getUserRoleByPiUid } from "@/lib/db/users";
+import { getUserIdByPiUid } from "@/lib/db/users";
 import { requireSeller } from "@/lib/auth/guard";
 import {
   createProduct,
@@ -228,6 +228,7 @@ rating_count: typeof p.rating_count === "number" ? p.rating_count : 0,
 export async function POST(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
+  const user = auth.user;
 const userId = await getUserIdByPiUid(user.pi_uid);
 
 if (!userId) {
@@ -340,6 +341,7 @@ if (!userId) {
 export async function PUT(req: Request) {
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
+  const user = auth.user;
 const userId = await getUserIdByPiUid(user.pi_uid);
 
 if (!userId) {
@@ -457,6 +459,7 @@ if (!userId) {
 export async function DELETE(req: Request) {
   const auth = await requireSeller();
 if (!auth.ok) return auth.response;
+  const user = auth.user;
   const userId = await getUserIdByPiUid(user.pi_uid);
 
 if (!userId) {
