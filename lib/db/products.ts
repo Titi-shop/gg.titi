@@ -216,6 +216,34 @@ export async function getProductsByIds(
   return rows.map(toAppProduct);
 }
 
+
+export async function getProductById(
+  id: string
+): Promise<ProductRecord | null> {
+  if (!id) return null;
+
+  const url =
+    `${SUPABASE_URL}/rest/v1/products` +
+    `?id=eq.${encodeURIComponent(id)}` +
+    `&deleted_at=is.null&select=*`;
+
+  const res = await fetch(url, {
+    headers: supabaseHeaders(),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ GET PRODUCT BY ID ERROR:", text);
+    throw new Error("FAILED_TO_FETCH_PRODUCT");
+  }
+
+  const rows: ProductRow[] = await res.json();
+
+  if (!rows.length) return null;
+
+  return toAppProduct(rows[0]);
+}
 /* =========================================================
    POST — CREATE PRODUCT
 ========================================================= */
