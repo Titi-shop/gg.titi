@@ -1,7 +1,6 @@
 
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { getUserIdByPiUid } from "@/lib/db/users";
 import { blockedEmailDomains } from "@/data/validEmailDomains";
 
 import {
@@ -53,24 +52,16 @@ function isValidEmail(email: string | null) {
 /* ================= GET ================= */
 
 export async function GET(req: Request) {
-  const user = await getUserFromBearer(req);
+  const auth = await getUserFromBearer();
 
-  if (!user?.pi_uid) {
-    return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
-    );
-  }
+if (!auth) {
+  return NextResponse.json(
+    { error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
 
-  try {
-    const userId = await getUserIdByPiUid(user.pi_uid);
-
-    if (!userId) {
-      return NextResponse.json({
-        success: true,
-        profile: emptyProfile(),
-      });
-    }
+const userId = auth.userId;
 
     const profile = await getUserProfile(userId);
 
@@ -91,15 +82,16 @@ export async function GET(req: Request) {
 /* ================= POST ================= */
 
 export async function POST(req: Request) {
-  const user = await getUserFromBearer(req);
+  const auth = await getUserFromBearer();
 
-  if (!user?.pi_uid) {
-    return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
-    );
-  }
+if (!auth) {
+  return NextResponse.json(
+    { error: "UNAUTHORIZED" },
+    { status: 401 }
+  );
+}
 
+const userId = auth.userId;
   const raw = await req.json().catch(() => null);
 
   if (!raw || typeof raw !== "object") {
@@ -147,7 +139,6 @@ export async function POST(req: Request) {
   }
 
   try {
-    const userId = await getUserIdByPiUid(user.pi_uid);
 
     if (!userId) {
       return NextResponse.json(
