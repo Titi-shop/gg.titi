@@ -52,16 +52,17 @@ function isValidEmail(email: string | null) {
 /* ================= GET ================= */
 
 export async function GET(req: Request) {
-  const auth = await getUserFromBearer();
+  try {
+    const auth = await getUserFromBearer();
 
-if (!auth) {
-  return NextResponse.json(
-    { error: "UNAUTHORIZED" },
-    { status: 401 }
-  );
-}
+    if (!auth) {
+      return NextResponse.json(
+        { error: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
 
-const userId = auth.userId;
+    const userId = auth.userId;
 
     const profile = await getUserProfile(userId);
 
@@ -78,7 +79,6 @@ const userId = auth.userId;
     );
   }
 }
-
 /* ================= POST ================= */
 
 export async function POST(req: Request) {
@@ -139,13 +139,6 @@ const userId = auth.userId;
   }
 
   try {
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "USER_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
 
     await upsertUserProfile(userId, {
       full_name,
