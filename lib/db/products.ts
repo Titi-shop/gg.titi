@@ -188,6 +188,35 @@ export async function getSellerProducts(
 }
 
 /* =========================================================
+   GET — PRODUCTS BY IDS
+========================================================= */
+export async function getProductsByIds(
+  ids: string[]
+): Promise<ProductRecord[]> {
+  if (!ids.length) return [];
+
+  const filter = ids.map((id) => `"${id}"`).join(",");
+
+  const url =
+    `${SUPABASE_URL}/rest/v1/products` +
+    `?id=in.(${filter})&deleted_at=is.null&select=*`;
+
+  const res = await fetch(url, {
+    headers: supabaseHeaders(),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ GET PRODUCTS BY IDS ERROR:", text);
+    throw new Error("FAILED_TO_FETCH_PRODUCTS");
+  }
+
+  const rows: ProductRow[] = await res.json();
+  return rows.map(toAppProduct);
+}
+
+/* =========================================================
    POST — CREATE PRODUCT
 ========================================================= */
 
