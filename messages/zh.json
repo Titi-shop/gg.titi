@@ -1,6 +1,6 @@
 {
   
-  "order_completed": "订单已完成",
+  "order_completed": "完成",
   "order_pending": "待确认",
   "order_pickup": "待取货",
   "order_shipping": "运输中",
