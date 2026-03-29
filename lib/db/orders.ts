@@ -304,3 +304,90 @@ export async function cancelOrderBySeller(
 
   return (result.rowCount ?? 0) > 0;
 }
+
+/* =========================================================
+   PATCH — SELLER START SHIPPING
+========================================================= */
+
+export async function startShippingBySeller(
+  orderId: string,
+  sellerId: string
+): Promise<boolean> {
+  if (!orderId || !sellerId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  const result = await query(
+    `
+    UPDATE order_items
+    SET
+      status = 'shipping',
+      shipped_at = NOW()
+    WHERE order_id = $1
+    AND seller_id = $2
+    AND status = 'confirmed'
+    `,
+    [orderId, sellerId]
+  );
+
+  return (result.rowCount ?? 0) > 0;
+}
+
+
+/* =========================================================
+   PATCH — SELLER CONFIRM ORDER
+========================================================= */
+
+export async function confirmOrderBySeller(
+  orderId: string,
+  sellerId: string,
+  message: string | null
+): Promise<boolean> {
+  if (!orderId || !sellerId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  /* 1️⃣ UPDATE ITEMS */
+  const itemResult = await query(
+    `
+    UPDATE order_items
+    SET
+      status = 'confirmed',
+      seller_message = $3
+    WHERE order_id = $1
+    AND seller_id = $2
+    AND status = 'pending'
+    `,
+    [orderId, sellerId, message]
+  );
+
+  if (!itemResult.rowCount) {
+    return false;
+  }
+
+  /* 2️⃣ CHECK REMAINING PENDING */
+  const pendingResult = await query<{ pending: number }>(
+    `
+    SELECT COUNT(*)::int AS pending
+    FROM order_items
+    WHERE order_id = $1
+    AND status = 'pending'
+    `,
+    [orderId]
+  );
+
+  /* 3️⃣ UPDATE ORDER STATUS */
+  if (pendingResult.rows[0].pending === 0) {
+    await query(
+      `
+      UPDATE orders
+      SET status = 'pickup'
+      WHERE id = $1
+      AND status = 'pending'
+      `,
+      [orderId]
+    );
+  }
+
+  return true;
+}
