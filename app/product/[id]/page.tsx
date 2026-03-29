@@ -282,6 +282,8 @@ const canBuy = hasVariants
     id: hasVariants && selectedVariant?.id
       ? `${product.id}-${selectedVariant.id}`
       : product.id,
+    product_id: product.id,
+    variant_id: selectedVariant?.id ?? null,
     name: hasVariants && selectedVariant
       ? `${product.name} - ${selectedVariant.optionValue}`
       : product.name,
@@ -308,6 +310,8 @@ const canBuy = hasVariants
     id: hasVariants && selectedVariant?.id
       ? `${product.id}-${selectedVariant.id}`
       : product.id,
+    product_id: product.id,
+    variant_id: selectedVariant?.id ?? null,
     name: hasVariants && selectedVariant
       ? `${product.name} - ${selectedVariant.optionValue}`
       : product.name,
