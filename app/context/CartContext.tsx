@@ -133,37 +133,58 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   /* ================= ADD ================= */
 
-  const addToCart = (item: CartItem) => {
-    setCart((prev) => {
-      const found = prev.find((p) => p.id === item.id);
+  const addToCart = async (item: CartItem) => {
+  // ✅ update local trước
+  setCart((prev) => {
+    const found = prev.find((p) => p.id === item.id);
 
-      const maxStock =
-        item.variant?.stock ?? item.stock ?? 99;
+    const maxStock =
+      item.variant?.stock ?? item.stock ?? 99;
 
-      if (found) {
-        const newQty =
-          (found.quantity ?? 1) + (item.quantity ?? 1);
+    if (found) {
+      const newQty =
+        (found.quantity ?? 1) + (item.quantity ?? 1);
 
-        return prev.map((p) =>
-          p.id === item.id
-            ? {
-                ...p,
-                quantity: Math.min(maxStock, newQty),
-              }
-            : p
-        );
-      }
+      return prev.map((p) =>
+        p.id === item.id
+          ? {
+              ...p,
+              quantity: Math.min(maxStock, newQty),
+            }
+          : p
+      );
+    }
 
-      return [
-        ...prev,
-        {
-          ...item,
-          product_id: item.product_id ?? item.id,
-          quantity: Math.min(maxStock, item.quantity ?? 1),
-        },
-      ];
+    return [
+      ...prev,
+      {
+        ...item,
+        product_id: item.product_id ?? item.id,
+        quantity: Math.min(maxStock, item.quantity ?? 1),
+      },
+    ];
+  });
+
+  // 🔥🔥🔥 THÊM API CALL (ĐÂY LÀ PHẦN BỊ THIẾU)
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return;
+
+    await fetch("/api/cart", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: item.product_id ?? item.id,
+        quantity: item.quantity ?? 1,
+      }),
     });
-  };
+  } catch (err) {
+    console.error("❌ ADD CART API ERROR:", err);
+  }
+};
 
   /* ================= REMOVE ================= */
 
