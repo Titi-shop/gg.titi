@@ -173,3 +173,105 @@ export async function getSellerOrders(
 
   return rows;
 }
+
+/* =========================================================
+   GET — SELLER ORDER DETAIL
+========================================================= */
+
+export type SellerOrderDetail = {
+  id: string;
+  order_number: string;
+  created_at: string;
+
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address: string;
+  shipping_provider: string | null;
+  shipping_country: string | null;
+  shipping_postal_code: string | null;
+
+  order_items: {
+    id: string;
+    product_id: string;
+    product_name: string;
+    thumbnail: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    status: string;
+    tracking_code?: string | null;
+    seller_message?: string | null;
+  }[];
+
+  total: number;
+};
+
+export async function getSellerOrderById(
+  orderId: string,
+  sellerId: string
+): Promise<SellerOrderDetail | null> {
+  if (!orderId || !sellerId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  const { rows } = await query<SellerOrderDetail>(
+    `
+    SELECT
+      o.id,
+      o.order_number,
+      o.created_at,
+
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address,
+      o.shipping_provider,
+      o.shipping_country,
+      o.shipping_postal_code,
+
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'thumbnail', COALESCE(oi.thumbnail, ''),
+            'quantity', oi.quantity,
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status,
+            'tracking_code', oi.tracking_code,
+            'seller_message', oi.seller_message
+          )
+          ORDER BY oi.created_at ASC
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'::json
+      ) AS order_items,
+
+      COALESCE(SUM(oi.total_price), 0)::float AS total
+
+    FROM orders o
+
+    LEFT JOIN order_items oi
+      ON oi.order_id = o.id
+      AND oi.seller_id = $2
+
+    WHERE o.id = $1
+
+    GROUP BY
+      o.id,
+      o.order_number,
+      o.created_at,
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address,
+      o.shipping_provider,
+      o.shipping_country,
+      o.shipping_postal_code
+    `,
+    [orderId, sellerId]
+  );
+
+  if (!rows.length) return null;
+
+  return rows[0];
+}
