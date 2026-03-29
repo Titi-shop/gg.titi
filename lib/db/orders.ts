@@ -56,3 +56,120 @@ export async function getSellerOrderCounts(
 
   return counts;
 }
+
+/* =========================================================
+   GET — SELLER ORDERS (PAGINATION)
+========================================================= */
+
+export type SellerOrderItem = {
+  id: string;
+  product_id: string;
+  product_name: string;
+  thumbnail: string | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  status: string;
+};
+
+export type SellerOrder = {
+  id: string;
+  order_number: string;
+  created_at: string;
+
+  shipping_name: string;
+  shipping_phone: string;
+  shipping_address: string;
+  shipping_provider: string | null;
+  shipping_country: string | null;
+  shipping_postal_code: string | null;
+
+  order_items: SellerOrderItem[];
+  total: number;
+};
+
+export async function getSellerOrders(
+  sellerId: string,
+  status?: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<SellerOrder[]> {
+  if (!sellerId) {
+    throw new Error("INVALID_SELLER_ID");
+  }
+
+  const offset = (page - 1) * limit;
+
+  let statusFilter = "";
+  const params: unknown[] = [sellerId];
+  let paramIndex = 2;
+
+  if (status) {
+    statusFilter = `AND oi.status = $${paramIndex}`;
+    params.push(status);
+    paramIndex++;
+  }
+
+  const limitIndex = paramIndex++;
+  const offsetIndex = paramIndex++;
+
+  params.push(limit);
+  params.push(offset);
+
+  const { rows } = await query<SellerOrder>(
+    `
+    SELECT
+      o.id,
+      o.order_number,
+      o.created_at,
+
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address,
+      o.shipping_provider,
+      o.shipping_country,
+      o.shipping_postal_code,
+
+      json_agg(
+        json_build_object(
+          'id', oi.id,
+          'product_id', oi.product_id,
+          'product_name', oi.product_name,
+          'thumbnail', oi.thumbnail,
+          'quantity', oi.quantity,
+          'unit_price', oi.unit_price,
+          'total_price', oi.total_price,
+          'status', oi.status
+        )
+        ORDER BY oi.created_at ASC
+      ) AS order_items,
+
+      SUM(oi.total_price)::float AS total
+
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+
+    WHERE oi.seller_id = $1
+    ${statusFilter}
+
+    GROUP BY
+      o.id,
+      o.order_number,
+      o.created_at,
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address,
+      o.shipping_provider,
+      o.shipping_country,
+      o.shipping_postal_code
+
+    ORDER BY o.created_at DESC
+
+    LIMIT $${limitIndex}
+    OFFSET $${offsetIndex}
+    `,
+    params
+  );
+
+  return rows;
+}
