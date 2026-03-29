@@ -7,13 +7,12 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { clearPiToken } from "@/lib/piAuth";
+import { getPiAccessToken, clearPiToken } from "@/lib/piAuth";
 
-/* =========================
-   TYPES
-========================= */
+/* ========================= TYPES ========================= */
+
 export type PiUser = {
-  id: string; 
+  id: string;
   pi_uid: string;
   username: string;
   wallet_address?: string | null;
@@ -38,10 +37,14 @@ const AuthContext = createContext<AuthContextType>({
   logout: () => {},
 });
 
+/* ========================= PROVIDER ========================= */
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [piReady, setPiReady] = useState(false);
+
+  /* ================= PI READY ================= */
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -56,20 +59,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, []);
 
+  /* ================= INIT (NO AUTO LOGIN) ================= */
+
   useEffect(() => {
-  async function init() {
+    const rawUser = localStorage.getItem(USER_KEY);
+
+    if (!rawUser) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      console.log("🟡 AUTH INIT START");
+      const parsed = JSON.parse(rawUser);
+      setUser(parsed);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /* ================= LOGIN ================= */
+
+  const pilogin = async () => {
+    try {
+      setLoading(true);
 
       const token = await getPiAccessToken();
 
-      console.log("🟢 TOKEN:", token);
-
-      if (!token) {
-        console.log("🔴 NO TOKEN → LOGOUT STATE");
-        setUser(null);
-        return;
-      }
+      if (!token) return;
 
       const res = await fetch("/api/pi/verify", {
         method: "POST",
@@ -80,65 +99,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json();
 
-      console.log("🟢 VERIFY RESPONSE:", data);
-
-      if (res.ok && data?.user) {
-        console.log("🟢 LOGIN SUCCESS");
-        setUser(data.user);
-      } else {
-        console.log("🔴 VERIFY FAIL");
-        setUser(null);
+      if (!res.ok || !data?.user) {
+        throw new Error("VERIFY_FAILED");
       }
-    } catch (err) {
-      console.error("❌ AUTH INIT ERROR:", err);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }
 
-  void init();
-}, []);
-
-  const pilogin = async () => {
-  const token = await getPiAccessToken();
-
-  if (!token) return;
-
-  const res = await fetch("/api/pi/verify", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const data = await res.json();
-
-  if (!res.ok || !data?.user) return;
-
-  setUser(data.user);
-
-  // ❗ optional cache
-  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-};
       const verifiedUser: PiUser = data.user;
 
-      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
       setUser(verifiedUser);
+      localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
+
+      console.log("🟢 LOGIN SUCCESS");
     } catch (err) {
-      console.error("❌ Pi login error:", err);
-      alert("❌ Lỗi đăng nhập Pi");
+      console.error("❌ LOGIN ERROR:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= LOGOUT ================= */
+
   const logout = () => {
-  console.log("🔴 LOGOUT");
-  localStorage.removeItem("pi_user");
-  clearPiToken();
-  setUser(null);
-};
+    console.log("🔴 LOGOUT");
+
+    localStorage.removeItem(USER_KEY);
+
+    // 🔥 QUAN TRỌNG NHẤT
+    clearPiToken();
+
+    setUser(null);
+  };
+
+  /* ================= PROVIDER ================= */
 
   return (
     <AuthContext.Provider
@@ -148,5 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+/* ================= HOOK ================= */
 
 export const useAuth = () => useContext(AuthContext);
