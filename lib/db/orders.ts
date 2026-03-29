@@ -275,3 +275,32 @@ export async function getSellerOrderById(
 
   return rows[0];
 }
+
+/* =========================================================
+   PATCH — SELLER CANCEL ORDER ITEMS
+========================================================= */
+
+export async function cancelOrderBySeller(
+  orderId: string,
+  sellerId: string,
+  reason: string | null
+): Promise<boolean> {
+  if (!orderId || !sellerId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  const result = await query(
+    `
+    UPDATE order_items
+    SET
+      status = 'cancelled',
+      seller_cancel_reason = $3
+    WHERE order_id = $1
+    AND seller_id = $2
+    AND status IN ('pending','confirmed')
+    `,
+    [orderId, sellerId, reason]
+  );
+
+  return (result.rowCount ?? 0) > 0;
+}
