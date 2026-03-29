@@ -68,25 +68,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const pilogin = async () => {
-    try {
-      setLoading(true);
+  const token = await getPiAccessToken();
 
-      const token = await getPiAccessToken();
+  if (!token) return;
 
-      const res = await fetch("/api/pi/verify", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  const res = await fetch("/api/pi/verify", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-      const data = await res.json();
+  const data = await res.json();
 
-      if (!res.ok || !data?.success || !data?.user) {
-        alert("❌ Pi verify thất bại");
-        return;
-      }
+  if (!res.ok || !data?.user) return;
 
+  setUser(data.user);
+
+  // ❗ optional cache
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+};
       const verifiedUser: PiUser = data.user;
 
       localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
@@ -100,9 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem(USER_KEY);
-    setUser(null);
-  };
+  localStorage.removeItem(USER_KEY);
+
+  // 🔥 bắt buộc
+  localStorage.removeItem("pi_access_token");
+
+  setUser(null);
+};
 
   return (
     <AuthContext.Provider
