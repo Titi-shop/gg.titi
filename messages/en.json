@@ -1,8 +1,8 @@
 {
   
   "order_completed": "completed",
-  "order_pending": "Pending Confirmation",
-  "order_pickup": "Waiting for Pickup",
+  "order_pending": "Pending ",
+  "order_pickup": "Pickup",
   "order_shipping": "Shipping",
   "order_review": "Review",
   "order_received": "Received",
