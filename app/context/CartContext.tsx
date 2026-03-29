@@ -9,7 +9,7 @@ import { getPiAccessToken } from "@/lib/piAuth";
 type CartItem = {
   id: string;
   product_id?: string;
-
+ variant_id?: string | null;
   name: string;
 
   price: number;
@@ -123,14 +123,38 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    if (cart.length === 0) return;
-
     if (typeof window === "undefined") return;
     if (!("Pi" in window)) return;
-
     void syncWithServer();
-  }, [user]); // 🔥 chỉ chạy khi login
+  }, [user]); 
 
+  /* ================= LOAD CART FROM SERVER ================= */
+
+useEffect(() => {
+  async function loadCart() {
+    try {
+      const token = await getPiAccessToken();
+      if (!token) return;
+
+      const res = await fetch("/api/cart", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      setCart(data);
+    } catch {}
+  }
+
+  if (user) {
+    void loadCart();
+  }
+}, [user]);
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
@@ -178,6 +202,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       },
       body: JSON.stringify({
         product_id: item.product_id ?? item.id,
+        variant_id: item.variant_id ?? null,
         quantity: item.quantity ?? 1,
       }),
     });
