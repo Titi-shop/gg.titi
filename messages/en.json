@@ -1,6 +1,6 @@
 {
   
-  "order_completed": "Order completed",
+  "order_completed": "completed",
   "order_pending": "Pending Confirmation",
   "order_pickup": "Waiting for Pickup",
   "order_shipping": "Shipping",
