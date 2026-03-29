@@ -1,7 +1,7 @@
 {
   
   "order_completed": "hoàn thành",
-  "order_pending": "xác nhận",
+  "order_pending": "chờ xác nhận",
   "order_pickup": "lấy hàng",
   "order_shipping": "Đang vận chuyển",
   "order_review": "Đánh giá",
