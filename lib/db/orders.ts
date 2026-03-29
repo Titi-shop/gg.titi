@@ -391,3 +391,62 @@ export async function confirmOrderBySeller(
 
   return true;
 }
+
+
+/* =========================================================
+   GET — BUYER ORDER COUNTS
+========================================================= */
+
+export type BuyerOrderCount = {
+  pending: number;
+  pickup: number;
+  shipping: number;
+  completed: number;
+  cancelled: number;
+};
+
+export async function getBuyerOrderCounts(
+  userId: string
+): Promise<BuyerOrderCount> {
+  if (!userId) {
+    throw new Error("INVALID_USER_ID");
+  }
+
+  const { rows } = await query<BuyerOrderCount>(
+    `
+    SELECT
+      COUNT(*) FILTER (WHERE o.status='pending')::int AS pending,
+      COUNT(*) FILTER (WHERE o.status='pickup')::int AS pickup,
+      COUNT(*) FILTER (WHERE o.status='shipping')::int AS shipping,
+
+      COUNT(DISTINCT o.id) FILTER (
+        WHERE o.status='completed'
+        AND EXISTS (
+          SELECT 1
+          FROM order_items oi
+          WHERE oi.order_id = o.id
+          AND NOT EXISTS (
+            SELECT 1
+            FROM reviews r
+            WHERE r.order_item_id = oi.id
+            AND r.user_id = $1
+          )
+        )
+      )::int AS completed,
+
+      COUNT(*) FILTER (WHERE o.status='cancelled')::int AS cancelled
+
+    FROM orders o
+    WHERE o.buyer_id = $1
+    `,
+    [userId]
+  );
+
+  return rows[0] ?? {
+    pending: 0,
+    pickup: 0,
+    shipping: 0,
+    completed: 0,
+    cancelled: 0,
+  };
+}
