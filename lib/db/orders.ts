@@ -824,6 +824,7 @@ export async function getCartByBuyer(userId: string) {
       c.quantity,
 
       p.name,
+      p.sale_price,
       p.price,
       p.thumbnail,
       p.stock
