@@ -54,8 +54,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
 const mergeCartOnLogin = async () => {
   try {
+    if (sessionStorage.getItem("cart_merged")) return;
+    sessionStorage.setItem("cart_merged", "1");
+
     const token = await getPiAccessToken();
-    if (!token) return;
+if (!token || !user) return;
 
     const localRaw = localStorage.getItem("cart");
     const localCart: CartItem[] = localRaw ? JSON.parse(localRaw) : [];
