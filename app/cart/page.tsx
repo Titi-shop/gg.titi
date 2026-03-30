@@ -132,10 +132,7 @@ export default function CartPage() {
 
       if (!Array.isArray(data)) return;
 
-      // 🔥 update local cart
-      data.forEach((item: any) => {
-        updateQty(item.id, item.quantity);
-      });
+      setCart(data);
     } catch {}
   }
 
