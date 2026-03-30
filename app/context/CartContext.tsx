@@ -192,7 +192,6 @@ useEffect(() => {
       },
       body: JSON.stringify({
         product_id: item.product_id ?? item.id,
-        variant_id: item.variant_id ?? null,
         quantity: item.quantity ?? 1,
       }),
     });
