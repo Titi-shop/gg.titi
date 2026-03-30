@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
-import {
+import {deleteCartItem,
   getCartByBuyer,
   upsertCartItems,
 } from "@/lib/db/orders";
@@ -87,6 +87,47 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     console.error("❌ [CART POST ERROR]:", err);
+    return NextResponse.json(
+      { error: "SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
+}
+
+/* ================= DELETE CART ITEM ================= */
+
+export async function DELETE(req: NextRequest) {
+  try {
+    console.log("🟡 [CART DELETE] START");
+
+    const auth = await requireAuth();
+    if (!auth.ok) return auth.response;
+
+    const userId = auth.userId;
+
+    const body = await req.json();
+
+    console.log("🟡 [CART DELETE] BODY:", body);
+
+    const productId = body?.product_id;
+    const variantId = body?.variant_id ?? null;
+
+    if (!productId) {
+      return NextResponse.json(
+        { error: "INVALID_PRODUCT_ID" },
+        { status: 400 }
+      );
+    }
+
+    await deleteCartItem(userId, productId, variantId);
+
+    console.log("🟢 [CART DELETE] DONE");
+
+    return NextResponse.json({ success: true });
+
+  } catch (err) {
+    console.error("❌ CART DELETE ERROR:", err);
+
     return NextResponse.json(
       { error: "SERVER_ERROR" },
       { status: 500 }
