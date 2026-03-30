@@ -417,10 +417,6 @@ export default function CartPage() {
   </span>
 </div>
 
-              <div className="text-right">
-                <p className="font-semibold text-orange-600">
-                  {formatPi(unit * item.quantity)} π
-                </p>
                 <button
                   onClick={() => removeFromCart(item.id)}
                   className="text-xs text-red-500"
