@@ -218,7 +218,7 @@ const quantity = useMemo(() => {
   ========================= */
 
   const validateBeforePay = () => {
-console.log(“🟡 VALIDATE START”);
+console.log("🟡 VALIDATE START");
      
      if (!window.Pi || !piReady) {
   console.log("🔴 PI NOT READY");
@@ -262,7 +262,7 @@ console.log(“🟡 VALIDATE START”);
   ========================= */
 
   const handlePay = useCallback(async () => {
-     console.log(“🟡 PAY START”);
+     console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
      
     if (processing) return;
