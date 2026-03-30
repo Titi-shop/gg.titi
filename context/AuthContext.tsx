@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(verifiedUser);
       localStorage.setItem(USER_KEY, JSON.stringify(verifiedUser));
-
+      sessionStorage.removeItem("cart_merged");
       console.log("🟢 LOGIN SUCCESS");
     } catch (err) {
       console.error("❌ LOGIN ERROR:", err);
@@ -119,16 +119,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* ================= LOGOUT ================= */
 
   const logout = () => {
-    console.log("🔴 LOGOUT");
+  console.log("🔴 LOGOUT");
 
-    localStorage.removeItem(USER_KEY);
+  // 🧹 clear user
+  localStorage.removeItem(USER_KEY);
 
-    // 🔥 QUAN TRỌNG NHẤT
-    clearPiToken();
+  // 🧹 clear cart (QUAN TRỌNG)
+  localStorage.removeItem("cart");
 
-    setUser(null);
-  };
+  // 🧹 reset merge flag
+  sessionStorage.removeItem("cart_merged");
 
+  // 🧹 clear Pi token
+  clearPiToken();
+
+  setUser(null);
+};
   /* ================= PROVIDER ================= */
 
   return (
