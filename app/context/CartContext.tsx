@@ -70,14 +70,10 @@ const mergeCartOnLogin = async () => {
 
       const map = new Map<string, CartItem>();
 
-      for (const item of serverCart) {
-        const key = `${item.product_id}_${item.variant_id ?? "default"}`;
-        map.set(key, item);
-      }
+      const variantId =
+  item.variant_id ?? item.variant?.optionValue ?? null;
 
-      for (const item of localCart) {
-        const key = `${item.product_id}_${item.variant_id ?? "default"}`;
-
+const key = `${item.product_id}_${variantId ?? "default"}`;
         if (map.has(key)) {
           const existing = map.get(key)!;
           existing.quantity =
@@ -89,14 +85,14 @@ const mergeCartOnLogin = async () => {
 
       const merged = Array.from(map.values());
 
-      await fetch("/api/cart/bulk", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(merged),
-      });
+      await fetch("/api/cart", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(merged),
+});
 
       const finalRes = await fetch("/api/cart", {
         headers: { Authorization: `Bearer ${token}` },
