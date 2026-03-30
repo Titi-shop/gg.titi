@@ -22,12 +22,16 @@ function safeQuantity(v: unknown) {
 export async function POST(req: Request) {
   const client = await pool.connect();
 
+  console.log("🟡 [PI COMPLETE] START");
+
   try {
     /* ================= BODY ================= */
 
     const body = await req.json().catch(() => null);
+    console.log("🟡 BODY:", body);
 
     if (!body || typeof body !== "object") {
+      console.log("🔴 INVALID BODY");
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
@@ -36,7 +40,10 @@ export async function POST(req: Request) {
     const productId = String((body as any).product_id || "");
     const quantity = safeQuantity((body as any).quantity);
 
+    console.log("🟢 PARSED:", { paymentId, txid, productId, quantity });
+
     if (!paymentId || !txid || !productId) {
+      console.log("🔴 MISSING FIELD");
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
@@ -45,8 +52,11 @@ export async function POST(req: Request) {
     const authUser = await getUserFromBearer(req);
 
     if (!authUser) {
+      console.log("🔴 UNAUTHORIZED");
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
     }
+
+    console.log("🟢 AUTH USER:", authUser.pi_uid);
 
     const pi_uid = authUser.pi_uid;
 
@@ -58,10 +68,12 @@ export async function POST(req: Request) {
     );
 
     if (userRes.rowCount === 0) {
+      console.log("🔴 USER NOT FOUND IN DB");
       return NextResponse.json({ error: "USER_NOT_FOUND" }, { status: 404 });
     }
 
     const userId = userRes.rows[0].id;
+    console.log("🟢 USER ID:", userId);
 
     /* ================= CHECK DUP ================= */
 
@@ -71,6 +83,7 @@ export async function POST(req: Request) {
     );
 
     if (existing.rows.length > 0) {
+      console.log("🟡 DUPLICATE ORDER:", existing.rows[0].id);
       return NextResponse.json({
         success: true,
         order_id: existing.rows[0].id,
@@ -86,7 +99,10 @@ export async function POST(req: Request) {
 
     const product = productRes.rows[0];
 
+    console.log("🟢 PRODUCT:", product?.id);
+
     if (!product || product.is_active === false || product.deleted_at) {
+      console.log("🔴 PRODUCT INVALID");
       return NextResponse.json(
         { error: "PRODUCT_NOT_AVAILABLE" },
         { status: 400 }
@@ -98,7 +114,11 @@ export async function POST(req: Request) {
     const unitPrice = Number(product.price);
     const total = Number((unitPrice * quantity).toFixed(6));
 
+    console.log("🟢 PRICE:", { unitPrice, total });
+
     /* ================= VERIFY PI ================= */
+
+    console.log("🟡 VERIFY PI PAYMENT");
 
     const piRes = await fetch(`${PI_API}/payments/${paymentId}`, {
       headers: { Authorization: `Key ${PI_KEY}` },
@@ -106,6 +126,7 @@ export async function POST(req: Request) {
     });
 
     if (!piRes.ok) {
+      console.log("🔴 PI PAYMENT NOT FOUND");
       return NextResponse.json(
         { error: "PI_PAYMENT_NOT_FOUND" },
         { status: 400 }
@@ -114,7 +135,10 @@ export async function POST(req: Request) {
 
     const payment = await piRes.json();
 
+    console.log("🟢 PI PAYMENT:", payment);
+
     if (payment.user_uid !== pi_uid) {
+      console.log("🔴 INVALID OWNER");
       return NextResponse.json(
         { error: "INVALID_PAYMENT_OWNER" },
         { status: 403 }
@@ -122,6 +146,7 @@ export async function POST(req: Request) {
     }
 
     if (payment.status !== "approved") {
+      console.log("🔴 NOT APPROVED:", payment.status);
       return NextResponse.json(
         { error: "PAYMENT_NOT_APPROVED" },
         { status: 400 }
@@ -129,15 +154,16 @@ export async function POST(req: Request) {
     }
 
     if (Math.abs(Number(payment.amount) - total) > 0.00001) {
+      console.log("🔴 INVALID AMOUNT", payment.amount, total);
       return NextResponse.json(
         { error: "INVALID_AMOUNT" },
         { status: 400 }
       );
     }
 
-    /* ================= COMPLETE PI (QUAN TRỌNG NHẤT) ================= */
+    /* ================= COMPLETE PI ================= */
 
-    console.log("COMPLETE START:", paymentId, txid);
+    console.log("🟡 COMPLETE START:", paymentId, txid);
 
     const completeRes = await fetch(
       `${PI_API}/payments/${paymentId}/complete`,
@@ -153,16 +179,16 @@ export async function POST(req: Request) {
 
     const completeData = await completeRes.json().catch(() => null);
 
-    console.log("COMPLETE RESULT:", completeData);
+    console.log("🟢 COMPLETE RESULT:", completeData);
 
     if (!completeRes.ok) {
-      console.error("PI COMPLETE ERROR:", completeData);
+      console.error("🔴 COMPLETE ERROR:", completeData);
 
       if (
         completeData?.error?.includes?.("already") ||
         completeData?.message?.includes?.("completed")
       ) {
-        console.log("Already completed, continue...");
+        console.log("🟡 ALREADY COMPLETED");
       } else {
         return NextResponse.json(
           { error: "PI_COMPLETE_FAILED" },
@@ -170,8 +196,6 @@ export async function POST(req: Request) {
         );
       }
     }
-
-    console.log("COMPLETE DONE");
 
     /* ================= ADDRESS ================= */
 
@@ -183,14 +207,18 @@ export async function POST(req: Request) {
     const addr = addrRes.rows[0];
 
     if (!addr) {
+      console.log("🔴 NO ADDRESS");
       return NextResponse.json(
         { error: "NO_ADDRESS" },
         { status: 400 }
       );
     }
 
+    console.log("🟢 ADDRESS OK");
+
     /* ================= TRANSACTION ================= */
 
+    console.log("🟡 BEGIN TRANSACTION");
     await client.query("BEGIN");
 
     const stock = await client.query(
@@ -206,9 +234,12 @@ export async function POST(req: Request) {
     );
 
     if (stock.rowCount === 0) {
+      console.log("🔴 OUT OF STOCK");
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "OUT_OF_STOCK" }, { status: 400 });
     }
+
+    console.log("🟢 STOCK UPDATED");
 
     const orderRes = await client.query(
       `
@@ -241,6 +272,8 @@ export async function POST(req: Request) {
 
     const orderId = orderRes.rows[0].id;
 
+    console.log("🟢 ORDER CREATED:", orderId);
+
     await client.query(
       `
       insert into order_items (
@@ -267,7 +300,10 @@ export async function POST(req: Request) {
       ]
     );
 
+    console.log("🟢 ORDER ITEM CREATED");
+
     await client.query("COMMIT");
+    console.log("🟢 COMMIT DONE");
 
     return NextResponse.json({
       success: true,
@@ -279,7 +315,7 @@ export async function POST(req: Request) {
       await client.query("ROLLBACK");
     } catch {}
 
-    console.error("COMPLETE ERROR:", err);
+    console.error("❌ COMPLETE ERROR:", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
@@ -287,5 +323,6 @@ export async function POST(req: Request) {
     );
   } finally {
     client.release();
+    console.log("🟡 [PI COMPLETE] END");
   }
 }
