@@ -139,35 +139,38 @@ const quantity = useMemo(() => {
       try {
         console.log("🟡 [CHECKOUT] LOAD ADDRESS START");
 
-const token = await getPiAccessToken();
-console.log("🟢 TOKEN:", token);
+    const token = await getPiAccessToken();
+    console.log("🟢 TOKEN:", token);
 
-const res = await fetch("/api/address", {
-  headers: { Authorization: `Bearer ${token}` },
-});
+    const res = await fetch("/api/address", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-console.log("🟢 ADDRESS RES STATUS:", res.status);
+    console.log("🟢 ADDRESS RES:", res.status);
 
-        if (!res.ok) return;
+    if (!res.ok) return;
 
-        const data: AddressApiResponse = await res.json();
-        console.log("🟢 ADDRESS DATA:", data);
-         
-        const def = data.items?.find((a) => a.is_default);
-        if (!def) return;
+    const data: AddressApiResponse = await res.json();
+    console.log("🟢 ADDRESS DATA:", data);
 
-        setShipping({
-          name: def.full_name,
-          phone: def.phone,
-          address_line: def.address_line,
-          province: def.province,
-          country: def.country,
-          postal_code: def.postal_code ?? null,
-        });
-      } catch {
-        setShipping(null);
-      }
-    }
+    const def = data.items?.find((a) => a.is_default);
+    if (!def) return;
+
+    setShipping({
+      name: def.full_name,
+      phone: def.phone,
+      address_line: def.address_line,
+      province: def.province,
+      country: def.country,
+      postal_code: def.postal_code ?? null,
+    });
+
+    console.log("🟢 SHIPPING SET");
+  } catch (err) {
+    console.error("❌ LOAD ADDRESS ERROR:", err);
+    setShipping(null);
+  }
+}
 
     if (open && user) loadAddress();
   }, [open, user]);
@@ -177,7 +180,11 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
   ========================= */
 
   useEffect(() => {
-     console.log("🟡 [CHECKOUT] AUTO PAY CHECK",
+console.log(“🟡 AUTO PAY CHECK”, {
+user,
+shipping,
+processing,
+});
     if (!user || !shipping || processing) return;
 
     const pending = localStorage.getItem("pending_checkout");
@@ -186,6 +193,7 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
     localStorage.removeItem("pending_checkout");
 
     setTimeout(() => {
+       console.log("🟢 AUTO PAY TRIGGER");
       handlePay();
     }, 300);
   }, [user, shipping, processing]);
@@ -211,7 +219,8 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
   ========================= */
 
   const validateBeforePay = () => {
-
+console.log(“🟡 VALIDATE START”);
+     
      if (!window.Pi || !piReady) {
   showMessage(t.pi_not_ready || "Pi is not ready");
   return false;
@@ -261,12 +270,15 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
   ========================= */
 
   const handlePay = useCallback(async () => {
+     console.log(“🟡 PAY START”);
     if (!validateBeforePay()) return;
+     
     if (processing) return;
 
     setProcessing(true);
 
     try {
+       console.log("🟢 CALL PI PAYMENT");
       await window.Pi?.createPayment(
         {
           amount: total,
@@ -285,6 +297,7 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
         {
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
+               console.log("🟡 APPROVE START:", paymentId);
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/approve", {
@@ -295,8 +308,9 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
                 },
                 body: JSON.stringify({ paymentId }),
               });
-
+         console.log("🟢 APPROVE RES:", res.status);
               if (!res.ok) {
+                 console.log("🔴 APPROVE FAILED");
                 setProcessing(false);
                 showMessage(t.payment_approve_failed);
                 return;
@@ -311,6 +325,7 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
 
           onReadyForServerCompletion: async (paymentId, txid) => {
             try {
+               console.log("🟡 COMPLETE START:", paymentId, txid);
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/complete", {
@@ -329,12 +344,15 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
                   user: { pi_uid: user!.pi_uid },
                 }),
               });
+               console.log("🟢 COMPLETE RES:", res.status);
 
               if (!res.ok) {
+                 console.log("🔴 COMPLETE FAILED");
                 setProcessing(false);
                 showMessage(t.payment_complete_failed);
                 return;
               }
+               console.log("🟢 PAYMENT SUCCESS");
 
               setProcessing(false);
               onClose();
@@ -347,6 +365,7 @@ console.log("🟢 ADDRESS RES STATUS:", res.status);
           },
 
           onCancel: () => {
+             console.log("🟡 PAYMENT CANCEL");
             setProcessing(false);
             showMessage(t.payment_cancelled);
           },
