@@ -849,7 +849,7 @@ export async function getCartByBuyer(userId: string) {
     name: r.name ?? "Unknown product",
 
     price: Number(r.price ?? 0),
-    sale_price: null,
+    sale_price: r.sale_price ? Number(r.sale_price) : null,
 
     thumbnail: r.thumbnail ?? "",
     stock: r.stock ?? 0,
