@@ -343,86 +343,121 @@ export default function CartPage() {
 
       <div className="bg-white divide-y">
         {cart.map((item) => {
-          const unit =
-            typeof item.sale_price === "number" ? item.sale_price : item.price;
+  const unit =
+    typeof item.sale_price === "number"
+      ? item.sale_price
+      : item.price;
 
-          return (
-            <div key={item.id} className="flex items-center gap-3 p-4">
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(item.id)}
-                onChange={() => toggleItem(item.id)}
-              />
+  const hasSale =
+    typeof item.sale_price === "number" &&
+    item.sale_price < item.price;
 
-              <img
-                src={item.thumbnail || "/placeholder.png"}
-                alt={item.name}
-                className="h-16 w-16 rounded object-cover"
-              />
+  const maxStock = item.variant?.stock ?? item.stock ?? 99;
 
-              <div className="flex-1">
-                <p className="text-sm font-medium line-clamp-2">{item.name}</p>
+  return (
+    <div key={item.id} className="flex items-center gap-3 p-4">
+      <input
+        type="checkbox"
+        checked={selectedIds.includes(item.id)}
+        onChange={() => toggleItem(item.id)}
+      />
 
-               <div className="mt-2 flex items-center justify-between">
-  
-  {/* LEFT: QUANTITY */}
-  <div className="flex items-center border rounded-lg overflow-hidden">
+      {/* IMAGE + SALE */}
+      <div className="relative">
+        <img
+          src={item.thumbnail || "/placeholder.png"}
+          alt={item.name}
+          className="h-16 w-16 rounded object-cover"
+        />
 
-    {/* - */}
-    <button
-      onClick={() => updateQty(item.id, item.quantity - 1)}
-      disabled={item.quantity <= 1}
-      className="px-3 py-1 text-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
-    >
-      −
-    </button>
+        {hasSale && (
+          <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] px-1 rounded-br">
+            SALE
+          </div>
+        )}
+      </div>
 
-    {/* QTY */}
-    <div className="px-4 text-sm font-medium">
-      {item.quantity}
-    </div>
+      <div className="flex-1">
+        <p className="text-sm font-medium line-clamp-2">
+          {item.name}
+        </p>
 
-    {/* + */}
-    <button
-      onClick={() =>
-        updateQty(
-          item.id,
-          Math.min(
-            item.quantity + 1,
-            item.variant?.stock ?? item.stock ?? 99
-          )
-        )
-      }
-      disabled={
-        item.quantity >= (item.variant?.stock ?? item.stock ?? 99)
-      }
-      className="px-3 py-1 text-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
-    >
-      +
-    </button>
-  </div>
+        {/* PRICE */}
+        <div className="mt-1 flex items-center gap-2">
+          {hasSale && (
+            <span className="text-xs text-gray-400 line-through">
+              {formatPi(item.price)} π
+            </span>
+          )}
 
-  {/* RIGHT: PRICE */}
-  <div className="text-right">
-    <p className="text-sm text-gray-500">
-      {formatPi(unit)} π
-    </p>
-    <p className="font-semibold text-orange-600">
-      {formatPi(unit * item.quantity)} π
-    </p>
-  </div>
-</div>
+          <span className="text-sm font-semibold text-orange-600">
+            {formatPi(unit)} π
+          </span>
+        </div>
 
-                <button
-                  onClick={() => removeFromCart(item.id)}
-                  className="text-xs text-red-500"
-                >
-                  {t.delete}
-                </button>
-              </div>
+        {/* QTY + TOTAL */}
+        <div className="mt-2 flex items-center justify-between">
+
+          {/* QTY CONTROL */}
+          <div className="flex items-center border rounded-lg overflow-hidden">
+
+            {/* - */}
+            <button
+              onClick={() =>
+                updateQty(item.id, item.quantity - 1)
+              }
+              disabled={item.quantity <= 1}
+              className="px-3 py-1 text-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
+            >
+              −
+            </button>
+
+            {/* QTY */}
+            <div className="px-4 text-sm font-medium">
+              {item.quantity}
             </div>
-          );
-        })}
+
+            {/* + */}
+            <button
+              onClick={() =>
+                updateQty(
+                  item.id,
+                  Math.min(item.quantity + 1, maxStock)
+                )
+              }
+              disabled={item.quantity >= maxStock}
+              className="px-3 py-1 text-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30"
+            >
+              +
+            </button>
+          </div>
+
+          {/* TOTAL */}
+          <div className="text-right">
+            <p className="font-semibold text-orange-600">
+              {formatPi(unit * item.quantity)} π
+            </p>
+
+            {/* STOCK WARNING */}
+            {item.quantity >= maxStock && (
+              <p className="text-[10px] text-red-500">
+                Max stock reached
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* DELETE */}
+        <button
+          onClick={() => removeFromCart(item.id)}
+          className="text-xs text-red-500 mt-1"
+        >
+          {t.delete}
+        </button>
+      </div>
+    </div>
+  );
+})}
       </div>
 
       <div className="fixed bottom-7 left-0 right-0 border-t bg-white p-5 pb-8">
