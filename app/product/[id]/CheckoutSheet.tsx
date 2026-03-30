@@ -137,15 +137,22 @@ const quantity = useMemo(() => {
   useEffect(() => {
     async function loadAddress() {
       try {
-        const token = await getPiAccessToken();
+        console.log("🟡 [CHECKOUT] LOAD ADDRESS START");
 
-        const res = await fetch("/api/address", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+const token = await getPiAccessToken();
+console.log("🟢 TOKEN:", token);
+
+const res = await fetch("/api/address", {
+  headers: { Authorization: `Bearer ${token}` },
+});
+
+console.log("🟢 ADDRESS RES STATUS:", res.status);
 
         if (!res.ok) return;
 
         const data: AddressApiResponse = await res.json();
+        console.log("🟢 ADDRESS DATA:", data);
+         
         const def = data.items?.find((a) => a.is_default);
         if (!def) return;
 
@@ -170,6 +177,7 @@ const quantity = useMemo(() => {
   ========================= */
 
   useEffect(() => {
+     console.log("🟡 [CHECKOUT] AUTO PAY CHECK",
     if (!user || !shipping || processing) return;
 
     const pending = localStorage.getItem("pending_checkout");
