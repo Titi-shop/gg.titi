@@ -84,13 +84,15 @@ if (!token || !user) return;
         "Content-Type": "application/json",
       },
       body: JSON.stringify(
-        localCart.map((item) => ({
-          product_id: item.product_id ?? item.id,
-          variant_id:
-            item.variant_id ?? item.variant?.optionValue ?? null,
-          quantity: item.quantity ?? 1,
-        }))
-      ),
+  localCart.map((item) => ({
+    product_id: item.product_id ?? item.id,
+    variant_id: item.variant_id ?? null, // ✅ FIX QUAN TRỌNG
+    quantity: Math.min(
+      item.quantity ?? 1,
+      item.variant?.stock ?? item.stock ?? 99
+    ),
+  }))
+),
     });
 
     // 👉 lấy lại cart chuẩn từ server
@@ -182,19 +184,20 @@ useEffect(() => {
   // 🔥🔥🔥 THÊM API CALL (ĐÂY LÀ PHẦN BỊ THIẾU)
   try {
     const token = await getPiAccessToken();
-    if (!token) return;
+    if (!token || !user) return;
 
     await fetch("/api/cart", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        product_id: item.product_id ?? item.id,
-        quantity: item.quantity ?? 1,
-      }),
-    });
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    product_id: item.product_id ?? item.id,
+    variant_id: item.variant_id ?? null,
+    quantity: safeQty, // ✅ FIX
+  }),
+});
   } catch (err) {
     console.error("❌ ADD CART API ERROR:", err);
   }
@@ -222,7 +225,7 @@ useEffect(() => {
       },
       body: JSON.stringify({
         product_id: item.product_id ?? item.id,
-        variant_id: item.variant?.optionValue ?? null, // ⚠️ nếu bạn có variant_id riêng thì dùng cái đó
+        variant_id: item.variant_id ?? null 
       }),
     });
 
@@ -239,26 +242,46 @@ useEffect(() => {
 
   /* ================= UPDATE QTY ================= */
 
-  const updateQty = (id: string, qty: number) => {
-    setCart((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
+  const updateQty = async (id: string, qty: number) => {
+  let target: CartItem | undefined;
 
-        const maxStock =
-          p.variant?.stock ?? p.stock ?? 99;
+  setCart((prev) =>
+    prev.map((p) => {
+      if (p.id !== id) return p;
 
-        const safeQty = Math.max(
-          1,
-          Math.min(maxStock, qty || 1)
-        );
+      const maxStock = p.variant?.stock ?? p.stock ?? 99;
 
-        return {
-          ...p,
-          quantity: safeQty,
-        };
-      })
-    );
-  };
+      const safeQty = Math.max(1, Math.min(maxStock, qty || 1));
+
+      target = { ...p, quantity: safeQty };
+
+      return target;
+    })
+  );
+
+  // 🔥 sync API
+  try {
+    if (!user || !target) return;
+
+    const token = await getPiAccessToken();
+    if (!token) return;
+
+    await fetch("/api/cart", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: target.product_id ?? target.id,
+        variant_id: target.variant_id ?? null,
+        quantity: target.quantity,
+      }),
+    });
+  } catch (err) {
+    console.error("❌ UPDATE QTY ERROR:", err);
+  }
+};
 
   /* ================= UPDATE ITEM ================= */
 
