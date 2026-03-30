@@ -897,10 +897,7 @@ export async function deleteCartItem(
     delete from cart_items
     where buyer_id = $1
       and product_id = $2
-      and (
-        (variant_id is null and $3 is null)
-        or variant_id = $3
-      )
+      and variant_id IS NOT DISTINCT FROM $3::uuid
     `,
     [userId, productId, variantId ?? null]
   );
