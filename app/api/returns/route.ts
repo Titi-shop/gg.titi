@@ -4,6 +4,7 @@ import {
   createReturn,
   getReturnsByBuyer,
 } from "@/lib/db/orders";
+import { supabase } from "@/lib/db/supabase"; // ⚠️ dùng nếu bạn đã có sẵn
 
 export const dynamic = "force-dynamic";
 
@@ -12,14 +13,22 @@ export const dynamic = "force-dynamic";
 ========================================================= */
 export async function POST(req: NextRequest) {
   try {
+    console.log("🟡 [RETURN POST] START");
+
     /* ================= AUTH ================= */
     const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
+
+    if (!auth.ok) {
+      console.log("🔴 [RETURN POST] UNAUTHORIZED");
+      return auth.response;
+    }
 
     const userId = auth.userId;
+    console.log("🟢 [RETURN POST] USER:", userId);
 
     /* ================= PARSE ================= */
     const contentType = req.headers.get("content-type") ?? "";
+    console.log("🟡 [RETURN POST] CONTENT-TYPE:", contentType);
 
     let orderId: string | null = null;
     let orderItemId: string | null = null;
@@ -27,7 +36,10 @@ export async function POST(req: NextRequest) {
     let description: string | null = null;
     let images: string[] = [];
 
-    if (contentType.includes("multipart/form-data")) {
+    /* ================= MULTIPART ================= */
+    if (contentType.startsWith("multipart/form-data")) {
+      console.log("🟡 [RETURN POST] PARSE FORM DATA");
+
       const form = await req.formData();
 
       orderId = form.get("order_id") as string;
@@ -37,10 +49,15 @@ export async function POST(req: NextRequest) {
 
       const files = form.getAll("images");
 
+      console.log("🟡 [RETURN POST] FILE COUNT:", files.length);
+
       for (const file of files) {
         if (!(file instanceof File)) continue;
 
+        console.log("🟡 [RETURN POST] FILE:", file.name, file.size);
+
         if (file.size > 2 * 1024 * 1024) {
+          console.log("🔴 IMAGE TOO LARGE");
           return NextResponse.json(
             { error: "IMAGE_TOO_LARGE" },
             { status: 400 }
@@ -49,28 +66,35 @@ export async function POST(req: NextRequest) {
 
         const buffer = Buffer.from(await file.arrayBuffer());
 
-const fileName = `returns/${userId}/${Date.now()}-${file.name}`;
+        const fileName = `returns/${userId}/${Date.now()}-${file.name}`;
 
-// ⚠️ giả sử bạn đã có supabase client trong lib/db hoặc config
-const { data, error } = await supabase.storage
-  .from("returns")
-  .upload(fileName, buffer, {
-    contentType: file.type,
-  });
+        console.log("🟡 [UPLOAD] START:", fileName);
 
-if (error) {
-  throw new Error("UPLOAD_FAILED");
-}
+        const { error } = await supabase.storage
+          .from("returns")
+          .upload(fileName, buffer, {
+            contentType: file.type,
+          });
 
-const { data: publicUrl } = supabase.storage
-  .from("returns")
-  .getPublicUrl(fileName);
+        if (error) {
+          console.error("❌ [UPLOAD ERROR]:", error);
+          throw new Error("UPLOAD_FAILED");
+        }
 
-images.push(publicUrl.publicUrl);
+        const { data } = supabase.storage
+          .from("returns")
+          .getPublicUrl(fileName);
 
-        images.push(`data:${mime};base64,${base64}`);
+        console.log("🟢 [UPLOAD DONE]:", data.publicUrl);
+
+        images.push(data.publicUrl);
       }
-    } else {
+    }
+
+    /* ================= JSON FALLBACK ================= */
+    else {
+      console.log("🟡 [RETURN POST] PARSE JSON");
+
       const body = await req.json();
 
       orderId = body.order_id;
@@ -79,15 +103,35 @@ images.push(publicUrl.publicUrl);
       description = body.description?.trim();
     }
 
+    console.log("🟡 [RETURN POST] DATA:", {
+      orderId,
+      orderItemId,
+      reason,
+      imageCount: images.length,
+    });
+
     /* ================= VALIDATE ================= */
     if (!orderId || !orderItemId || !reason) {
+      console.log("🔴 INVALID PAYLOAD");
+
       return NextResponse.json(
         { error: "INVALID_PAYLOAD" },
         { status: 400 }
       );
     }
 
+    if (images.length === 0) {
+      console.log("🔴 IMAGE REQUIRED");
+
+      return NextResponse.json(
+        { error: "IMAGE_REQUIRED" },
+        { status: 400 }
+      );
+    }
+
     if (images.length > 3) {
+      console.log("🔴 TOO MANY IMAGES");
+
       return NextResponse.json(
         { error: "MAX_3_IMAGES" },
         { status: 400 }
@@ -95,8 +139,10 @@ images.push(publicUrl.publicUrl);
     }
 
     /* ================= DB ================= */
+    console.log("🟡 [DB] CREATE RETURN");
+
     await createReturn(
-      userId,
+      userId, // ✅ UUID đúng rule
       orderId,
       orderItemId,
       reason,
@@ -104,12 +150,14 @@ images.push(publicUrl.publicUrl);
       images
     );
 
+    console.log("🟢 [RETURN POST] SUCCESS");
+
     return NextResponse.json({
       success: true,
     });
 
   } catch (err) {
-    console.error("RETURN CREATE ERROR:", err);
+    console.error("❌ [RETURN POST ERROR]:", err);
 
     if (err instanceof Error) {
       return NextResponse.json(
@@ -130,19 +178,27 @@ images.push(publicUrl.publicUrl);
 ========================================================= */
 export async function GET() {
   try {
-    /* ================= AUTH ================= */
+    console.log("🟡 [RETURN GET] START");
+
     const auth = await requireAuth();
-    if (!auth.ok) return auth.response;
+
+    if (!auth.ok) {
+      console.log("🔴 [RETURN GET] UNAUTHORIZED");
+      return auth.response;
+    }
 
     const userId = auth.userId;
 
-    /* ================= DB ================= */
+    console.log("🟢 [RETURN GET] USER:", userId);
+
     const data = await getReturnsByBuyer(userId);
+
+    console.log("🟢 [RETURN GET] COUNT:", data.length);
 
     return NextResponse.json(data);
 
   } catch (err) {
-    console.error("GET RETURNS ERROR:", err);
+    console.error("❌ [RETURN GET ERROR]:", err);
 
     return NextResponse.json(
       { error: "INTERNAL_SERVER_ERROR" },
