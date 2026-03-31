@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { getOrdersByBuyer } from "@/lib/db/orders";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
@@ -17,8 +18,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ orders });
 
-  } catch (err) {
-    console.error("ORDERS API ERROR:", err);
+  } catch {
+    console.error("[ORDER] GET_ORDERS_ERROR");
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
