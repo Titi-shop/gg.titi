@@ -1,47 +1,22 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { resolveRole } from "@/lib/auth/resolveRole";
+import { requireAuth } from "@/lib/auth/guard";
+import {
+  getPendingSellerRequest,
+  createSellerRequest,
+} from "@/lib/db/sellerRequests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    /* 1️⃣ AUTH + ROLE */
+    const auth = await requireAuth();
+    if (!auth.ok) return auth.response;
 
-    if (!SUPABASE_URL || !SERVICE_KEY) {
-      return NextResponse.json(
-        { error: "SERVER_MISCONFIGURED" },
-        { status: 500 }
-      );
-    }
+    const { userId, role } = auth;
 
-    /* 1️⃣ AUTH (Bearer only) */
-    const user = await getUserFromBearer();
-    if (!user) {
-      return NextResponse.json(
-        { error: "UNAUTHENTICATED" },
-        { status: 401 }
-      );
-    }
-
-    /* 2️⃣ RBAC CHECK */
-    const role = await resolveRole(user);
-
-    const { rows } = await query(
-  `SELECT id FROM users WHERE pi_uid = $1 LIMIT 1`,
-  [user.pi_uid]
-);
-
-if (!rows.length) {
-  return NextResponse.json(
-    { error: "USER_NOT_FOUND" },
-    { status: 404 }
-  );
-}
-
-const userId = rows[0].id;
+    /* 2️⃣ ALREADY SELLER */
     if (role === "seller" || role === "admin") {
       return NextResponse.json({
         success: true,
@@ -50,77 +25,24 @@ const userId = rows[0].id;
       });
     }
 
-    /* 3️⃣ CHECK PENDING REQUEST */
-    const checkRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/seller_requests?user_id=eq.${userId}&status=eq.pending&select=id`,
-      {
-        method: "GET",
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-        },
-      }
-    );
+    /* 3️⃣ CHECK PENDING */
+    const existing = await getPendingSellerRequest(userId);
 
-    if (!checkRes.ok) {
-      return NextResponse.json(
-        { error: "CHECK_FAILED" },
-        { status: 500 }
-      );
-    }
-
-    const existing: unknown = await checkRes.json();
-
-    if (Array.isArray(existing) && existing.length > 0) {
+    if (existing) {
       return NextResponse.json(
         { error: "REQUEST_ALREADY_PENDING" },
         { status: 409 }
       );
     }
 
-    /* 4️⃣ AUTO-GENERATE SHOP NAME (SAFE) */
-    const generatedShopName =
-      typeof user.username === "string" && user.username.trim() !== ""
-        ? `${user.username}'s Shop`
-        : `Shop-${user.pi_uid.slice(0, 6)}`;
-
-    /* 5️⃣ INSERT REQUEST */
-    const insertRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/seller_requests`,
-      {
-        method: "POST",
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          username: user.username ?? generatedShopName,
-          shop_name: generatedShopName,
-          shop_description: null,
-          phone: null,
-          email: null,
-          status: "pending",
-        }),
-      }
-    );
-
-    if (!insertRes.ok) {
-      const text = await insertRes.text();
-      console.error("INSERT ERROR:", text);
-
-      return NextResponse.json(
-        { error: "INSERT_FAILED" },
-        { status: 500 }
-      );
-    }
+    /* 4️⃣ CREATE REQUEST */
+    await createSellerRequest(userId);
 
     return NextResponse.json({
       success: true,
       status: "pending",
     });
+
   } catch (err) {
     console.error("SELLER REGISTER FATAL:", err);
 
