@@ -11,18 +11,13 @@ const supabase = createClient(
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
-    /* =========================
-       1️⃣ AUTH + RBAC
-    ========================= */
+    /* ================= AUTH ================= */
     const auth = await requireSeller();
-if (!auth.ok) return auth.response;
+    if (!auth.ok) return auth.response;
 
-const userId = auth.userId;
+    const userId = auth.userId;
 
-
-    /* =========================
-       2️⃣ FILE
-    ========================= */
+    /* ================= FILE ================= */
     const form = await req.formData();
     const file = form.get("file");
 
@@ -47,18 +42,13 @@ const userId = auth.userId;
       );
     }
 
-
-    /* =========================
-       3️⃣ PATH
-    ========================= */
+    /* ================= PATH ================= */
     const ext = file.name.split(".").pop()?.toLowerCase();
     const safeExt = ext && ext.length <= 5 ? ext : "jpg";
 
     const filePath = `products/${userId}/${crypto.randomUUID()}.${safeExt}`;
 
-    /* =========================
-       4️⃣ UPLOAD
-    ========================= */
+    /* ================= UPLOAD ================= */
     const { error } = await supabase.storage
       .from("products")
       .upload(filePath, file, {
@@ -67,17 +57,14 @@ const userId = auth.userId;
       });
 
     if (error) {
-      console.error("❌ Supabase upload error:", error);
-
+      console.error("[UPLOAD] FAILED");
       return NextResponse.json(
         { error: "UPLOAD_FAILED" },
         { status: 500 }
       );
     }
 
-    /* =========================
-       5️⃣ GET URL
-    ========================= */
+    /* ================= URL ================= */
     const { data } = supabase.storage
       .from("products")
       .getPublicUrl(filePath);
@@ -87,8 +74,8 @@ const userId = auth.userId;
       url: data.publicUrl,
     });
 
-  } catch (err) {
-    console.error("❌ Upload error:", err);
+  } catch {
+    console.error("[UPLOAD] ERROR");
 
     return NextResponse.json(
       { error: "UPLOAD_FAILED" },
