@@ -1,7 +1,7 @@
 import { Pool, QueryResult } from "pg";
 
 /* =========================================================
-   POOL (GLOBAL)
+   POOL
 ========================================================= */
 
 export const pool = new Pool({
@@ -12,7 +12,7 @@ export const pool = new Pool({
 });
 
 /* =========================================================
-   QUERY WRAPPER (TYPE SAFE)
+   QUERY
 ========================================================= */
 
 export async function query<T = unknown>(
