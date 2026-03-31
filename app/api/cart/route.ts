@@ -1,95 +1,109 @@
-export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
-import {deleteCartItem,
+import {
+  deleteCartItem,
   getCartByBuyer,
   upsertCartItems,
 } from "@/lib/db/orders";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 /* ================= GET CART ================= */
 
 export async function GET() {
   try {
-    console.log("🟡 [CART GET] START");
-
     /* ================= AUTH ================= */
     const auth = await requireAuth();
-
-    if (!auth.ok) {
-      console.log("🔴 [CART GET] UNAUTHORIZED");
-      return auth.response;
-    }
+    if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
-    console.log("🟢 [CART GET] USER:", userId);
 
     /* ================= DB ================= */
     const items = await getCartByBuyer(userId);
 
-    console.log("🟢 [CART GET] ITEMS:", items.length);
-
     return NextResponse.json(items);
 
-  } catch (err) {
-    console.error("❌ [CART GET ERROR]:", err);
-    return NextResponse.json([], { status: 500 });
+  } catch {
+    console.error("[CART] GET_FAILED");
+
+    return NextResponse.json(
+      { error: "GET_CART_FAILED" },
+      { status: 500 }
+    );
   }
 }
 
 /* ================= ADD / UPDATE CART ================= */
 
+type CartItemInput = {
+  product_id: string;
+  variant_id?: string | null;
+  quantity?: number;
+};
+
 export async function POST(req: NextRequest) {
   try {
-    console.log("🟡 [CART POST] START");
-
     /* ================= AUTH ================= */
     const auth = await requireAuth();
-
-    if (!auth.ok) {
-      console.log("🔴 [CART POST] UNAUTHORIZED");
-      return auth.response;
-    }
+    if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
-    console.log("🟢 [CART POST] USER:", userId);
 
     /* ================= BODY ================= */
     let body: unknown;
 
     try {
       body = await req.json();
-    } catch (e) {
-      console.error("❌ [CART POST] INVALID JSON:", e);
+    } catch {
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
       );
     }
 
-    console.log("🟡 [CART POST] RAW BODY:", body);
+    const rawItems: unknown[] = Array.isArray(body) ? body : [body];
 
-    const items = Array.isArray(body) ? body : [body];
+    const items: CartItemInput[] = rawItems
+      .map((item) => {
+        if (typeof item !== "object" || item === null) return null;
 
-    console.log("🟡 [CART POST] PARSED ITEMS:", items);
+        const row = item as Record<string, unknown>;
 
-    /* ================= VALIDATE ================= */
-    for (const item of items) {
-      if (!item?.product_id) {
-        console.warn("⚠️ [CART POST] MISSING product_id:", item);
-      }
+        if (typeof row.product_id !== "string") return null;
+
+        return {
+          product_id: row.product_id,
+          variant_id:
+            typeof row.variant_id === "string"
+              ? row.variant_id
+              : null,
+          quantity:
+            typeof row.quantity === "number" &&
+            !Number.isNaN(row.quantity)
+              ? row.quantity
+              : 1,
+        };
+      })
+      .filter((item): item is CartItemInput => item !== null);
+
+    if (items.length === 0) {
+      return NextResponse.json(
+        { error: "INVALID_ITEMS" },
+        { status: 400 }
+      );
     }
 
     /* ================= DB ================= */
     await upsertCartItems(userId, items);
 
-    console.log("🟢 [CART POST] UPSERT DONE");
-
     return NextResponse.json({ success: true });
 
-  } catch (err) {
-    console.error("❌ [CART POST ERROR]:", err);
+  } catch {
+    console.error("[CART] UPSERT_FAILED");
+
     return NextResponse.json(
-      { error: "SERVER_ERROR" },
+      { error: "UPSERT_CART_FAILED" },
       { status: 500 }
     );
   }
@@ -99,19 +113,42 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    console.log("🟡 [CART DELETE] START");
-
+    /* ================= AUTH ================= */
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
 
-    const body = await req.json();
+    /* ================= BODY ================= */
+    let body: unknown;
 
-    console.log("🟡 [CART DELETE] BODY:", body);
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: "INVALID_BODY" },
+        { status: 400 }
+      );
+    }
 
-    const productId = body?.product_id;
-    const variantId = body?.variant_id ?? null;
+    if (typeof body !== "object" || body === null) {
+      return NextResponse.json(
+        { error: "INVALID_BODY" },
+        { status: 400 }
+      );
+    }
+
+    const data = body as Record<string, unknown>;
+
+    const productId =
+      typeof data.product_id === "string"
+        ? data.product_id
+        : null;
+
+    const variantId =
+      typeof data.variant_id === "string"
+        ? data.variant_id
+        : null;
 
     if (!productId) {
       return NextResponse.json(
@@ -120,17 +157,16 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    /* ================= DB ================= */
     await deleteCartItem(userId, productId, variantId);
-
-    console.log("🟢 [CART DELETE] DONE");
 
     return NextResponse.json({ success: true });
 
-  } catch (err) {
-    console.error("❌ CART DELETE ERROR:", err);
+  } catch {
+    console.error("[CART] DELETE_FAILED");
 
     return NextResponse.json(
-      { error: "SERVER_ERROR" },
+      { error: "DELETE_CART_FAILED" },
       { status: 500 }
     );
   }
