@@ -267,9 +267,38 @@ export async function updateProductBySeller(
   const values: unknown[] = [];
   let idx = 1;
 
-  for (const [key, value] of Object.entries(data)) {
-    fields.push(`${key} = $${idx++}`);
-    values.push(value);
+  /* ================= WHITELIST ================= */
+
+  const allowedFields = [
+    "name",
+    "description",
+    "detail",
+    "images",
+    "thumbnail",
+    "category_id",
+    "price",
+    "sale_price",
+    "sale_start",
+    "sale_end",
+    "stock",
+    "is_active",
+    "status",
+
+    // 🔥 shipping
+    "domestic_shipping_fee",
+    "asia_shipping_fee",
+    "international_shipping_fee",
+  ] as const;
+
+  /* ================= BUILD QUERY ================= */
+
+  for (const key of allowedFields) {
+    const value = data[key];
+
+    if (value !== undefined) {
+      fields.push(`${key} = $${idx++}`);
+      values.push(value);
+    }
   }
 
   if (!fields.length) return false;
@@ -287,7 +316,6 @@ export async function updateProductBySeller(
 
   return (rowCount ?? 0) > 0;
 }
-
 /* =========================================================
    SOFT DELETE
 ========================================================= */
