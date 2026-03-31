@@ -352,3 +352,46 @@ export async function incrementProductView(
 
   return rows[0]?.views ?? 0;
 }
+
+/* =========================================================
+   GET — PRODUCTS BY SELLER
+========================================================= */
+
+export type ProductRecord = {
+  id: string;
+  name: string;
+  price: number;
+  sale_price: number | null;
+  thumbnail: string | null;
+  stock: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export async function getProductsBySeller(
+  userId: string
+): Promise<ProductRecord[]> {
+  if (!userId) {
+    throw new Error("INVALID_USER_ID");
+  }
+
+  const { rows } = await query<ProductRecord>(
+    `
+    SELECT
+      id,
+      name,
+      price,
+      sale_price,
+      thumbnail,
+      stock,
+      is_active,
+      created_at
+    FROM products
+    WHERE seller_id = $1
+    ORDER BY created_at DESC
+    `,
+    [userId]
+  );
+
+  return rows;
+}
