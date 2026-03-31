@@ -1,30 +1,30 @@
-import { Pool } from "pg";
+import { Pool, QueryResult } from "pg";
 
-/**
- * 🔥 PostgreSQL connection (Supabase DB)
- * Uses DATABASE_URL
- */
-const pool = new Pool({
+/* =========================================================
+   POOL (GLOBAL)
+========================================================= */
+
+export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,
   },
 });
 
-/**
- * 🔥 Safe query wrapper
- */
-export async function query(
+/* =========================================================
+   QUERY WRAPPER (TYPE SAFE)
+========================================================= */
+
+export async function query<T = unknown>(
   text: string,
   params?: unknown[]
-) {
+): Promise<QueryResult<T>> {
   const client = await pool.connect();
 
   try {
-    const res = await client.query(text, params);
-    return res;
+    return await client.query<T>(text, params);
   } catch (err) {
-    console.error("DB QUERY ERROR:", err);
+    console.error("❌ DB QUERY ERROR:", err);
     throw err;
   } finally {
     client.release();
