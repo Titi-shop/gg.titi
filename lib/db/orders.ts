@@ -3,28 +3,6 @@ import { query } from "@/lib/db";
 import { PoolClient } from "pg";
 
 /* =========================================================
-   TRANSACTION HELPER
-========================================================= */
-
-async function withTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>
-): Promise<T> {
-  const client = await pool.connect();
-
-  try {
-    await client.query("BEGIN");
-    const result = await fn(client);
-    await client.query("COMMIT");
-    return result;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
-/* =========================================================
    SELLER — ORDER COUNTS
 ========================================================= */
 
@@ -708,9 +686,6 @@ export async function completeOrderByBuyer(
 /* =========================================================
    CREATE — RETURN REQUEST
 ========================================================= */
-
-import { withTransaction } from "@/lib/db";
-
 export async function createReturn(
   userId: string,
   orderId: string,
