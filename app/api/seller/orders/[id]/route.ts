@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import { getSellerOrderById } from "@/lib/db/orders";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function isValidId(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0;
+}
+
 export async function GET(
-  req: NextRequest,
+  _: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -13,35 +20,34 @@ export async function GET(
 
     const userId = auth.userId;
 
-    const orderId = params.id;
+    /* ================= VALIDATION ================= */
+    const orderId = params?.id;
 
-    if (!orderId) {
+    if (!isValidId(orderId)) {
       return NextResponse.json(
-        { error: "MISSING_ORDER_ID" },
+        { error: "INVALID_ORDER_ID" },
         { status: 400 }
       );
     }
 
     /* ================= DB ================= */
-    const order = await getSellerOrderById(
-      orderId,
-      userId
-    );
+    const order = await getSellerOrderById(orderId, userId);
 
     if (!order) {
       return NextResponse.json(
-        { error: "NOT_FOUND" },
+        { error: "ORDER_NOT_FOUND" },
         { status: 404 }
       );
     }
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json(order);
 
-  } catch (error) {
-    console.error("SELLER ORDER ERROR:", error);
+  } catch {
+    console.error("[SELLER][ORDER] GET_ORDER_BY_ID_ERROR");
 
     return NextResponse.json(
-      { error: "INTERNAL_SERVER_ERROR" },
+      { error: "SERVER_ERROR" },
       { status: 500 }
     );
   }
