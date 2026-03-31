@@ -1,5 +1,3 @@
-import { supabaseAdmin } from "./client"; // hoặc cách bạn init
-
 export async function getPendingSellerRequest(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("seller_requests")
