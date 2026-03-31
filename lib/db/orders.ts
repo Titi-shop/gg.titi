@@ -1,5 +1,5 @@
 
-import { query, pool } from "@/lib/db";
+import { withTransaction } from "@/lib/db";
 import { PoolClient } from "pg";
 
 /* =========================================================
@@ -382,4 +382,143 @@ export async function getReturnsByBuyer(userId: string) {
   );
 
   return rows;
+}
+export async function processPiPayment(params: {
+  piUid: string;
+  productId: string;
+  quantity: number;
+  paymentId: string;
+  txid: string;
+}) {
+  return withTransaction(async (client) => {
+
+    /* ================= USER ================= */
+    const userRes = await client.query(
+      `SELECT id FROM users WHERE pi_uid=$1 LIMIT 1`,
+      [params.piUid]
+    );
+
+    if (!userRes.rows.length) {
+      throw new Error("USER_NOT_FOUND");
+    }
+
+    const userId = userRes.rows[0].id;
+
+    /* ================= IDEMPOTENCY ================= */
+    const existing = await client.query(
+      `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
+      [params.paymentId]
+    );
+
+    if (existing.rows.length > 0) {
+      return { orderId: existing.rows[0].id, duplicated: true };
+    }
+
+    /* ================= PRODUCT ================= */
+    const productRes = await client.query(
+      `SELECT * FROM products WHERE id=$1 LIMIT 1`,
+      [params.productId]
+    );
+
+    const product = productRes.rows[0];
+
+    if (!product || product.is_active === false || product.deleted_at) {
+      throw new Error("PRODUCT_NOT_AVAILABLE");
+    }
+
+    /* ================= ADDRESS ================= */
+    const addrRes = await client.query(
+      `
+      SELECT full_name, phone, address_line
+      FROM addresses
+      WHERE user_id=$1 AND is_default=true
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    const addr = addrRes.rows[0];
+    if (!addr) throw new Error("NO_ADDRESS");
+
+    /* ================= STOCK ================= */
+    const stock = await client.query(
+      `
+      UPDATE products
+      SET stock = stock - $1,
+          sold = sold + $1
+      WHERE id = $2
+      AND stock >= $1
+      RETURNING id
+      `,
+      [params.quantity, params.productId]
+    );
+
+    if (!stock.rowCount) {
+      throw new Error("OUT_OF_STOCK");
+    }
+
+    /* ================= ORDER ================= */
+    const total =
+      Number(product.price) * params.quantity;
+
+    const orderRes = await client.query(
+      `
+      INSERT INTO orders (
+        order_number,
+        buyer_id,
+        pi_payment_id,
+        pi_txid,
+        total,
+        shipping_name,
+        shipping_phone,
+        shipping_address
+      )
+      VALUES (
+        gen_random_uuid()::text,
+        $1,$2,$3,$4,$5,$6,$7
+      )
+      RETURNING id
+      `,
+      [
+        userId,
+        params.paymentId,
+        params.txid,
+        total,
+        addr.full_name,
+        addr.phone,
+        addr.address_line,
+      ]
+    );
+
+    const orderId = orderRes.rows[0].id;
+
+    /* ================= ITEM ================= */
+    await client.query(
+      `
+      INSERT INTO order_items (
+        order_id,
+        product_id,
+        seller_id,
+        product_name,
+        thumbnail,
+        unit_price,
+        quantity,
+        total_price
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `,
+      [
+        orderId,
+        product.id,
+        product.seller_id,
+        product.name,
+        product.thumbnail ?? "",
+        product.price,
+        params.quantity,
+        total,
+      ]
+    );
+
+    return { orderId, duplicated: false };
+  });
 }
