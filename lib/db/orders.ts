@@ -1,14 +1,14 @@
-import { query } from "@/lib/db";
+import { query, pool } from "@/lib/db";
 import { PoolClient } from "pg";
 
 /* =========================================================
-   INTERNAL HELPER — TRANSACTION
+   TRANSACTION HELPER
 ========================================================= */
 
 async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {
-  const client = await (query as any).pool.connect(); // đảm bảo query export pool
+  const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
@@ -24,12 +24,10 @@ async function withTransaction<T>(
 }
 
 /* =========================================================
-   GET — SELLER ORDER COUNTS
+   SELLER — ORDER COUNTS
 ========================================================= */
 
 export async function getSellerOrderCounts(sellerId: string) {
-  if (!sellerId) throw new Error("INVALID_SELLER_ID");
-
   const { rows } = await query(
     `
     SELECT status, COUNT(*)::int AS total
@@ -40,7 +38,7 @@ export async function getSellerOrderCounts(sellerId: string) {
     [sellerId]
   );
 
-  const counts: Record<string, number> = {
+  const result = {
     pending: 0,
     confirmed: 0,
     shipping: 0,
@@ -50,14 +48,16 @@ export async function getSellerOrderCounts(sellerId: string) {
   };
 
   for (const r of rows) {
-    if (r.status in counts) counts[r.status] = r.total;
+    if (r.status in result) {
+      result[r.status as keyof typeof result] = r.total;
+    }
   }
 
-  return counts;
+  return result;
 }
 
 /* =========================================================
-   GET — SELLER ORDERS (NO N+1)
+   SELLER — ORDERS LIST
 ========================================================= */
 
 export async function getSellerOrders(
@@ -86,9 +86,6 @@ export async function getSellerOrders(
       o.shipping_name,
       o.shipping_phone,
       o.shipping_address,
-      o.shipping_provider,
-      o.shipping_country,
-      o.shipping_postal_code,
 
       COALESCE(
         json_agg(
@@ -102,12 +99,11 @@ export async function getSellerOrders(
             'total_price', oi.total_price,
             'status', oi.status
           )
-          ORDER BY oi.created_at ASC
         ) FILTER (WHERE oi.id IS NOT NULL),
         '[]'
       ) AS order_items,
 
-      COALESCE(SUM(oi.total_price),0)::float AS total
+      SUM(oi.total_price)::float AS total
 
     FROM orders o
     JOIN order_items oi ON oi.order_id = o.id
@@ -117,6 +113,7 @@ export async function getSellerOrders(
 
     GROUP BY o.id
     ORDER BY o.created_at DESC
+
     LIMIT $${status ? 3 : 2}
     OFFSET $${status ? 4 : 3}
     `,
@@ -127,8 +124,87 @@ export async function getSellerOrders(
 }
 
 /* =========================================================
-   TRANSACTION — CONFIRM ORDER
+   SELLER — ORDER DETAIL
 ========================================================= */
+
+export async function getSellerOrderById(
+  orderId: string,
+  sellerId: string
+) {
+  const { rows } = await query(
+    `
+    SELECT
+      o.id,
+      o.order_number,
+      o.created_at,
+
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'thumbnail', oi.thumbnail,
+            'quantity', oi.quantity,
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'
+      ) AS order_items,
+
+      SUM(oi.total_price)::float AS total
+
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+
+    WHERE o.id = $1 AND oi.seller_id = $2
+
+    GROUP BY o.id
+    `,
+    [orderId, sellerId]
+  );
+
+  return rows[0] ?? null;
+}
+
+/* =========================================================
+   SELLER — ACTIONS
+========================================================= */
+
+export async function startShippingBySeller(
+  orderId: string,
+  sellerId: string
+) {
+  const res = await query(
+    `
+    UPDATE order_items
+    SET status='shipping', shipped_at=NOW()
+    WHERE order_id=$1 AND seller_id=$2 AND status='confirmed'
+    `,
+    [orderId, sellerId]
+  );
+
+  return res.rowCount > 0;
+}
+
+export async function cancelOrderBySeller(
+  orderId: string,
+  sellerId: string,
+  reason: string | null
+) {
+  const res = await query(
+    `
+    UPDATE order_items
+    SET status='cancelled', seller_cancel_reason=$3
+    WHERE order_id=$1 AND seller_id=$2
+    `,
+    [orderId, sellerId, reason]
+  );
+
+  return res.rowCount > 0;
+}
 
 export async function confirmOrderBySeller(
   orderId: string,
@@ -136,201 +212,173 @@ export async function confirmOrderBySeller(
   message: string | null
 ) {
   return withTransaction(async (client) => {
-    const update = await client.query(
+    await client.query(
       `
       UPDATE order_items
       SET status='confirmed', seller_message=$3
-      WHERE order_id=$1 AND seller_id=$2 AND status='pending'
+      WHERE order_id=$1 AND seller_id=$2
       `,
       [orderId, sellerId, message]
     );
 
-    if (!update.rowCount) return false;
-
-    const { rows } = await client.query(
-      `
-      SELECT COUNT(*)::int AS pending
-      FROM order_items
-      WHERE order_id=$1 AND status='pending'
-      `,
+    await client.query(
+      `UPDATE orders SET status='pickup' WHERE id=$1`,
       [orderId]
     );
-
-    if (rows[0].pending === 0) {
-      await client.query(
-        `UPDATE orders SET status='pickup' WHERE id=$1`,
-        [orderId]
-      );
-    }
 
     return true;
   });
 }
 
 /* =========================================================
-   TRANSACTION — CANCEL BY BUYER
+   BUYER — ORDERS
 ========================================================= */
 
-export async function cancelOrderByBuyer(
+export async function getOrdersByBuyer(userId: string) {
+  const { rows } = await query(
+    `
+    SELECT
+      o.id,
+      o.order_number,
+      o.status,
+      o.total,
+      o.created_at,
+
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'thumbnail', oi.thumbnail,
+            'quantity', oi.quantity,
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'
+      ) AS order_items
+
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+
+    WHERE o.buyer_id = $1
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
+    `,
+    [userId]
+  );
+
+  return rows;
+}
+
+export async function getBuyerOrderCounts(userId: string) {
+  const { rows } = await query(
+    `
+    SELECT
+      COUNT(*) FILTER (WHERE status='pending')::int AS pending,
+      COUNT(*) FILTER (WHERE status='pickup')::int AS pickup,
+      COUNT(*) FILTER (WHERE status='shipping')::int AS shipping,
+      COUNT(*) FILTER (WHERE status='completed')::int AS completed,
+      COUNT(*) FILTER (WHERE status='cancelled')::int AS cancelled
+    FROM orders
+    WHERE buyer_id=$1
+    `,
+    [userId]
+  );
+
+  return rows[0];
+}
+
+export async function getOrderByBuyerId(
   orderId: string,
-  userId: string,
-  reason: string
+  userId: string
 ) {
-  return withTransaction(async (client) => {
-    const { rows } = await client.query(
-      `SELECT buyer_id, status FROM orders WHERE id=$1`,
-      [orderId]
-    );
+  const { rows } = await query(
+    `
+    SELECT
+      o.id,
+      o.status,
+      o.total,
+      o.created_at,
 
-    const order = rows[0];
-    if (!order) return "NOT_FOUND";
-    if (order.buyer_id !== userId) return "FORBIDDEN";
-    if (order.status !== "pending") return "INVALID_STATUS";
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'thumbnail', oi.thumbnail,
+            'quantity', oi.quantity,
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status
+          )
+        ),
+        '[]'
+      ) AS order_items
 
-    await client.query(
-      `
-      UPDATE order_items
-      SET status='cancelled', seller_cancel_reason=$2
-      WHERE order_id=$1
-      `,
-      [orderId, reason]
-    );
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
 
-    await client.query(
-      `
-      UPDATE orders
-      SET status='cancelled', cancel_reason=$2, cancelled_at=NOW()
-      WHERE id=$1
-      `,
-      [orderId, reason]
-    );
+    WHERE o.id=$1 AND o.buyer_id=$2
+    GROUP BY o.id
+    `,
+    [orderId, userId]
+  );
 
-    return "OK";
-  });
+  return rows[0] ?? null;
 }
 
 /* =========================================================
-   TRANSACTION — CREATE RETURN
+   CART
 ========================================================= */
 
-export async function createReturn(
-  userId: string,
-  orderId: string,
-  orderItemId: string,
-  reason: string,
-  description: string | null,
-  images: string[]
-) {
-  return withTransaction(async (client) => {
-    const { rows: orderRows } = await client.query(
-      `SELECT id, buyer_id, seller_id, status FROM orders WHERE id=$1 AND buyer_id=$2`,
-      [orderId, userId]
-    );
+export async function getCartByBuyer(userId: string) {
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM cart_items
+    WHERE buyer_id = $1
+    ORDER BY created_at DESC
+    `,
+    [userId]
+  );
 
-    const order = orderRows[0];
-    if (!order) throw new Error("ORDER_NOT_FOUND");
-
-    const { rows: itemRows } = await client.query(
-      `SELECT * FROM order_items WHERE id=$1`,
-      [orderItemId]
-    );
-
-    const item = itemRows[0];
-    if (!item) throw new Error("ITEM_NOT_FOUND");
-
-    const refund = item.unit_price * item.quantity;
-
-    await client.query(
-      `
-      INSERT INTO returns (
-        order_id, order_item_id, product_id,
-        seller_id, buyer_id,
-        product_name, product_thumbnail,
-        quantity, reason, description,
-        images, refund_amount, status
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending')
-      `,
-      [
-        orderId,
-        orderItemId,
-        item.product_id,
-        order.seller_id,
-        userId,
-        item.product_name,
-        item.thumbnail,
-        item.quantity,
-        reason,
-        description,
-        JSON.stringify(images),
-        refund,
-      ]
-    );
-  });
+  return rows;
 }
 
-/* =========================================================
-   BATCH — UPSERT CART
-========================================================= */
-
-export async function upsertCartItems(
+export async function deleteCartItem(
   userId: string,
-  items: {
-    product_id: string;
-    variant_id?: string | null;
-    quantity?: number;
-  }[]
+  productId: string,
+  variantId?: string | null
 ) {
-  if (!items.length) return;
-
-  const productIds = items.map((i) => i.product_id);
-  const variantIds = items.map((i) => i.variant_id ?? null);
-  const quantities = items.map((i) => i.quantity ?? 1);
-
   await query(
     `
-    INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
-    SELECT $1, x.product_id, x.variant_id, x.quantity
-    FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
-    AS x(product_id, variant_id, quantity)
-    ON CONFLICT (buyer_id, product_id, variant_id)
-    DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = NOW()
+    DELETE FROM cart_items
+    WHERE buyer_id=$1
+    AND product_id=$2
+    AND variant_id IS NOT DISTINCT FROM $3
     `,
-    [userId, productIds, variantIds, quantities]
+    [userId, productId, variantId ?? null]
   );
 }
 
 /* =========================================================
-   COMPLETE ORDER (FIXED)
+   RETURNS
 ========================================================= */
 
-export async function completeOrderByBuyer(
-  orderId: string,
-  userId: string
-) {
-  return withTransaction(async (client) => {
-    const { rows } = await client.query(
-      `SELECT status FROM orders WHERE id=$1 AND buyer_id=$2`,
-      [orderId, userId]
-    );
+export async function getReturnsByBuyer(userId: string) {
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM returns
+    WHERE buyer_id = $1
+    ORDER BY created_at DESC
+    `,
+    [userId]
+  );
 
-    const order = rows[0];
-    if (!order || order.status !== "shipping") return false;
-
-    await client.query(
-      `
-      UPDATE order_items
-      SET status='completed', delivered_at=NOW()
-      WHERE order_id=$1
-      `,
-      [orderId]
-    );
-
-    await client.query(
-      `UPDATE orders SET status='completed' WHERE id=$1`,
-      [orderId]
-    );
-
-    return true;
-  });
+  return rows;
 }
