@@ -17,6 +17,26 @@ type GuardFail = {
 
 type GuardResult = GuardSuccess | GuardFail;
 
+// 🔥 CACHE ROLE (userId → role)
+const roleCache = new Map<string, { role: Role; exp: number }>();
+
+async function resolveRole(userId: string): Promise<Role | null> {
+  const cached = roleCache.get(userId);
+  if (cached && cached.exp > Date.now()) {
+    return cached.role;
+  }
+
+  const role = await getUserRoleByUserId(userId);
+  if (!role) return null;
+
+  roleCache.set(userId, {
+    role,
+    exp: Date.now() + 60_000, // 60s
+  });
+
+  return role;
+}
+
 /* ================= BASE AUTH ================= */
 export async function requireAuth(): Promise<GuardResult> {
   const auth = await getUserFromBearer();
@@ -31,7 +51,7 @@ export async function requireAuth(): Promise<GuardResult> {
     };
   }
 
-  const role = await getUserRoleByUserId(auth.userId);
+  const role = await resolveRole(auth.userId);
 
   if (!role) {
     return {
