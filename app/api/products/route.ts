@@ -176,6 +176,9 @@ export async function GET(req: Request) {
 
           rating_avg: p.rating_avg ?? 0,
           rating_count: p.rating_count ?? 0,
+          domestic_shipping_fee: p.domestic_shipping_fee ?? null,
+asia_shipping_fee: p.asia_shipping_fee ?? null,
+international_shipping_fee: p.international_shipping_fee ?? null,
 
           variants,
         };
@@ -250,6 +253,20 @@ export async function POST(req: Request) {
       stock: finalStock,
       is_active:
         typeof body.is_active === "boolean" ? body.is_active : true,
+      domestic_shipping_fee:
+  typeof body.domestic_shipping_fee === "number"
+    ? body.domestic_shipping_fee
+    : null,
+
+asia_shipping_fee:
+  typeof body.asia_shipping_fee === "number"
+    ? body.asia_shipping_fee
+    : null,
+
+international_shipping_fee:
+  typeof body.international_shipping_fee === "number"
+    ? body.international_shipping_fee
+    : null,
 
       views: 0,
       sold: 0,
@@ -332,6 +349,20 @@ export async function PUT(req: Request) {
         stock: finalStock,
         is_active:
           typeof body.is_active === "boolean" ? body.is_active : true,
+        domestic_shipping_fee:
+  typeof body.domestic_shipping_fee === "number"
+    ? body.domestic_shipping_fee
+    : null,
+
+asia_shipping_fee:
+  typeof body.asia_shipping_fee === "number"
+    ? body.asia_shipping_fee
+    : null,
+
+international_shipping_fee:
+  typeof body.international_shipping_fee === "number"
+    ? body.international_shipping_fee
+    : null,
       }
     );
 
