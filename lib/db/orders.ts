@@ -902,3 +902,99 @@ export async function deleteCartItem(
     [userId, productId, variantId ?? null]
   );
 }
+
+export async function createReturn(
+  userId: string,
+  orderId: string,
+  orderItemId: string,
+  reason: string,
+  description: string | null,
+  images: string[]
+): Promise<void> {
+  // ✅ validate ownership (QUAN TRỌNG)
+  const { rows: orderCheck } = await query(
+    `
+    select id 
+    from orders
+    where id = $1
+      and buyer_id = $2
+    limit 1
+    `,
+    [orderId, userId]
+  );
+
+  if (orderCheck.length === 0) {
+    throw new Error("ORDER_NOT_FOUND");
+  }
+
+  // ✅ tạo return
+  const { rows } = await query(
+    `
+    insert into returns (
+      buyer_id,
+      order_id,
+      order_item_id,
+      reason,
+      description,
+      status
+    )
+    values ($1, $2, $3, $4, $5, 'pending')
+    returning id
+    `,
+    [userId, orderId, orderItemId, reason, description ?? null]
+  );
+
+  const returnId = rows[0]?.id;
+
+  if (!returnId) {
+    throw new Error("CREATE_RETURN_FAILED");
+  }
+
+  // ✅ insert images
+  for (const url of images) {
+    await query(
+      `
+      insert into return_images (return_id, image_url)
+      values ($1, $2)
+      `,
+      [returnId, url]
+    );
+  }
+}
+export async function getReturnsByBuyer(userId: string) {
+  const { rows } = await query(
+    `
+    select 
+      r.id,
+      r.order_id,
+      r.order_item_id,
+      r.reason,
+      r.description,
+      r.status,
+      r.created_at,
+
+      json_agg(ri.image_url) as images
+
+    from returns r
+    left join return_images ri 
+      on ri.return_id = r.id
+
+    where r.buyer_id = $1
+
+    group by r.id
+    order by r.created_at desc
+    `,
+    [userId]
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    order_id: r.order_id,
+    order_item_id: r.order_item_id,
+    reason: r.reason,
+    description: r.description,
+    status: r.status,
+    created_at: r.created_at,
+    images: r.images ?? [],
+  }));
+}
