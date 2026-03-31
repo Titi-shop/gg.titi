@@ -6,31 +6,32 @@ export async function apiAuthFetch(
 ) {
   let token = localStorage.getItem("pi_token");
 
+  // 🔥 LUÔN đảm bảo token hợp lệ
   if (!token) {
     token = await getPiAccessToken();
   }
 
-  let res = await fetch(input, {
-    ...init,
-    headers: {
-      ...(init?.headers || {}),
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const doFetch = async (tk: string) =>
+    fetch(input, {
+      ...init,
+      headers: {
+        ...(init?.headers || {}),
+        Authorization: `Bearer ${tk}`,
+      },
+    });
 
-  // 🔥 AUTO RETRY
+  let res = await doFetch(token);
+
+  // 🔥 AUTO RETRY (SAFE)
   if (res.status === 401) {
     clearPiToken();
 
     const newToken = await getPiAccessToken(true);
 
-    res = await fetch(input, {
-      ...init,
-      headers: {
-        ...(init?.headers || {}),
-        Authorization: `Bearer ${newToken}`,
-      },
-    });
+    // 🔥 QUAN TRỌNG: update localStorage
+    localStorage.setItem("pi_token", newToken);
+
+    res = await doFetch(newToken);
   }
 
   return res;
