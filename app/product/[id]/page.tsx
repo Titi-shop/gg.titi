@@ -1,5 +1,5 @@
 "use client";
-
+import { getRegionFromCountry } from "@/lib/shipping/region";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -98,7 +98,7 @@ export default function ProductDetail() {
   const id = String(params?.id ?? "");
   const router = useRouter();
   const { addToCart } = useCart();
-
+const realRegion = getRegionFromCountry(shipping?.country);
   const [product, setProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
