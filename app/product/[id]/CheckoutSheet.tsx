@@ -350,14 +350,19 @@ console.log("🟡 VALIDATE START");
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                  paymentId,
-                  txid,
-                  product_id: item!.id,
-                  quantity,
-                  total,
-                  shipping,
-                  user: { pi_uid: user!.pi_uid },
-                }),
+  paymentId,
+  txid,
+  items: items.map(i => ({
+    product_id: i.product_id,
+    quantity: i.quantity,
+  })),
+  region: selectedRegion,
+  shipping_fee: shippingFee,
+
+  total,
+  shipping,
+  user: { pi_uid: user!.pi_uid },
+}),
               });
                console.log("🟢 COMPLETE RES:", res.status);
 
