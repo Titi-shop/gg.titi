@@ -284,7 +284,6 @@ if (body.international_shipping_fee !== undefined) {
           : null;
     
     }
-  })
 
     if (body.saleStart !== undefined)
       payload.sale_start = body.saleStart;
