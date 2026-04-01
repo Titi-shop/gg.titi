@@ -334,6 +334,7 @@ setProcessing(true);
               if (!res.ok) {
                  console.log("🔴 APPROVE FAILED");
                 setProcessing(false);
+                 processingRef.current = false;
                 showMessage(t.payment_approve_failed);
                 return;
               }
@@ -341,6 +342,7 @@ setProcessing(true);
               callback();
             } catch {
               setProcessing(false);
+               processingRef.current = false;
               showMessage(t.payment_approve_error);
             }
           },
@@ -370,17 +372,20 @@ setProcessing(true);
               if (!res.ok) {
                  console.log("🔴 COMPLETE FAILED");
                 setProcessing(false);
+                 processingRef.current = false;
                 showMessage(t.payment_complete_failed);
                 return;
               }
                console.log("🟢 PAYMENT SUCCESS");
 
               setProcessing(false);
+               processingRef.current = false;
               onClose();
               router.push("/customer/pending");
               showMessage(t.payment_success, "success");
             } catch {
               setProcessing(false);
+               processingRef.current = false;
               showMessage(t.payment_failed);
             }
           },
@@ -388,17 +393,20 @@ setProcessing(true);
           onCancel: () => {
              console.log("🟡 PAYMENT CANCEL");
             setProcessing(false);
+             processingRef.current = false;
             showMessage(t.payment_cancelled);
           },
 
           onError: () => {
             setProcessing(false);
+             processingRef.current = false;
             showMessage(t.payment_failed);
           },
         }
       );
     } catch {
       setProcessing(false);
+       processingRef.current = false;
       showMessage(t.transaction_failed);
     }
   }, [item, quantity, total, shipping, unitPrice, processing, t, user, router, onClose]);
