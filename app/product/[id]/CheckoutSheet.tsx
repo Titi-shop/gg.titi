@@ -422,7 +422,7 @@ console.log("🟡 VALIDATE START");
 
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[45vh] flex flex-col">
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[65vh] flex flex-col">
 
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
 
