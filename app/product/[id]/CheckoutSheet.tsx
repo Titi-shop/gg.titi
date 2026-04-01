@@ -245,6 +245,12 @@ console.log("🟡 VALIDATE START");
   showMessage(t.pi_not_ready || "Pi is not ready");
   return false;
 }
+     if (selectedRegion === "domestic" && shipping.country !== "VN") {
+  showMessage(
+    t.address_not_supported || "Address must be in Vietnam"
+  );
+  return false;
+}
 
 
       if (!user) {
@@ -443,7 +449,7 @@ console.log("🟡 VALIDATE START");
     🌍 {t.select_region || "Select region"}
   </p>
 
-  <div className="grid grid-cols-3 gap-2">
+  <div className="flex gap-2 overflow-x-auto"
     {[
       { key: "domestic", label: "VN", fee: product.domesticShippingFee },
       { key: "asia", label: "Asia", fee: product.asiaShippingFee },
