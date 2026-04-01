@@ -601,14 +601,8 @@ setProcessing(true);
         <div className="border-t p-4">
           <button
   onClick={handlePay}
-  disabled={
-    processing ||
-    quantity > maxStock ||
-    quantity < 1 ||
-    !selectedRegion ||
-    !shipping ||
-    !isRegionValid
-  }
+  disabled={processing}
+  
             className={`w-full py-3 text-white rounded-lg font-semibold ${
               processing ? "bg-gray-400" : "bg-orange-600"
             }`}
