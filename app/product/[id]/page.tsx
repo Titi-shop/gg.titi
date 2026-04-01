@@ -62,6 +62,9 @@ interface ApiProduct {
   isActive?: boolean;
   categoryId?: string | null;
   variants?: ProductVariant[];
+  domestic_shipping_fee?: number | null;
+  asia_shipping_fee?: number | null;
+  international_shipping_fee?: number | null;
 }
 
 interface Product {
@@ -306,18 +309,19 @@ const canBuy =
     return;
   }
 
-
   if (!canBuy) return;
 
   addToCart({
-    id: hasVariants && selectedVariant?.id
-      ? `${product.id}-${selectedVariant.id}`
-      : product.id,
+    id:
+      hasVariants && selectedVariant?.id
+        ? `${product.id}-${selectedVariant.id}`
+        : product.id,
     product_id: product.id,
     variant_id: selectedVariant?.id ?? null,
-    name: hasVariants && selectedVariant
-      ? `${product.name} - ${selectedVariant.optionValue}`
-      : product.name,
+    name:
+      hasVariants && selectedVariant
+        ? `${product.name} - ${selectedVariant.optionValue}`
+        : product.name,
     price: product.price,
     sale_price: product.finalPrice,
     thumbnail: product.thumbnail,
@@ -679,7 +683,7 @@ const canBuy =
     !canBuy ? "bg-gray-400" : "bg-red-500"
   }`}
 >
-  {!canBuy ? "Hết hàng" : t.buy_now}
+  {!canBuy ? t.out_of_stock : t.buy_now}
 </button>
       </div>
 
