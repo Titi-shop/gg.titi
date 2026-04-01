@@ -476,7 +476,14 @@
    "out_of_stock":  "Hết hàng",
   "inactive": "Ngưng",
   "upcoming": "Sắp diễn ra",
-  "ended":  "Đã kết thúc"
+  "ended":  "Đã kết thúc",
+  "select_region": "Chọn khu vực vận chuyển",
+  "shipping_required": "Vui lòng chọn khu vực trước khi mua",
+
+  "shipping_domestic": "Trong nước",
+  "shipping_asia": "Châu Á",
+  "shipping_international": "Quốc tế"
+
 
 
 
