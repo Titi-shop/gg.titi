@@ -80,6 +80,7 @@ interface Props {
     price: number;
     finalPrice?: number;
     thumbnail?: string;
+     stock?: number; 
   };
 }
 
@@ -108,21 +109,25 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  const quantity = useMemo(() => {
-    const n = Number(qtyDraft);
-    return Number.isInteger(n) && n >= 1 && n <= 99 ? n : 1;
-  }, [qtyDraft]);
-
   const item = useMemo(() => {
-    if (!product) return null;
-    return {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      finalPrice: product.finalPrice,
-      thumbnail: product.thumbnail || "",
-    };
-  }, [product]);
+  if (!product) return null;
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    finalPrice: product.finalPrice,
+    thumbnail: product.thumbnail || "/placeholder.png",
+    stock: product.stock ?? 99,
+  };
+}, [product]);
+
+// ✅ ĐẶT Ở ĐÂY
+const maxStock = item?.stock ?? 99;
+
+const quantity = useMemo(() => {
+  const n = Number(qtyDraft);
+  return Number.isInteger(n) && n >= 1 && n <= maxStock ? n : 1;
+}, [qtyDraft, maxStock]);
 
   /* =========================
      LOAD ADDRESS
@@ -131,30 +136,40 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   useEffect(() => {
     async function loadAddress() {
       try {
-        const token = await getPiAccessToken();
+        console.log("🟡 [CHECKOUT] LOAD ADDRESS START");
 
-        const res = await fetch("/api/address", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+    const token = await getPiAccessToken();
+    console.log("🟢 TOKEN:", token);
 
-        if (!res.ok) return;
+    const res = await fetch("/api/address", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-        const data: AddressApiResponse = await res.json();
-        const def = data.items?.find((a) => a.is_default);
-        if (!def) return;
+    console.log("🟢 ADDRESS RES:", res.status);
 
-        setShipping({
-          name: def.full_name,
-          phone: def.phone,
-          address_line: def.address_line,
-          province: def.province,
-          country: def.country,
-          postal_code: def.postal_code ?? null,
-        });
-      } catch {
-        setShipping(null);
-      }
-    }
+    if (!res.ok) return;
+
+    const data: AddressApiResponse = await res.json();
+    console.log("🟢 ADDRESS DATA:", data);
+
+    const def = data.items?.find((a) => a.is_default);
+    if (!def) return;
+
+    setShipping({
+      name: def.full_name,
+      phone: def.phone,
+      address_line: def.address_line,
+      province: def.province,
+      country: def.country,
+      postal_code: def.postal_code ?? null,
+    });
+
+    console.log("🟢 SHIPPING SET");
+  } catch (err) {
+    console.error("❌ LOAD ADDRESS ERROR:", err);
+    setShipping(null);
+  }
+}
 
     if (open && user) loadAddress();
   }, [open, user]);
@@ -164,19 +179,24 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   useEffect(() => {
-    if (!user || !shipping || processing) return;
+  console.log("🟡 AUTO PAY CHECK", {
+    user,
+    shipping,
+    processing,
+  });
 
-    const pending = localStorage.getItem("pending_checkout");
-    if (!pending) return;
+  if (!user || !shipping || processing) return;
 
-    localStorage.removeItem("pending_checkout");
+  const pending = localStorage.getItem("pending_checkout");
+  if (!pending) return;
 
-    setTimeout(() => {
-      handlePay();
-    }, 300);
-  }, [user, shipping, processing]);
+  localStorage.removeItem("pending_checkout");
 
-  
+  setTimeout(() => {
+    console.log("🟢 AUTO PAY TRIGGER");
+    handlePay();
+  }, 300);
+}, [user, shipping, processing]);
 
   /* ========================= */
 
@@ -197,28 +217,22 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   const validateBeforePay = () => {
-
+console.log("🟡 VALIDATE START");
+     
      if (!window.Pi || !piReady) {
+  console.log("🔴 PI NOT READY");
   showMessage(t.pi_not_ready || "Pi is not ready");
   return false;
 }
-    if (!window.Pi || !piReady) {
-      showMessage(t.pi_not_ready || "Pi is not ready");
-      return false;
-    }
+
 
       if (!user) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("pending_checkout", "1");
-  }
+  console.log("🔴 USER NOT LOGIN");
 
-  pilogin?.(); // ✅ mở login Pi
+  localStorage.setItem("pending_checkout", "1");
+  pilogin?.();
 
-  showMessage(
-    t.please_login || "Please login first",
-    "error"
-  );
-
+  showMessage(t.please_login);
   return false;
 }
 
@@ -234,7 +248,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       return false;
     }
 
-    if (quantity < 1 || quantity > 99) {
+    if (quantity < 1 || quantity > maxStock) {
       showMessage(t.invalid_quantity || "Invalid quantity");
       return false;
     }
@@ -247,12 +261,15 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   const handlePay = useCallback(async () => {
+     console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
+     
     if (processing) return;
 
     setProcessing(true);
 
     try {
+       console.log("🟢 CALL PI PAYMENT");
       await window.Pi?.createPayment(
         {
           amount: total,
@@ -271,6 +288,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         {
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
+               console.log("🟡 APPROVE START:", paymentId);
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/approve", {
@@ -281,8 +299,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                 },
                 body: JSON.stringify({ paymentId }),
               });
-
+         console.log("🟢 APPROVE RES:", res.status);
               if (!res.ok) {
+                 console.log("🔴 APPROVE FAILED");
                 setProcessing(false);
                 showMessage(t.payment_approve_failed);
                 return;
@@ -297,6 +316,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
           onReadyForServerCompletion: async (paymentId, txid) => {
             try {
+               console.log("🟡 COMPLETE START:", paymentId, txid);
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/complete", {
@@ -315,12 +335,15 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                   user: { pi_uid: user!.pi_uid },
                 }),
               });
+               console.log("🟢 COMPLETE RES:", res.status);
 
               if (!res.ok) {
+                 console.log("🔴 COMPLETE FAILED");
                 setProcessing(false);
                 showMessage(t.payment_complete_failed);
                 return;
               }
+               console.log("🟢 PAYMENT SUCCESS");
 
               setProcessing(false);
               onClose();
@@ -333,6 +356,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           },
 
           onCancel: () => {
+             console.log("🟡 PAYMENT CANCEL");
             setProcessing(false);
             showMessage(t.payment_cancelled);
           },
@@ -398,22 +422,59 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
             <div className="flex-1">
               <p className="text-sm font-medium line-clamp-2">{item.name}</p>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                value={qtyDraft}
-                onChange={(e) => {
-                  if (/^\d*$/.test(e.target.value)) {
-                    setQtyDraft(e.target.value);
-                  }
-                }}
-                onBlur={() => {
-                  if (!qtyDraft || Number(qtyDraft) < 1) {
-                    setQtyDraft("1");
-                  }
-                }}
-                className="mt-1 w-16 border rounded px-2 py-1 text-sm text-center"
-              />
+              <div className="flex items-center gap-2 mt-1">
+
+  {/* - */}
+  <button
+    onClick={() => {
+      const val = Math.max(1, quantity - 1);
+      setQtyDraft(String(val));
+    }}
+    disabled={quantity <= 1}
+    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+  >
+    -
+  </button>
+
+  {/* INPUT */}
+  <input
+    type="text"
+    inputMode="numeric"
+    value={qtyDraft}
+    onChange={(e) => {
+      if (!/^\d*$/.test(e.target.value)) return;
+
+      const val = Number(e.target.value || "0");
+
+      if (val > maxStock) {
+        setQtyDraft(String(maxStock)); // ✅ chặn vượt kho
+        return;
+      }
+
+      setQtyDraft(e.target.value);
+    }}
+    onBlur={() => {
+      const val = Number(qtyDraft || "0");
+
+      if (val < 1) setQtyDraft("1");
+      else if (val > maxStock) setQtyDraft(String(maxStock));
+    }}
+    className="w-12 text-center border rounded py-1 text-sm"
+  />
+
+  {/* + */}
+  <button
+    onClick={() => {
+      const val = Math.min(maxStock, quantity + 1);
+      setQtyDraft(String(val));
+    }}
+    disabled={quantity >= maxStock}
+    className="w-8 h-8 border rounded text-lg disabled:opacity-30"
+  >
+    +
+  </button>
+
+</div>
             </div>
 
             <div className="text-right">
