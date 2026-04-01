@@ -221,11 +221,12 @@ const shippingFee = useMemo(() => {
   /* ========================= */
 
   const unitPrice = useMemo(() => {
-    if (!firstItem) return 0;
-    return typeof item.finalPrice === "number"
-      ? item.finalPrice
-      : item.price;
-  }, [item]);
+  if (!firstItem) return 0;
+
+  return typeof firstItem.finalPrice === "number"
+    ? firstItem.finalPrice
+    : firstItem.price;
+}, [firstItem]);
 
   const total = useMemo(
   () => Number((subtotal + shippingFee).toFixed(6)),
@@ -260,10 +261,10 @@ console.log("🟡 VALIDATE START");
   return false;
 }
 
-    if (!item) {
-      showMessage(t.invalid_product || "Invalid product");
-      return false;
-    }
+    if (!firstItem) {
+  showMessage(t.invalid_product || "Invalid product");
+  return false;
+}
 
     if (!shipping) {
       showMessage(
@@ -549,11 +550,8 @@ console.log("🟡 VALIDATE START");
   >
     +
   </button>
-
 </div>
-            </div>
-
-            <div className="text-right">
+       </div>
               <div className="text-right">
   <p className="text-sm text-gray-500">
     {t.subtotal}: {formatPi(subtotal)} π
