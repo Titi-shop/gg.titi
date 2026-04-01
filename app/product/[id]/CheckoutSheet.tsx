@@ -1,5 +1,5 @@
 "use client";
-
+import { getRegionFromCountry } from "@/lib/shipping/region";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -102,6 +102,8 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
    console.log("PRODUCT DATA:", product);
   const router = useRouter();
   const { t } = useTranslation();
+
+   const realRegion = getRegionFromCountry(shipping?.country);
   const { user, piReady, pilogin } = useAuth();
 const processingRef = useRef(false);
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
