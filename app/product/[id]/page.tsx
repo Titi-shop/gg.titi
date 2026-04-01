@@ -538,17 +538,17 @@ const canBuy =
   <div className="flex gap-2 flex-wrap">{[
   {
     key: "domestic",
-    label: t.region_domestic || "VN"
+    label: t.region_domestic || "VN",
     fee: product.domesticShippingFee,
   },
   {
     key: "asia",
-    label: t.region_asia || "Asia"
+    label: t.region_asia || "Asia",
     fee: product.asiaShippingFee,
   },
   {
     key: "international",
-    label: t.region_international || "Global"
+    label: t.region_international || "Global",
     fee: product.internationalShippingFee,
   },
 ]
