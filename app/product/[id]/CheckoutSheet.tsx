@@ -563,6 +563,7 @@ console.log("🟡 VALIDATE START");
     )}
   </div>
 </div>
+           </div>  
 
         <div className="border-t p-4">
           <button
