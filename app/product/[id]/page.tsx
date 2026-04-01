@@ -192,20 +192,9 @@ export default function ProductDetail() {
     isActive,
     isOutOfStock: stock <= 0 || !isActive,
     variants,
-    domesticShippingFee:
-  typeof (api as any).domestic_shipping_fee === "number"
-    ? (api as any).domestic_shipping_fee
-    : null,
-
-asiaShippingFee:
-  typeof (api as any).asia_shipping_fee === "number"
-    ? (api as any).asia_shipping_fee
-    : null,
-
-internationalShippingFee:
-  typeof (api as any).international_shipping_fee === "number"
-    ? (api as any).international_shipping_fee
-    : null,
+    domesticShippingFee: api.domestic_shipping_fee ?? null,
+asiaShippingFee: api.asia_shipping_fee ?? null,
+internationalShippingFee: api.international_shipping_fee ?? null,
   };
 });
         setProducts(normalized);
