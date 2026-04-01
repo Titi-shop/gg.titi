@@ -487,21 +487,6 @@ console.log("🟡 VALIDATE START");
     </p>
   )}
 </div>
-            onClick={() => router.push("/customer/address")}
-          >
-            {shipping ? (
-              <>
-                <p className="font-medium">{shipping.name}</p>
-                <p className="text-sm text-gray-600">{shipping.phone}</p>
-                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
-                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
-                </p>
-              </>
-            ) : (
-              <p className="text-gray-500">➕ {t.add_shipping}</p>
-            )}
-          </div>
 
           <div className="flex items-center gap-3 border-b pb-3">
             <img
