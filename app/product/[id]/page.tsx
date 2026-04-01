@@ -98,7 +98,7 @@ export default function ProductDetail() {
   const id = String(params?.id ?? "");
   const router = useRouter();
   const { addToCart } = useCart();
-const realRegion = getRegionFromCountry(shipping?.country);
+
   const [product, setProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
