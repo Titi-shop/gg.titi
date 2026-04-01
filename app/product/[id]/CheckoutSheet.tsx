@@ -424,41 +424,29 @@ console.log("🟡 VALIDATE START");
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
 
           <div
-            className="border rounded-lg p-3 cursor-pointer mb-4"
-             <div className="border rounded-lg p-3 mb-4">
+  className="border rounded-lg p-3 cursor-pointer mb-4"
+  onClick={() => router.push("/customer/address")}
+>
+  <div className="border rounded-lg p-3 mb-4">
   <p className="text-sm font-medium mb-2">
     🌍 {t.select_region}
   </p>
 
   <div className="flex gap-2 flex-wrap">
     {[
-      {
-        key: "domestic",
-        label: t.region_domestic || "VN",
-        fee: firstItem?.domesticShippingFee,
-      },
-      {
-        key: "asia",
-        label: t.region_asia || "Asia",
-        fee: firstItem?.asiaShippingFee,
-      },
-      {
-        key: "international",
-        label: t.region_international || "Global",
-        fee: firstItem?.internationalShippingFee,
-      },
+      { key: "domestic", label: "VN", fee: firstItem?.domesticShippingFee },
+      { key: "asia", label: "Asia", fee: firstItem?.asiaShippingFee },
+      { key: "international", label: "Global", fee: firstItem?.internationalShippingFee },
     ]
-      .filter((r) => r.fee !== null && r.fee !== undefined)
-      .map((r) => {
+      .filter(r => r.fee !== null && r.fee !== undefined)
+      .map(r => {
         const active = selectedRegion === r.key;
 
         return (
           <button
             key={r.key}
             onClick={() =>
-              setSelectedRegion(
-                r.key as "domestic" | "asia" | "international"
-              )
+              setSelectedRegion(r.key as "domestic" | "asia" | "international")
             }
             className={`px-3 py-2 rounded border text-sm ${
               active
