@@ -83,6 +83,9 @@ interface Product {
   isOutOfStock: boolean;
   categoryId: string | null;
   variants: ProductVariant[];
+  domesticShippingFee?: number | null;
+asiaShippingFee?: number | null;
+internationalShippingFee?: number | null;
 }
 
 /* =======================
@@ -102,6 +105,9 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState<
+  "domestic" | "asia" | "international" | null
+>(null);
   const quantity = 1;
 
   /* =======================
@@ -186,6 +192,20 @@ export default function ProductDetail() {
     isActive,
     isOutOfStock: stock <= 0 || !isActive,
     variants,
+    domesticShippingFee:
+  typeof (api as any).domestic_shipping_fee === "number"
+    ? (api as any).domestic_shipping_fee
+    : null,
+
+asiaShippingFee:
+  typeof (api as any).asia_shipping_fee === "number"
+    ? (api as any).asia_shipping_fee
+    : null,
+
+internationalShippingFee:
+  typeof (api as any).international_shipping_fee === "number"
+    ? (api as any).international_shipping_fee
+    : null,
   };
 });
         setProducts(normalized);
@@ -262,10 +282,20 @@ const availableVariants = product.variants.filter(
 const selectedStock = hasVariants
   ? selectedVariant?.stock ?? 0
   : product.stock;
+  const shippingFee =
+  selectedRegion === "domestic"
+    ? product.domesticShippingFee
+    : selectedRegion === "asia"
+    ? product.asiaShippingFee
+    : selectedRegion === "international"
+    ? product.internationalShippingFee
+    : null;
 
-const canBuy = hasVariants
-  ? !!selectedVariant && selectedStock > 0
-  : !product.isOutOfStock;
+const canBuy =
+  (hasVariants
+    ? !!selectedVariant && selectedStock > 0
+    : !product.isOutOfStock) &&
+  !!selectedRegion;
   /* =======================
      ACTIONS
   ======================= */
@@ -323,7 +353,34 @@ const canBuy = hasVariants
     quantity,
   });
 
-  setOpenCheckout(true);
+  (async () => {
+  try {
+    const res = await fetch("/api/orders/preview", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: product.id,
+        quantity,
+        region: selectedRegion,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Preview failed");
+      return;
+    }
+
+    // 👉 mở checkout sau khi server tính xong
+    setOpenCheckout(true);
+
+  } catch {
+    alert("Không thể tính đơn hàng");
+  }
+})();
 };
 
   /* =======================
@@ -471,6 +528,60 @@ const canBuy = hasVariants
     <span className="text-green-600">
       ✅ {t.in_stock} {product.stock} {t.products}
     </span>
+  )}
+</div>
+      {/* SHIPPING REGION */}
+<div className="bg-white px-4 pb-4">
+  <p className="text-sm font-medium mb-2">
+    🌍 {t.select_region || "Chọn khu vực vận chuyển"}
+  </p>
+
+  <div className="flex gap-2 flex-wrap">
+    {[
+      {
+        key: "domestic",
+        label: "VN",
+        fee: product.domesticShippingFee,
+      },
+      {
+        key: "asia",
+        label: "Asia",
+        fee: product.asiaShippingFee,
+      },
+      {
+        key: "international",
+        label: "Global",
+        fee: product.internationalShippingFee,
+      },
+    ]
+      .filter((r) => r.fee !== null && r.fee !== undefined)
+      .map((r) => {
+        const active = selectedRegion === r.key;
+
+        return (
+          <button
+            key={r.key}
+            onClick={() =>
+              setSelectedRegion(
+                r.key as "domestic" | "asia" | "international"
+              )
+            }
+            className={`px-3 py-2 rounded border text-sm ${
+              active
+                ? "bg-orange-100 border-orange-500 text-orange-600"
+                : "bg-white border-gray-300"
+            }`}
+          >
+            {r.label} • {formatPi(r.fee || 0)} π
+          </button>
+        );
+      })}
+  </div>
+
+  {!selectedRegion && (
+    <p className="text-xs text-red-500 mt-2">
+      ⚠️ {t.shipping_required || "Chọn khu vực trước khi mua"}
+    </p>
   )}
 </div>
 
