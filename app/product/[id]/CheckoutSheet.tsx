@@ -98,6 +98,7 @@ function getCountryDisplay(country?: string) {
 /* ========================= */
 
 export default function CheckoutSheet({ open, onClose, product }: Props) {
+   console.log("PRODUCT DATA:", product);
   const router = useRouter();
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
