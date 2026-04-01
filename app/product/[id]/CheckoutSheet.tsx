@@ -134,6 +134,21 @@ const subtotal = useMemo(() => {
     return sum + price * i.quantity;
   }, 0);
 }, [items]);
+// ================= SHIPPING =================
+const shippingFee = useMemo(() => {
+  if (!selectedRegion || !firstItem) return 0;
+
+  if (selectedRegion === "domestic")
+    return firstItem.domesticShippingFee ?? 0;
+
+  if (selectedRegion === "asia")
+    return firstItem.asiaShippingFee ?? 0;
+
+  if (selectedRegion === "international")
+    return firstItem.internationalShippingFee ?? 0;
+
+  return 0;
+}, [selectedRegion, firstItem]);
   /* =========================
      LOAD ADDRESS
   ========================= */
