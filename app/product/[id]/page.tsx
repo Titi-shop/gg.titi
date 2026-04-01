@@ -115,7 +115,7 @@ export default function ProductDetail() {
     try {
       const res = await fetch(`/api/product/${id}`);
       const api: ApiProduct = await res.json();
-
+    console.log("API PRODUCT:", api);
       if (!api || !api.id) return;
 
       const finalPrice =
