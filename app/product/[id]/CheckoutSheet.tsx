@@ -82,10 +82,10 @@ interface Props {
     thumbnail?: string;
     stock?: number;
 
-    // 🔥 FIX ĐÚNG FIELD BACKEND
-    domestic_shipping_fee?: number | null;
-    asia_shipping_fee?: number | null;
-    international_shipping_fee?: number | null;
+    // ✅ ĐỔI LẠI ĐÚNG
+    domesticShippingFee?: number | null;
+    asiaShippingFee?: number | null;
+    internationalShippingFee?: number | null;
   };
 }
 
@@ -218,13 +218,13 @@ const quantity = useMemo(() => {
   if (!selectedRegion) return 0;
 
   if (selectedRegion === "domestic")
-    return product.domestic_shipping_fee ?? 0;
+    return product.domesticShippingFee ?? 0;
 
   if (selectedRegion === "asia")
-    return product.asia_shipping_fee ?? 0;
+    return product.asiaShippingFee ?? 0;
 
   if (selectedRegion === "international")
-    return product.international_shipping_fee ?? 0;
+    return product.internationalShippingFee ?? 0;
 
   return 0;
 }, [selectedRegion, product]);
@@ -451,9 +451,10 @@ console.log("🟡 VALIDATE START");
   </p>
 
  <div className="flex gap-2 overflow-x-auto">{[
-  { key: "domestic", label: "VN", fee: product.domestic_shipping_fee ?? 0 },
-  { key: "asia", label: "Asia", fee: product.asia_shipping_fee ?? 0 },
-  { key: "international", label: "Global", fee: product.international_shipping_fee ?? 0 },
+  { key: "domestic", label: "VN", fee: product.domesticShippingFee ?? 0 },
+  { key: "asia", label: "Asia", fee: product.asiaShippingFee ?? 0 },
+  { key: "international", label: "Global", fee: product.internationalShippingFee ?? 0 },
+
 ].map(r => {
     const active = selectedRegion === r.key;
 
