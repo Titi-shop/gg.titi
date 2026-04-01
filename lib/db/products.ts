@@ -44,6 +44,9 @@ type ProductRow = {
   deleted_at?: string | null;
   created_at: string;
   updated_at: string | null;
+   domestic_shipping_fee?: number | null;
+  asia_shipping_fee?: number | null;
+  international_shipping_fee?: number | null;
 };
 
 export type ProductRecord = Omit<ProductRow, "price" | "sale_price"> & {
@@ -101,10 +104,29 @@ function toAppProduct(row: ProductRow): ProductRecord {
   return {
     ...row,
     price: Number(row.price),
-    sale_price: row.sale_price !== null ? Number(row.sale_price) : null,
+    sale_price:
+      row.sale_price !== null ? Number(row.sale_price) : null,
+
+    // ✅ normalize shipping
+    domestic_shipping_fee:
+      row.domestic_shipping_fee !== null &&
+      row.domestic_shipping_fee !== undefined
+        ? Number(row.domestic_shipping_fee)
+        : null,
+
+    asia_shipping_fee:
+      row.asia_shipping_fee !== null &&
+      row.asia_shipping_fee !== undefined
+        ? Number(row.asia_shipping_fee)
+        : null,
+
+    international_shipping_fee:
+      row.international_shipping_fee !== null &&
+      row.international_shipping_fee !== undefined
+        ? Number(row.international_shipping_fee)
+        : null,
   };
 }
-
 /* =========================================================
    GET — ALL PRODUCTS
 ========================================================= */
