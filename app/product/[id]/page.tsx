@@ -113,41 +113,19 @@ export default function ProductDetail() {
   useEffect(() => {
   async function loadProduct() {
     try {
-      const res = await fetch(`/api/product/${id}`);
-      const api: ApiProduct = await res.json();
-    console.log("API PRODUCT:", api);
-      if (!api || !api.id) return;
+      if (!id) return;
+
+      const res = await fetch(`/api/products/${id}`);
+      const data: unknown = await res.json();
+
+      if (!data || typeof data !== "object") return;
+
+      const api = data as ApiProduct;
 
       const finalPrice =
         typeof api.finalPrice === "number"
           ? api.finalPrice
           : api.price;
-
-      const variants: ProductVariant[] = Array.isArray(api.variants)
-        ? api.variants
-            .filter((v) => v && typeof v === "object")
-            .map((v) => ({
-              id: typeof v.id === "string" ? v.id : undefined,
-              optionName:
-                typeof v.optionName === "string"
-                  ? v.optionName
-                  : "size",
-              optionValue:
-                typeof v.optionValue === "string"
-                  ? v.optionValue
-                  : "",
-              stock: typeof v.stock === "number" ? v.stock : 0,
-              sku: typeof v.sku === "string" ? v.sku : null,
-              sortOrder:
-                typeof v.sortOrder === "number" ? v.sortOrder : 0,
-              isActive:
-                typeof v.isActive === "boolean" ? v.isActive : true,
-            }))
-            .filter((v) => v.optionValue !== "")
-        : [];
-
-      const stock = typeof api.stock === "number" ? api.stock : 0;
-      const isActive = api.isActive !== false;
 
       const normalized: Product = {
         id: api.id,
@@ -161,31 +139,48 @@ export default function ProductDetail() {
 
         views: api.views ?? 0,
         sold: api.sold ?? 0,
-        ratingAvg: api.rating_avg ?? 0,
-        ratingCount: api.rating_count ?? 0,
+        ratingAvg:
+          typeof api.rating_avg === "number"
+            ? api.rating_avg
+            : 0,
+        ratingCount:
+          typeof api.rating_count === "number"
+            ? api.rating_count
+            : 0,
 
         thumbnail: api.thumbnail ?? "",
         images: Array.isArray(api.images) ? api.images : [],
         categoryId: api.categoryId ?? null,
 
-        stock,
-        isActive,
-        isOutOfStock: stock <= 0 || !isActive,
-        variants,
+        stock:
+          typeof api.stock === "number" ? api.stock : 0,
+        isActive: api.isActive !== false,
+        isOutOfStock:
+          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+          api.isActive === false,
 
-        // ✅ shipping
-        domesticShippingFee: api.domestic_shipping_fee ?? null,
-        asiaShippingFee: api.asia_shipping_fee ?? null,
-        internationalShippingFee: api.international_shipping_fee ?? null,
+        variants: Array.isArray(api.variants)
+          ? api.variants
+          : [],
+
+        domesticShippingFee:
+          api.domestic_shipping_fee ?? null,
+        asiaShippingFee:
+          api.asia_shipping_fee ?? null,
+        internationalShippingFee:
+          api.international_shipping_fee ?? null,
       };
 
       setProduct(normalized);
 
       const firstAvailableVariant =
-        normalized.variants.find((v) => (v.isActive ?? true) && v.stock > 0) ?? null;
+        normalized.variants.find(
+          (v) => (v.isActive ?? true) && v.stock > 0
+        ) ?? null;
 
       setSelectedVariant(firstAvailableVariant);
-
+    } catch {
+      // không log sensitive
     } finally {
       setLoading(false);
     }
