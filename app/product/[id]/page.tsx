@@ -119,54 +119,54 @@ export default function ProductDetail() {
   useEffect(() => {
     async function loadProduct() {
       try {
-        const res = await fetch("/api/products");
-        const data: unknown = await res.json();
+        const res = await fetch(`/api/products/${id}`);
+const data: unknown = await res.json();
 
-        if (!Array.isArray(data)) return;
+if (!data || typeof data !== "object") return;
 
-        const normalized: Product[] = data.map((p) => {
-  const api = p as ApiProduct;
+const api = data as ApiProduct;
 
-  const finalPrice =
-    typeof api.finalPrice === "number"
-      ? api.finalPrice
-      : api.price;
+const finalPrice =
+  typeof api.finalPrice === "number"
+    ? api.finalPrice
+    : api.price;
 
-  const variants: ProductVariant[] = Array.isArray(api.variants)
-    ? api.variants
-        .filter((v) => v && typeof v === "object")
-        .map((v: any) => ({
-          id: typeof v.id === "string" ? v.id : undefined,
-          optionName:
-            typeof v.optionName === "string"
-              ? v.optionName
-              : typeof v.option_name === "string"
-              ? v.option_name
-              : "size",
-          optionValue:
-            typeof v.optionValue === "string"
-              ? v.optionValue
-              : typeof v.option_value === "string"
-              ? v.option_value
-              : "",
-          stock: typeof v.stock === "number" ? v.stock : 0,
-          sku: typeof v.sku === "string" ? v.sku : null,
-          sortOrder:
-            typeof v.sortOrder === "number"
-              ? v.sortOrder
-              : typeof v.sort_order === "number"
-              ? v.sort_order
-              : 0,
-          isActive:
-            typeof v.isActive === "boolean"
-              ? v.isActive
-              : typeof v.is_active === "boolean"
-              ? v.is_active
-              : true,
-        }))
-        .filter((v) => v.optionValue !== "")
-    : [];
+const normalized: Product = {
+  id: api.id,
+  name: api.name,
+  price: api.price,
+  finalPrice,
+  isSale: finalPrice < api.price,
 
+  description: api.description ?? "",
+  detail: api.detail ?? "",
+
+  views: api.views ?? 0,
+  sold: api.sold ?? 0,
+  ratingAvg: api.rating_avg ?? 0,
+  ratingCount: api.rating_count ?? 0,
+
+  thumbnail: api.thumbnail ?? "",
+  images: Array.isArray(api.images) ? api.images : [],
+  categoryId: api.categoryId ?? null,
+
+  stock: api.stock ?? 0,
+  isActive: api.isActive !== false,
+  isOutOfStock: (api.stock ?? 0) <= 0,
+
+  variants: Array.isArray(api.variants) ? api.variants : [],
+
+  domesticShippingFee: api.domestic_shipping_fee ?? null,
+  asiaShippingFee: api.asia_shipping_fee ?? null,
+  internationalShippingFee: api.international_shipping_fee ?? null,
+};
+
+setProduct(normalized);
+
+const firstAvailableVariant =
+  normalized.variants.find((v) => (v.isActive ?? true) && v.stock > 0) ?? null;
+
+setSelectedVariant(firstAvailableVariant);
   const stock = typeof api.stock === "number" ? api.stock : 0;
   const isActive = api.isActive !== false;
 
