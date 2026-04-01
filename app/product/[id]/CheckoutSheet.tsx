@@ -232,6 +232,10 @@ const quantity = useMemo(() => {
   () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
   [unitPrice, quantity, shippingFee]
 );
+   const isRegionValid =
+  selectedRegion &&
+  shipping &&
+  selectedRegion === getRegionFromCountry(shipping.country);
 
   /* =========================
      VALIDATION
@@ -270,6 +274,7 @@ if (selectedRegion && shipping) {
     realRegion,
     country: shipping.country,
   });
+
 
   if (selectedRegion !== realRegion) {
     showMessage(
@@ -601,7 +606,8 @@ setProcessing(true);
     quantity > maxStock ||
     quantity < 1 ||
     !selectedRegion ||
-    !shipping
+    !shipping ||
+    !isRegionValid
   }
             className={`w-full py-3 text-white rounded-lg font-semibold ${
               processing ? "bg-gray-400" : "bg-orange-600"
