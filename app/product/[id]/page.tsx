@@ -531,7 +531,7 @@ const canBuy =
     </span>
   )}
 </div>
-      {/* SHIPPING REGION */}
+     {/* SHIPPING REGION */}
 <div className="bg-white px-4 pb-4">
   <p className="text-sm font-medium mb-2">
     🌍 {t.select_region}
@@ -541,21 +541,21 @@ const canBuy =
     {[
       {
         key: "domestic",
-        label: t.shipping_domestic, // ✅ i18n
+        label: t.shipping_domestic,
         fee: product.domesticShippingFee,
       },
       {
         key: "asia",
-        label: t.shipping_asia, // ✅ i18n
+        label: t.shipping_asia,
         fee: product.asiaShippingFee,
       },
       {
         key: "international",
-        label: t.shipping_international, // ✅ i18n
+        label: t.shipping_international,
         fee: product.internationalShippingFee,
       },
     ]
-      .filter((r) => typeof r.fee === "number") // ✅ fix luôn bug
+      .filter((r) => typeof r.fee === "number")
       .map((r) => {
         const active = selectedRegion === r.key;
 
