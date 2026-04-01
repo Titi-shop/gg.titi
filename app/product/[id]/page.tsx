@@ -534,28 +534,28 @@ const canBuy =
       {/* SHIPPING REGION */}
 <div className="bg-white px-4 pb-4">
   <p className="text-sm font-medium mb-2">
-    🌍 {t.select_region || "Chọn khu vực vận chuyển"}
+    🌍 {t.select_region}
   </p>
 
   <div className="flex gap-2 flex-wrap">
     {[
       {
         key: "domestic",
-        label: "VN",
+        label: t.shipping_domestic, // ✅ i18n
         fee: product.domesticShippingFee,
       },
       {
         key: "asia",
-        label: "Asia",
+        label: t.shipping_asia, // ✅ i18n
         fee: product.asiaShippingFee,
       },
       {
         key: "international",
-        label: "Global",
+        label: t.shipping_international, // ✅ i18n
         fee: product.internationalShippingFee,
       },
     ]
-      .filter((r) => r.fee !== null && r.fee !== undefined)
+      .filter((r) => typeof r.fee === "number") // ✅ fix luôn bug
       .map((r) => {
         const active = selectedRegion === r.key;
 
@@ -573,7 +573,7 @@ const canBuy =
                 : "bg-white border-gray-300"
             }`}
           >
-            {r.label} • {formatPi(r.fee || 0)} π
+            {r.label} • {formatPi(r.fee ?? 0)} π
           </button>
         );
       })}
@@ -581,7 +581,7 @@ const canBuy =
 
   {!selectedRegion && (
     <p className="text-xs text-red-500 mt-2">
-      ⚠️ {t.shipping_required || "Chọn khu vực trước khi mua"}
+      ⚠️ {t.shipping_required}
     </p>
   )}
 </div>
