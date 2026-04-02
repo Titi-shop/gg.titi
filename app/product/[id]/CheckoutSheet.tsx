@@ -535,7 +535,10 @@ setProcessing(true);
     return (
       <button
         key={r.zone}
-        onClick={() => setSelectedRegion(r.zone as Region)}
+        onClick={() => {
+  if (!r.zone) return;
+  setSelectedRegion(r.zone);
+}}
         className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
           ${
             active
