@@ -557,20 +557,18 @@ const canBuy = hasVariants
   open={openCheckout}
   onClose={() => setOpenCheckout(false)}
   product={{
-    id:
-      hasVariants && selectedVariant?.id
-        ? `${product.id}-${selectedVariant.id}`
-        : product.id,
+    id: product.id, 
+    variant_id: selectedVariant?.id ?? null, 
     name:
       hasVariants && selectedVariant
         ? `${product.name} - ${selectedVariant.optionValue}`
         : product.name,
+
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     stock: selectedStock,
     shipping_rates: product.shipping_rates,
-    
   }}
 />
     </div>
