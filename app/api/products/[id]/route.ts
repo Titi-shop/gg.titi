@@ -247,27 +247,6 @@ export async function PATCH(
 
 /* ================= SHIPPING ================= */
 
-if (body.domestic_shipping_fee !== undefined) {
-  payload.domestic_shipping_fee =
-    typeof body.domestic_shipping_fee === "number"
-      ? body.domestic_shipping_fee
-      : null;
-}
-
-if (body.asia_shipping_fee !== undefined) {
-  payload.asia_shipping_fee =
-    typeof body.asia_shipping_fee === "number"
-      ? body.asia_shipping_fee
-      : null;
-}
-
-if (body.international_shipping_fee !== undefined) {
-  payload.international_shipping_fee =
-    typeof body.international_shipping_fee === "number"
-      ? body.international_shipping_fee
-      : null;
-}
-
     if (body.salePrice !== undefined) {
       payload.sale_price =
         typeof body.salePrice === "number"
