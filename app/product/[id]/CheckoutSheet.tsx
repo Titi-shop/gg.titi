@@ -358,7 +358,6 @@ setProcessing(true);
           metadata: {
             shipping,
              zone: selectedRegion,
-             shippingFee: shippingFee,
             product: {
               id: item!.id,
               name: item!.name,
