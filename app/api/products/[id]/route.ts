@@ -111,40 +111,44 @@ export async function GET(
         { status: 400 }
       );
     }
-
+console.log("[PRODUCT][GET] start", { id });
     const p = await getProductById(id);
 
-    if (!p) {
-      return NextResponse.json(
-        { error: "PRODUCT_NOT_FOUND" },
-        { status: 404 }
-      );
-    }
+if (!p) {
+  console.log("[PRODUCT][GET] not found");
+  return NextResponse.json(
+    { error: "PRODUCT_NOT_FOUND" },
+    { status: 404 }
+  );
+}
 
-    const variants = await getVariantsByProductId(id);
-
-    return NextResponse.json({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      salePrice: p.sale_price ?? null,
-      saleStart: p.sale_start ?? null,
-      saleEnd: p.sale_end ?? null,
-      description: p.description ?? "",
-      detail: p.detail ?? "",
-      images: p.images ?? [],
-      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-      categoryId: p.category_id ?? null,
-      stock: p.stock ?? 0,
-      is_active: p.is_active ?? true,
-      views: p.views ?? 0,
-      sold: p.sold ?? 0,
-      rating_avg: p.rating_avg ?? 0,
-      rating_count: p.rating_count ?? 0,
-      variants,
-      shipping_rates: shippingRates,
-      
-    });
+const variants = await getVariantsByProductId(id);
+const shippingRates = await getShippingRatesBySeller(p.seller_id);
+console.log("[PRODUCT][GET] done", {
+    variantCount: variants.length,
+    shippingCount: shippingRates.length,
+  });
+return NextResponse.json({
+  id: p.id,
+  name: p.name,
+  price: p.price,
+  salePrice: p.sale_price ?? null,
+  saleStart: p.sale_start ?? null,
+  saleEnd: p.sale_end ?? null,
+  description: p.description ?? "",
+  detail: p.detail ?? "",
+  images: p.images ?? [],
+  thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
+  categoryId: p.category_id ?? null,
+  stock: p.stock ?? 0,
+  is_active: p.is_active ?? true,
+  views: p.views ?? 0,
+  sold: p.sold ?? 0,
+  rating_avg: p.rating_avg ?? 0,
+  rating_count: p.rating_count ?? 0,
+  variants,
+  shipping_rates: shippingRates,
+});
   } catch (err) {
   console.error("[PRODUCT][GET] ERROR", err);
 
