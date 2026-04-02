@@ -207,16 +207,12 @@ export async function createProduct(
       is_active,
       views,
       sold,
-      seller_id,
-      domestic_shipping_fee,
-     asia_shipping_fee,
-     international_shipping_fee
+      seller_id
     )
-   VALUES (
-  $1,$2,$3,$4,$5,$6,
-  $7,$8,$9,$10,$11,$12,$13,$14,$15,
-  $16,$17,$18
-)
+    VALUES (
+      $1,$2,$3,$4,$5,$6,
+      $7,$8,$9,$10,$11,$12,$13,$14,$15
+    )
     RETURNING *
     `,
     [
@@ -244,7 +240,6 @@ export async function createProduct(
 
   return toAppProduct(rows[0]);
 }
-
 /* =========================================================
    UPDATE
 ========================================================= */
@@ -368,7 +363,7 @@ export async function incrementProductView(
    GET — PRODUCTS BY SELLER
 ========================================================= */
 
-export type ProductRecord = {
+export type SellerProductRecord = {
   id: string;
   name: string;
   price: number;
@@ -381,7 +376,7 @@ export type ProductRecord = {
 
 export async function getProductsBySeller(
   userId: string
-): Promise<ProductRecord[]> {
+): Promise<SellerProductRecord[]> {
   if (!userId) {
     throw new Error("INVALID_USER_ID");
   }
