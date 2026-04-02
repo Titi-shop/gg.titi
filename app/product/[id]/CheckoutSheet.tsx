@@ -42,6 +42,16 @@ declare global {
 /* =========================
    TYPES
 ========================= */
+/* =========================
+   TYPES
+========================= */
+type Region =
+  | "domestic"
+  | "sea"
+  | "asia"
+  | "europe"
+  | "north_america"
+  | "rest_of_world";
 
 interface ShippingInfo {
   name: string;
@@ -81,11 +91,11 @@ interface Props {
     finalPrice?: number;
     thumbnail?: string;
     stock?: number;
-
-    // ✅ ĐỔI LẠI ĐÚNG
-    domesticShippingFee?: number | null;
-    asiaShippingFee?: number | null;
-    internationalShippingFee?: number | null;
+    shipping_rates: {
+  zone: string;
+  price: number;
+}[];
+    
   };
 }
 
@@ -215,14 +225,15 @@ const quantity = useMemo(() => {
    const shippingFee = useMemo(() => {
   if (!selectedRegion) return 0;
 
-  if (selectedRegion === "domestic")
-    return product.domesticShippingFee ?? 0;
+  const shippingFee = useMemo(() => {
+  if (!selectedRegion) return 0;
 
-  if (selectedRegion === "asia")
-    return product.asiaShippingFee ?? 0;
+  const found = product.shipping_rates.find(
+    (r) => r.zone === selectedRegion
+  );
 
-  if (selectedRegion === "international")
-    return product.internationalShippingFee ?? 0;
+  return found?.price ?? 0;
+}, [selectedRegion, product]);
 
   return 0;
 }, [selectedRegion, product]);
@@ -312,9 +323,14 @@ const quantity = useMemo(() => {
     showMessage(t.shipping_required || "Select shipping region");
     return false;
   }
+const realRegion = getRegionFromCountry(shipping.country);
+const regionMap: Record<string, string> = {
+  domestic: "domestic",
+  asia: "asia",
+  international: "rest_of_world",
+};
 
-  // ✅ CHECK REGION (QUAN TRỌNG)
-  const realRegion = getRegionFromCountry(shipping.country);
+const mappedRegion = regionMap[realRegion];
 
   console.log("🌍 REGION CHECK:", {
     selectedRegion,
@@ -535,12 +551,44 @@ setProcessing(true);
     🌍 {t.select_region || "Select region"}
   </p>
 
- <div className="flex gap-2 overflow-x-auto">{[
-  { key: "domestic", label: "VN", fee: product.domesticShippingFee ?? 0 },
-  { key: "asia", label: "Asia", fee: product.asiaShippingFee ?? 0 },
-  { key: "international", label: "Global", fee: product.internationalShippingFee ?? 0 },
+ <div className="flex gap-2 overflow-x-auto">{
+    <div className="flex gap-2 overflow-x-auto">
+  {product.shipping_rates.map((r) => {
+    const active = selectedRegion === r.zone;
 
-].map(r => {
+    const labelMap: Record<string, string> = {
+      domestic: "VN",
+      sea: "SEA",
+      asia: "Asia",
+      europe: "Europe",
+      north_america: "US",
+      rest_of_world: "Global",
+    };
+
+    return (
+      <button
+        key={r.zone}
+        onClick={() => setSelectedRegion(r.zone as any)}
+        className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
+          ${
+            active
+              ? "bg-orange-500 text-white border-orange-500"
+              : "bg-gray-50 border-gray-300"
+          }
+        `}
+      >
+        <div className="font-medium">
+          {labelMap[r.zone] ?? r.zone}
+        </div>
+
+        <div className="text-[11px] opacity-80">
+          {formatPi(r.price)} π
+        </div>
+      </button>
+    );
+  })}
+</div>
+    .map(r => {
     const active = selectedRegion === r.key;
 
     return (
