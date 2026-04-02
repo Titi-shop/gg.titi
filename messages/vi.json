@@ -483,7 +483,50 @@
   "shipping_domestic": "Trong nước",
   "shipping_asia": "Châu Á",
   "shipping_international": "Quốc tế",
- "address_not_supported": "Khu vực giao hàng không phù hợp với địa chỉ"
+ "address_not_supported": "Khu vực giao hàng không phù hợp với địa chỉ",
+
+
+
+  "out_of_stock": "Hết hàng",
+  "close": "Đóng",
+
+  "add_shipping": "Thêm địa chỉ giao hàng",
+  "select_region": "Chọn khu vực vận chuyển",
+  "shipping_required": "Vui lòng chọn khu vực vận chuyển",
+
+  "region_domestic": "Việt Nam",
+  "region_sea": "Đông Nam Á",
+  "region_asia": "Châu Á",
+  "region_europe": "Châu Âu",
+  "region_us": "Bắc Mỹ",
+  "region_global": "Toàn cầu",
+
+  "please_login": "Vui lòng đăng nhập",
+  "pi_not_ready": "Pi chưa sẵn sàng",
+
+  "please_add_shipping_address": "Vui lòng thêm địa chỉ giao hàng",
+
+  "invalid_product": "Sản phẩm không hợp lệ",
+  "invalid_quantity": "Số lượng không hợp lệ",
+
+  "order_preview_failed": "Không thể xem trước đơn hàng",
+  "order_preview_error": "Lỗi xem trước đơn hàng",
+
+  "payment_memo_order": "Thanh toán đơn hàng",
+
+  "payment_approve_failed": "Xác nhận thanh toán thất bại",
+  "payment_approve_error": "Lỗi xác nhận thanh toán",
+
+  "payment_complete_failed": "Hoàn tất thanh toán thất bại",
+  "payment_failed": "Thanh toán thất bại",
+  "payment_success": "Thanh toán thành công",
+
+  "payment_cancelled": "Bạn đã hủy thanh toán",
+  "transaction_failed": "Giao dịch thất bại",
+
+  "processing": "Đang xử lý...",
+  "pay_now": "Thanh toán ngay"
+
       
 
 
