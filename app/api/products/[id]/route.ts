@@ -18,12 +18,6 @@ export const dynamic = "force-dynamic";
 /* =========================================================
    TYPES
 ========================================================= */
-type ShippingRateDB = {
-  price: number;
-  shipping_zones: {
-    code: string;
-  } | null;
-};
 
 type ShippingRateFE = {
   zone: string;
@@ -133,13 +127,8 @@ if (!p) {
 }
 
 const variants = await getVariantsByProductId(id);
-const rawRates: ShippingRateDB[] =
+const shippingRates: ShippingRateFE[] =
   await getShippingRatesBySeller(p.seller_id);
-
-const shippingRates: ShippingRateFE[] = rawRates.map((r) => ({
-  zone: r.shipping_zones?.code ?? "unknown",
-  price: r.price,
-}));
 console.log("[PRODUCT][GET] done", {
     variantCount: variants.length,
     shippingCount: shippingRates.length,
@@ -324,13 +313,8 @@ console.log("[PRODUCT][PATCH] start", { userId, productId: id });
     /* ================= REFRESH ================= */
     const p = await getProductById(id);
     const variants = await getVariantsByProductId(id);
-    const rawRates: ShippingRateDB[] =
+    const shippingRates: ShippingRateFE[] =
   await getShippingRatesBySeller(p.seller_id);
-
-const shippingRates: ShippingRateFE[] = rawRates.map((r) => ({
-  zone: r.shipping_zones?.code ?? "unknown",
-  price: r.price,
-}));
     if (!p) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
