@@ -921,27 +921,57 @@ export async function previewOrder(
   }
 
   /* ================= SHIPPING ================= */
-  // 🚨 TẠM FIX: lấy shipping của seller đầu tiên
-  // vì bạn đang dùng 1 giá ship cho toàn shop
+  /* ================= SHIPPING ================= */
 
-  const sellerId = products[0].seller_id;
+const country = input.country?.toUpperCase();
 
-  const { rows: shippingRows } = await query<{
-    price: number;
-  }>(
-    `
-    SELECT price
-    FROM shipping_rates
-    WHERE seller_id = $1
-    LIMIT 1
-    `,
-    [sellerId]
-  );
+if (!country) {
+  throw new Error("MISSING_COUNTRY");
+}
 
-  const shippingFee =
-    shippingRows.length > 0
-      ? Number(shippingRows[0].price)
-      : 0;
+console.log("🟡 GET ZONE FROM DB:", country);
+
+/* ===== 1. LẤY ZONE ===== */
+
+const { rows: zoneRows } = await query<{ code: string }>(
+  `
+  SELECT sz.code
+  FROM shipping_zone_countries szc
+  JOIN shipping_zones sz ON sz.id = szc.zone_id
+  WHERE szc.country_code = $1
+  LIMIT 1
+  `,
+  [country]
+);
+
+if (zoneRows.length === 0) {
+  throw new Error("ZONE_NOT_FOUND");
+}
+
+const zone = zoneRows[0].code;
+
+console.log("🟢 ZONE:", zone);
+
+/* ===== 2. LẤY SHIPPING ===== */
+
+const sellerId = products[0].seller_id;
+
+const { rows: shippingRows } = await query<{ price: number }>(
+  `
+  SELECT sr.price
+  FROM shipping_rates sr
+  JOIN shipping_zones sz ON sz.id = sr.zone_id
+  WHERE sr.seller_id = $1
+  AND sz.code = $2
+  LIMIT 1
+  `,
+  [sellerId, zone]
+);
+
+const shippingFee =
+  shippingRows.length > 0
+    ? Number(shippingRows[0].price)
+    : 0;
 
   /* ================= TOTAL ================= */
 
