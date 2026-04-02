@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 /* =========================================================
    TYPES
-========================================================= /
+========================================================= */
 
 type PreviewItem = {
   product_id: string;
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
       total: result?.total,
     });
 
-    / ================= RESPONSE ================= */
+    /* ================= RESPONSE ================= */
 
     return NextResponse.json(result);
 
@@ -152,4 +152,3 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
