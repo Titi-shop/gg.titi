@@ -855,14 +855,31 @@ type PreviewOrderResult = {
 export async function previewOrder(
   input: PreviewOrderInput
 ): Promise<PreviewOrderResult> {
-  const { userId, items } = input;
+  const { userId, items, country } = input;
 
   if (!userId) throw new Error("INVALID_USER");
-  if (!Array.isArray(items) || items.length === 0) {
-    throw new Error("EMPTY_ITEMS");
+  if (!country) throw new Error("MISSING_COUNTRY");
+
+  /* ================= ZONE ================= */
+
+  const { rows: zoneRows } = await query<{ code: string }>(
+    `
+    SELECT sz.code
+    FROM shipping_zone_countries szc
+    JOIN shipping_zones sz ON sz.id = szc.zone_id
+    WHERE szc.country_code = $1
+    LIMIT 1
+    `,
+    [country.toUpperCase()]
+  );
+
+  if (!zoneRows.length) {
+    throw new Error("INVALID_COUNTRY");
   }
 
-  /* ================= GET PRODUCTS ================= */
+  const zone = zoneRows[0].code;
+
+  /* ================= PRODUCTS ================= */
 
   const productIds = items.map((i) => i.product_id);
 
@@ -880,107 +897,50 @@ export async function previewOrder(
     [productIds]
   );
 
-  if (products.length === 0) {
-    throw new Error("PRODUCT_NOT_FOUND");
-  }
-
-  /* ================= MAP ================= */
+  if (!products.length) throw new Error("PRODUCT_NOT_FOUND");
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  const previewItems: PreviewOrderResult["items"] = [];
-
   let subtotal = 0;
 
-  for (const item of items) {
+  const previewItems = items.map((item) => {
     const p = productMap.get(item.product_id);
-    if (!p) continue;
+    if (!p) throw new Error("INVALID_PRODUCT");
 
-    const qty =
-      typeof item.quantity === "number" &&
-      item.quantity > 0 &&
-      item.quantity <= 99
-        ? item.quantity
-        : 1;
-
-    const total = Number(p.price) * qty;
-
+    const total = Number(p.price) * item.quantity;
     subtotal += total;
 
-    previewItems.push({
+    return {
       product_id: p.id,
       name: p.name,
       price: Number(p.price),
-      quantity: qty,
+      quantity: item.quantity,
       total,
-    });
-  }
-
-  if (previewItems.length === 0) {
-    throw new Error("INVALID_ITEMS");
-  }
+    };
+  });
 
   /* ================= SHIPPING ================= */
-  /* ================= SHIPPING ================= */
 
-const country = input.country?.toUpperCase();
+  const sellerId = products[0].seller_id;
 
-if (!country) {
-  throw new Error("MISSING_COUNTRY");
-}
+  const { rows: shippingRows } = await query<{ price: number }>(
+    `
+    SELECT price
+    FROM shipping_rates
+    WHERE seller_id = $1 AND zone = $2
+    LIMIT 1
+    `,
+    [sellerId, zone]
+  );
 
-console.log("🟡 GET ZONE FROM DB:", country);
-
-/* ===== 1. LẤY ZONE ===== */
-
-const { rows: zoneRows } = await query<{ code: string }>(
-  `
-  SELECT sz.code
-  FROM shipping_zone_countries szc
-  JOIN shipping_zones sz ON sz.id = szc.zone_id
-  WHERE szc.country_code = $1
-  LIMIT 1
-  `,
-  [country]
-);
-
-if (zoneRows.length === 0) {
-  throw new Error("ZONE_NOT_FOUND");
-}
-
-const zone = zoneRows[0].code;
-
-console.log("🟢 ZONE:", zone);
-
-/* ===== 2. LẤY SHIPPING ===== */
-
-const sellerId = products[0].seller_id;
-
-const { rows: shippingRows } = await query<{ price: number }>(
-  `
-  SELECT sr.price
-  FROM shipping_rates sr
-  JOIN shipping_zones sz ON sz.id = sr.zone_id
-  WHERE sr.seller_id = $1
-  AND sz.code = $2
-  LIMIT 1
-  `,
-  [sellerId, zone]
-);
-
-const shippingFee =
-  shippingRows.length > 0
-    ? Number(shippingRows[0].price)
-    : 0;
+  const shippingFee = shippingRows[0]?.price ?? 0;
 
   /* ================= TOTAL ================= */
-
-  const total = subtotal + shippingFee;
 
   return {
     items: previewItems,
     subtotal,
     shipping_fee: shippingFee,
-    total,
+    total: subtotal + shippingFee,
   };
 }
