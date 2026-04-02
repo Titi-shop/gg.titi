@@ -307,7 +307,12 @@ if (!name || Number(price) <= 0 || !categoryId) {
     return;
   }
 }
-
+const shipping_rates_array = Object.entries(shippingRates)
+  .filter(([_, price]) => price !== "")
+  .map(([zone, price]) => ({
+    zone,
+    price: Number(price),
+  }));
     const payload: ProductPayload = {
   id: initialData?.id,
   name,
@@ -448,29 +453,31 @@ if (!name || Number(price) <= 0 || !categoryId) {
        <div className="space-y-2">
   <p className="font-medium">🚚 Shipping Fee</p>
 
-  <div className="grid grid-cols-2 gap-{[
-  { key: "domestic", label: "Domestic" },
-  { key: "sea", label: "SEA" },
-  { key: "asia", label: "Asia" },
-  { key: "europe", label: "Europe" },
-  { key: "north_america", label: "North America" },
-  { key: "rest_of_world", label: "Rest of World" },
-].map((z) => (
-  <input
-    key={z.key}
-    type="number"
-    step="0.00001"
-    placeholder={z.label}
-    value={shippingRates[z.key] ?? ""}
-    onChange={(e) =>
-      setShippingRates((prev) => ({
-        ...prev,
-        [z.key]: e.target.value ? Number(e.target.value) : "",
-      }))
-    }
-    className="border p-2 rounded"
-  />
-))}
+  <div className="grid grid-cols-2 gap-3">
+    {[
+      { key: "domestic", label: "Domestic" },
+      { key: "sea", label: "SEA" },
+      { key: "asia", label: "Asia" },
+      { key: "europe", label: "Europe" },
+      { key: "north_america", label: "North America" },
+      { key: "rest_of_world", label: "Rest of World" },
+    ].map((z) => (
+      <input
+        key={z.key}
+        type="number"
+        step="0.00001"
+        placeholder={z.label}
+        value={shippingRates[z.key] ?? ""}
+        onChange={(e) =>
+          setShippingRates((prev) => ({
+            ...prev,
+            [z.key]: e.target.value ? Number(e.target.value) : "",
+          }))
+        }
+        className="border p-2 rounded"
+      />
+    ))}
+  </div>
 </div>
 
       <label className="flex items-center gap-2">
