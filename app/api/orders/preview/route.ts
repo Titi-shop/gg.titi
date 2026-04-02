@@ -53,12 +53,13 @@ export async function POST(req: NextRequest) {
     /* ================= VALIDATE ITEMS ================= */
 
     const cleanItems = items.filter(
-      (i) =>
-        i &&
-        typeof i.product_id === "string" &&
-        typeof i.quantity === "number" &&
-        i.quantity > 0
-    );
+  (i) =>
+    i &&
+    typeof i.product_id === "string" &&
+    isUUID(i.product_id) && 
+    typeof i.quantity === "number" &&
+    i.quantity > 0
+);
 
     if (cleanItems.length === 0) {
       return NextResponse.json(
