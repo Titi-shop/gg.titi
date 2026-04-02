@@ -1,5 +1,4 @@
 "use client";
-import { getRegionFromCountry } from "@/lib/shipping/region";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
