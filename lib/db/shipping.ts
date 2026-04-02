@@ -56,3 +56,26 @@ export async function upsertShippingRates({
     );
   }
 }
+export async function getShippingRatesBySeller(
+  sellerId: string
+): Promise<{ zone: string; price: number }[]> {
+  if (!sellerId) throw new Error("INVALID_USER");
+
+  const { rows } = await query<{
+    code: string;
+    price: number;
+  }>(
+    `
+    SELECT sz.code, sr.price
+    FROM shipping_rates sr
+    JOIN shipping_zones sz ON sz.id = sr.zone_id
+    WHERE sr.seller_id = $1
+    `,
+    [sellerId]
+  );
+
+  return rows.map((r) => ({
+    zone: r.code,
+    price: Number(r.price),
+  }));
+}
