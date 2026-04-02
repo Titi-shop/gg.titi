@@ -1,9 +1,23 @@
 import { Pool, PoolClient, QueryResult } from "pg";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-});
+declare global {
+  // eslint-disable-next-line no-var
+  var _pool: Pool | undefined;
+}
+
+const pool =
+  global._pool ||
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+
+    // 🔥 cực quan trọng
+    max: 5, // giới hạn connection
+  });
+
+if (process.env.NODE_ENV !== "production") {
+  global._pool = pool;
+}
 
 /* ================= QUERY ================= */
 
@@ -11,13 +25,7 @@ export async function query<T = unknown>(
   text: string,
   params?: unknown[]
 ): Promise<QueryResult<T>> {
-  const client = await pool.connect();
-
-  try {
-    return await client.query<T>(text, params);
-  } finally {
-    client.release();
-  }
+  return pool.query<T>(text, params);
 }
 
 /* ================= TRANSACTION ================= */
