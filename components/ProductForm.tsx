@@ -91,7 +91,6 @@ const [description, setDescription] = useState("");
   useEffect(() => {
   if (!initialData) return;
 
-  // 🔥 THÊM 4 dòng này
   setName(initialData.name || "");
   setPrice(initialData.price ?? "");
   setCategoryId(initialData.categoryId || "");
@@ -99,15 +98,41 @@ const [description, setDescription] = useState("");
 
   setImages(initialData.images || []);
   setSalePrice(initialData.salePrice ?? "");
-  setSaleStart(initialData.saleStart ? toLocalDateTime(initialData.saleStart) : "");
-  setSaleEnd(initialData.saleEnd ? toLocalDateTime(initialData.saleEnd) : "");
+  setSaleStart(
+    initialData.saleStart
+      ? toLocalDateTime(initialData.saleStart)
+      : ""
+  );
+  setSaleEnd(
+    initialData.saleEnd
+      ? toLocalDateTime(initialData.saleEnd)
+      : ""
+  );
+
   setStock(initialData.stock ?? 1);
   setIsActive(initialData.is_active ?? true);
   setDetail(initialData.detail || "");
   setVariants(Array.isArray(initialData.variants) ? initialData.variants : []);
-     setDomesticShipping(initialData.domestic_shipping_fee ?? "");
-setAsiaShipping(initialData.asia_shipping_fee ?? "");
-setInternationalShipping(initialData.international_shipping_fee ?? "");
+
+  // 🔥 NEW: map shipping_rates → state
+  const newRates: Record<string, number | ""> = {
+    domestic: "",
+    sea: "",
+    asia: "",
+    europe: "",
+    north_america: "",
+    rest_of_world: "",
+  };
+
+  if (Array.isArray(initialData.shipping_rates)) {
+    for (const r of initialData.shipping_rates) {
+      if (r.zone && typeof r.price === "number") {
+        newRates[r.zone] = r.price;
+      }
+    }
+  }
+
+  setShippingRates(newRates);
 }, [initialData]);
 
   if (loading || !user) {
