@@ -61,6 +61,10 @@ interface ApiProduct {
   isActive?: boolean;
   categoryId?: string | null;
   variants?: ProductVariant[];
+  shipping_rates?: {
+  zone: string;
+  price: number;
+}[];
 }
 
 interface Product {
@@ -82,9 +86,10 @@ interface Product {
   isOutOfStock: boolean;
   categoryId: string | null;
   variants: ProductVariant[];
-  domesticShippingFee?: number | null;
-asiaShippingFee?: number | null;
-internationalShippingFee?: number | null;
+  shipping_rates: {
+  zone: string;
+  price: number;
+}[];
 }
 
 /* =======================
@@ -161,13 +166,9 @@ export default function ProductDetail() {
         variants: Array.isArray(api.variants)
           ? api.variants
           : [],
-
-        domesticShippingFee:
-          api.domestic_shipping_fee ?? null,
-        asiaShippingFee:
-          api.asia_shipping_fee ?? null,
-        internationalShippingFee:
-          api.international_shipping_fee ?? null,
+        shipping_rates: Array.isArray(api.shipping_rates)
+  ? api.shipping_rates
+  : [],
       };
 
       setProduct(normalized);
