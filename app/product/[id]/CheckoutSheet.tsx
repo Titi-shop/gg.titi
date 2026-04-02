@@ -82,6 +82,7 @@ interface Props {
   onClose: () => void;
   product: {
     id: string;
+   variant_id?: string | null;
     name: string;
     price: number;
     finalPrice?: number;
@@ -240,41 +241,36 @@ const quantity = useMemo(() => {
 
    const previewOrder = async () => {
   try {
-    console.log("🟡 PREVIEW START");
-
     const token = await getPiAccessToken();
 
     const res = await fetch("/api/orders/preview", {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    country: shipping?.country,
-    items: [
-      {
-        product_id: item!.id,
-        quantity,
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-    ],
-  }),
-});
+      body: JSON.stringify({
+        country: shipping?.country,
+        items: [
+          {
+            product_id: item!.id,
+            variant_id: product.variant_id ?? null, 
+            quantity,
+          },
+        ],
+      }),
+    });
 
     const data = await res.json();
 
-    console.log("🟢 PREVIEW RESULT:", data);
-
     if (!res.ok) {
-      console.log("🔴 PREVIEW FAILED");
-      showMessage(data.error || "Không thể đặt hàng");
+      showMessage(data.error || t.order_preview_failed);
       return false;
     }
 
     return true;
-  } catch (err) {
-    console.error("❌ PREVIEW ERROR:", err);
-    showMessage("Preview lỗi");
+  } catch {
+    showMessage(t.order_preview_error);
     return false;
   }
 };
@@ -415,6 +411,7 @@ setProcessing(true);
                   product_id: item!.id,
                   quantity,
                   shipping,
+                   selectedRegion, 
                   user: { pi_uid: user!.pi_uid },
                 }),
               });
@@ -471,13 +468,13 @@ setProcessing(true);
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
       <div className="bg-white p-4 rounded-lg text-center">
         <p className="text-red-500 font-semibold">
-          Hết hàng
+          t.out_of_stock
         </p>
         <button
           onClick={onClose}
           className="mt-3 px-4 py-2 bg-gray-200 rounded"
         >
-          Đóng
+          t.close
         </button>
       </div>
     </div>
@@ -529,13 +526,13 @@ setProcessing(true);
     const active = selectedRegion === r.zone;
 
     const labelMap: Record<string, string> = {
-      domestic: "VN",
-      sea: "SEA",
-      asia: "Asia",
-      europe: "Europe",
-      north_america: "US",
-      rest_of_world: "Global",
-    };
+  domestic: t.region_domestic,
+  sea: t.region_sea,
+  asia: t.region_asia,
+  europe: t.region_europe,
+  north_america: t.region_us,
+  rest_of_world: t.region_global,
+};
 
     return (
       <button
