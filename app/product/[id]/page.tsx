@@ -561,20 +561,19 @@ const canBuy = hasVariants
       hasVariants && selectedVariant?.id
         ? `${product.id}-${selectedVariant.id}`
         : product.id,
-
     name:
       hasVariants && selectedVariant
         ? `${product.name} - ${selectedVariant.optionValue}`
         : product.name,
-
     price: product.price,
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
-
     stock: selectedStock,
-    domesticShippingFee: product.domesticShippingFee,
-    asiaShippingFee: product.asiaShippingFee,
-    internationalShippingFee: product.internationalShippingFee,
+    shipping_rates: {
+  zone: string;
+  price: number;
+}[];
+    
   }}
 />
     </div>
