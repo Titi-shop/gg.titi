@@ -362,26 +362,29 @@ export async function getReturnsByBuyer(userId: string) {
   return rows;
 }
 export async function processPiPayment(params: {
-  piUid: string;
+  userId: string;
   productId: string;
   quantity: number;
   paymentId: string;
   txid: string;
 }) {
+  function isUUID(v: string): boolean {
+    return /^[0-9a-f-]{36}$/i.test(v);
+  }
+
+  if (!isUUID(params.productId)) {
+    throw new Error("INVALID_PRODUCT_ID");
+  }
+
+  if (
+    typeof params.quantity !== "number" ||
+    !Number.isInteger(params.quantity) ||
+    params.quantity < 1
+  ) {
+    throw new Error("INVALID_QUANTITY");
+  }
+
   return withTransaction(async (client) => {
-
-    /* ================= USER ================= */
-    const userRes = await client.query(
-      `SELECT id FROM users WHERE pi_uid=$1 LIMIT 1`,
-      [params.piUid]
-    );
-
-    if (!userRes.rows.length) {
-      throw new Error("USER_NOT_FOUND");
-    }
-
-    const userId = userRes.rows[0].id;
-
     /* ================= IDEMPOTENCY ================= */
     const existing = await client.query(
       `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
@@ -394,7 +397,12 @@ export async function processPiPayment(params: {
 
     /* ================= PRODUCT ================= */
     const productRes = await client.query(
-      `SELECT * FROM products WHERE id=$1 LIMIT 1`,
+      `
+      SELECT id, seller_id, name, price, thumbnail, is_active, deleted_at
+      FROM products
+      WHERE id=$1
+      LIMIT 1
+      `,
       [params.productId]
     );
 
@@ -402,6 +410,12 @@ export async function processPiPayment(params: {
 
     if (!product || product.is_active === false || product.deleted_at) {
       throw new Error("PRODUCT_NOT_AVAILABLE");
+    }
+
+    const price = Number(product.price);
+
+    if (Number.isNaN(price) || price < 0) {
+      throw new Error("INVALID_PRICE");
     }
 
     /* ================= ADDRESS ================= */
@@ -412,10 +426,11 @@ export async function processPiPayment(params: {
       WHERE user_id=$1 AND is_default=true
       LIMIT 1
       `,
-      [userId]
+      [params.userId]
     );
 
     const addr = addrRes.rows[0];
+
     if (!addr) throw new Error("NO_ADDRESS");
 
     /* ================= STOCK ================= */
@@ -435,10 +450,9 @@ export async function processPiPayment(params: {
       throw new Error("OUT_OF_STOCK");
     }
 
-    /* ================= ORDER ================= */
-    const total =
-      Number(product.price) * params.quantity;
+    const total = price * params.quantity;
 
+    /* ================= ORDER ================= */
     const orderRes = await client.query(
       `
       INSERT INTO orders (
@@ -458,7 +472,7 @@ export async function processPiPayment(params: {
       RETURNING id
       `,
       [
-        userId,
+        params.userId,
         params.paymentId,
         params.txid,
         total,
@@ -491,7 +505,7 @@ export async function processPiPayment(params: {
         product.seller_id,
         product.name,
         product.thumbnail ?? "",
-        product.price,
+        price,
         params.quantity,
         total,
       ]
