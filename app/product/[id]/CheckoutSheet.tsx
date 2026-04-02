@@ -251,10 +251,14 @@ const quantity = useMemo(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: item!.id,
-        quantity,
-      }),
-    });
+  country: shipping?.country,
+  items: [
+    {
+      product_id: item!.id,
+      quantity,
+    },
+  ],
+})
 
     const data = await res.json();
 
