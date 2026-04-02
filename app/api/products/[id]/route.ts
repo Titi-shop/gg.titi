@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-
+import { upsertShippingRates, getShippingRatesBySeller } from "@/lib/db/shipping";
 import {
   updateProductBySeller,
   getProductById,
@@ -33,9 +33,10 @@ type PatchBody = {
   stock?: number;
   is_active?: boolean;
   variants?: ProductVariant[];
-  domestic_shipping_fee?: number;
-asia_shipping_fee?: number;
-international_shipping_fee?: number;
+  shipping_rates?: {
+  zone: string;
+  price: number;
+}[];
 };
 
 /* =========================================================
@@ -126,31 +127,23 @@ export async function GET(
       id: p.id,
       name: p.name,
       price: p.price,
-
       salePrice: p.sale_price ?? null,
       saleStart: p.sale_start ?? null,
       saleEnd: p.sale_end ?? null,
-
       description: p.description ?? "",
       detail: p.detail ?? "",
-
       images: p.images ?? [],
       thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-
       categoryId: p.category_id ?? null,
-
       stock: p.stock ?? 0,
       is_active: p.is_active ?? true,
-
       views: p.views ?? 0,
       sold: p.sold ?? 0,
       rating_avg: p.rating_avg ?? 0,
       rating_count: p.rating_count ?? 0,
-      domestic_shipping_fee: p.domestic_shipping_fee ?? null,
-     asia_shipping_fee: p.asia_shipping_fee ?? null,
-     international_shipping_fee: p.international_shipping_fee ?? null,
-
       variants,
+      shipping_rates: shippingRates,
+      
     });
   } catch {
     return NextResponse.json(
@@ -216,9 +209,7 @@ export async function PATCH(
       sale_end?: string | null;
       stock?: number;
       is_active?: boolean;
-      domestic_shipping_fee?: number | null;
-     asia_shipping_fee?: number | null;
-    international_shipping_fee?: number | null;
+
     } = {};
 
     if (typeof body.name === "string") payload.name = body.name.trim();
@@ -302,6 +293,12 @@ if (body.international_shipping_fee !== undefined) {
       id,
       payload
     );
+    if (Array.isArray(body.shipping_rates)) {
+  await upsertShippingRates({
+    sellerId: userId,
+    rates: body.shipping_rates,
+  });
+}
 
     if (!updated) {
       return NextResponse.json(
@@ -318,7 +315,7 @@ if (body.international_shipping_fee !== undefined) {
     /* ================= REFRESH ================= */
     const p = await getProductById(id);
     const variants = await getVariantsByProductId(id);
-
+    const shippingRates = await getShippingRatesBySeller(p.seller_id);
     if (!p) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
@@ -349,11 +346,8 @@ if (body.international_shipping_fee !== undefined) {
       sold: p.sold ?? 0,
       rating_avg: p.rating_avg ?? 0,
       rating_count: p.rating_count ?? 0,
-      domestic_shipping_fee: p.domestic_shipping_fee ?? null,
-asia_shipping_fee: p.asia_shipping_fee ?? null,
-international_shipping_fee: p.international_shipping_fee ?? null,
-
       variants,
+      shipping_rates: shippingRates,
     });
   } catch {
     return NextResponse.json(
