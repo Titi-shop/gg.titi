@@ -18,9 +18,9 @@ type PreviewBody = {
   items?: PreviewItem[];
 };
 
-/ =========================================================
+/*=========================================================
    HELPERS
-========================================================= /
+========================================================= */
 
 function isUUID(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
@@ -28,15 +28,15 @@ function isUUID(value: string): boolean {
   );
 }
 
-/ =========================================================
+/* =========================================================
    POST
-========================================================= /
+========================================================= */
 
 export async function POST(req: NextRequest) {
   try {
     console.log("🟡 [ORDER][PREVIEW] START");
 
-    / ================= AUTH ================= /
+    /* ================= AUTH ================= */
 
     const auth = await requireAuth();
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     console.log("🟢 [ORDER][PREVIEW] USER OK", { userId });
 
-    / ================= BODY ================= /
+    /* ================= BODY ================= */
 
     const raw = await req.json().catch(() => null);
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    / ================= VALIDATE ITEMS ================= /
+    /* ================= VALIDATE ITEMS ================= */
 
     const cleanItems: PreviewItem[] = [];
 
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    / ================= CALL DB ================= /
+    /* ================= CALL DB ================= */
 
     console.log("🟡 CALL previewOrder");
 
