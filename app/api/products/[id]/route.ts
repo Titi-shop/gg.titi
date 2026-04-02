@@ -181,7 +181,7 @@ export async function PATCH(
         { status: 400 }
       );
     }
-
+console.log("[PRODUCT][PATCH] start", { userId, productId: id });
     const body = (await req.json()) as PatchBody;
 
     if (!body || typeof body !== "object") {
@@ -192,7 +192,12 @@ export async function PATCH(
     }
 
     /* ================= VARIANTS ================= */
+    console.log("[PRODUCT][PATCH] body", {
+    hasShipping: Array.isArray(body.shipping_rates),
+    variantCount: Array.isArray(body.variants) ? body.variants.length : 0,
+  });
     const normalizedVariants = normalizeVariants(body.variants);
+    console.log("[PRODUCT][PATCH] normalizedVariants", normalizedVariants.length);
     const hasVariants = normalizedVariants.length > 0;
 
     const finalStock = hasVariants
@@ -278,6 +283,7 @@ export async function PATCH(
       id,
       payload
     );
+    console.log("[PRODUCT][PATCH] updated", updated);
     if (Array.isArray(body.shipping_rates)) {
   await upsertShippingRates({
     sellerId: userId,
@@ -286,6 +292,7 @@ export async function PATCH(
 }
 
     if (!updated) {
+      console.log("[PRODUCT][PATCH] NOT FOUND");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
@@ -294,6 +301,7 @@ export async function PATCH(
 
     /* ================= VARIANTS ================= */
     if (Array.isArray(body.variants)) {
+      console.log("[PRODUCT][PATCH] upsertShippingRates", body.shipping_rates);
       await replaceVariantsByProductId(id, normalizedVariants);
     }
 
@@ -335,6 +343,7 @@ export async function PATCH(
       shipping_rates: shippingRates,
     });
   } catch {
+    console.error("[PRODUCT][PATCH] ERROR", err);
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
