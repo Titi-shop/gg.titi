@@ -36,9 +36,10 @@ interface ProductPayload {
   stock: number;
   is_active: boolean;
   variants?: ProductVariant[];
-   domestic_shipping_fee?: number | null;
-  asia_shipping_fee?: number | null;
-   international_shipping_fee?: number | null;
+  shipping_rates?: {
+  zone: string;
+  price: number;
+}[];
    }
 
 interface ProductFormProps {
@@ -57,10 +58,14 @@ export default function ProductForm({
 }: ProductFormProps) {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
-
-   const [domesticShipping, setDomesticShipping] = useState<number | "">("");
-const [asiaShipping, setAsiaShipping] = useState<number | "">("");
-const [internationalShipping, setInternationalShipping] = useState<number | "">("");
+const [shippingRates, setShippingRates] = useState<Record<string, number | "">>({
+  domestic: "",
+  sea: "",
+  asia: "",
+  europe: "",
+  north_america: "",
+  rest_of_world: "",
+});
 const [name, setName] = useState("");
 const [price, setPrice] = useState<number | "">("");
 const [categoryId, setCategoryId] = useState("");
@@ -427,16 +432,32 @@ international_shipping_fee:
        <div className="space-y-2">
   <p className="font-medium">🚚 Shipping Fee</p>
 
-  <input
-    type="number"
-    step="0.00001"
-    placeholder="Domestic (same country)"
-    value={domesticShipping}
-    onChange={(e) =>
-      setDomesticShipping(e.target.value ? Number(e.target.value) : "")
-    }
-    className="w-full border p-2 rounded"
-  />
+  <div className="grid grid-cols-2 gap-3">
+    {[
+      { key: "domestic", label: "Domestic" },
+      { key: "sea", label: "SEA" },
+      { key: "asia", label: "Asia" },
+      { key: "europe", label: "Europe" },
+      { key: "north_america", label: "North America" },
+      { key: "rest_of_world", label: "Rest of World" },
+    ].map((z) => (
+      <input
+        key={z.key}
+        type="number"
+        step="0.00001"
+        placeholder={z.label}
+        value={shippingRates[z.key] ?? ""}
+        onChange={(e) =>
+          setShippingRates((prev) => ({
+            ...prev,
+            [z.key]: e.target.value ? Number(e.target.value) : "",
+          }))
+        }
+        className="border p-2 rounded"
+      />
+    ))}
+  </div>
+</div>
 
   <input
     type="number"
