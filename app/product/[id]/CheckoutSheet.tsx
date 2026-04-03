@@ -225,7 +225,7 @@ const quantity = useMemo(() => {
   console.log("👉 SELECTED:", selectedRegion);
   console.log("👉 RATES:", product.shipping_rates);
 
-  const found = product.shipping_rates.find(
+  const found = {availableRegions.map((r) => {
     (r) => r.zone === selectedRegion
   );
 
@@ -293,11 +293,6 @@ const quantity = useMemo(() => {
     return false;
   }
 
-     if (!shipping?.country) {
-  showMessage(t.invalid_shipping_country);
-  return false;
-}
-
   if (!window.Pi || !piReady) {
     console.log("🔴 PI NOT READY");
 
@@ -313,6 +308,10 @@ const quantity = useMemo(() => {
     );
     return false;
   }
+     if (!shipping?.country) {
+  showMessage(t.invalid_shipping_country);
+  return false;
+}
 
   if (!selectedRegion) {
     console.log("🔴 NO REGION");
