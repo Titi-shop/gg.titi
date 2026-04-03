@@ -6,6 +6,11 @@ import { useCart } from "@/app/context/CartContext";
 import { ArrowLeft, ShoppingCart, Star } from "lucide-react";
 import CheckoutSheet from "./CheckoutSheet";
 import { formatPi } from "@/lib/pi";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
+
 
 function formatDetail(text: string) {
   return text
