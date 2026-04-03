@@ -321,7 +321,7 @@ const canBuy = hasVariants
       {/* MAIN IMAGES */}
     <div className="mt-14 relative bg-white">
   {/* SALE BADGE */}
-  {product.isSale && (
+   {product.isSale && (
     <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
       -{calcSalePercent(product.price, product.finalPrice)}%
     </div>
@@ -334,21 +334,30 @@ const canBuy = hasVariants
   >
     {gallery.map((img, i) => (
       <SwiperSlide key={i}>
-        {zoomImage && (
-  <div
-    className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center"
-    onClick={() => setZoomImage(null)}
-  >
-    
-          <img
-           src={img}
-           alt={product.name}
-            className="w-full aspect-square object-cover"
+        <img
+          src={img}
+          alt={product.name}
+          onClick={() => setZoomImage(img)}
+          className="w-full aspect-square object-cover"
         />
       </SwiperSlide>
     ))}
   </Swiper>
-      </div>
+
+</div>
+
+{/* 👇 ZOOM đặt ở đây */}
+{zoomImage && (
+  <div
+    className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center"
+    onClick={() => setZoomImage(null)}
+  >
+    <img
+      src={zoomImage}
+      className="max-w-full max-h-full object-contain"
+    />
+  </div>
+)}
 
       {/* INFO */}
       <div className="bg-white p-4 flex justify-between">
