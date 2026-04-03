@@ -141,10 +141,14 @@ export async function POST(req: NextRequest) {
     console.log("🟡 CALL previewOrder");
 
     const result = await previewOrder({
-      userId,
-      zone, // ✅ QUAN TRỌNG
-      items: cleanItems,
-    });
+  userId,
+  country: typeof country === "string" ? country : "",
+  selectedRegion:
+    typeof body.selectedRegion === "string"
+      ? body.selectedRegion
+      : "",
+  items: cleanItems,
+});
 
     console.log("🟢 PREVIEW RESULT:", result);
 
