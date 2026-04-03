@@ -136,11 +136,8 @@ if (!selectedRegion) {
 
     const result = await previewOrder({
   userId,
-  country: typeof country === "string" ? country : "",
-  selectedRegion:
-    typeof body.selectedRegion === "string"
-      ? body.selectedRegion
-      : "",
+  country,
+  selectedRegion,
   items: cleanItems,
 });
 
