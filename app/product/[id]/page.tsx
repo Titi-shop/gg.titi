@@ -319,17 +319,32 @@ const canBuy = hasVariants
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
       {/* MAIN IMAGES */}
-      <div className="mt-14 relative w-full h-80 bg-white">
-        <img
-  src={gallery[currentIndex]}
-  alt={product.name}
-  className="w-full h-full object-cover"
-/>
+      <div className="mt-14 relative bg-white">
 
-        {product.isSale && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-            -{calcSalePercent(product.price, product.finalPrice)}%
-          </div>
+  {/* SALE BADGE */}
+  {product.isSale && (
+    <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+      -{calcSalePercent(product.price, product.finalPrice)}%
+    </div>
+  )}
+
+  <Swiper
+    modules={[Pagination]}
+    pagination={{ clickable: true }}
+    spaceBetween={10}
+  >
+    {gallery.map((img, i) => (
+      <SwiperSlide key={i}>
+        <img
+          src={img}
+          alt={product.name}
+          className="w-full aspect-square object-contain bg-white"
+        />
+      </SwiperSlide>
+    ))}
+  </Swiper>
+
+</div>
         )}
 
         {gallery.length > 1 && (
