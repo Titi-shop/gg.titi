@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-import { upsertShippingRates, getShippingRatesBySeller } from "@/lib/db/shipping";
+import { upsertShippingRates, getShippingRatesByProduct } from "@/lib/db/shipping";
 import {
   updateProductBySeller,
   getProductById,
@@ -128,7 +128,7 @@ if (!p) {
 
 const variants = await getVariantsByProductId(id);
 const shippingRates: ShippingRateFE[] =
-  await getShippingRatesBySeller(p.seller_id);
+  await getShippingRatesByProduct(p.id);
 console.log("[PRODUCT][GET] done", {
     variantCount: variants.length,
     shippingCount: shippingRates.length,
@@ -291,9 +291,9 @@ console.log("[PRODUCT][PATCH] start", { userId, productId: id });
     console.log("[PRODUCT][PATCH] updated", updated);
     if (Array.isArray(body.shipping_rates)) {
   await upsertShippingRates({
-    sellerId: userId,
-    rates: body.shipping_rates,
-  });
+  productId: id,
+  rates: body.shipping_rates,
+});
 }
 
     if (!updated) {
@@ -314,7 +314,7 @@ console.log("[PRODUCT][PATCH] start", { userId, productId: id });
     const p = await getProductById(id);
     const variants = await getVariantsByProductId(id);
     const shippingRates: ShippingRateFE[] =
-  await getShippingRatesBySeller(p.seller_id);
+  await getShippingRatesByProduct(p.id);
     if (!p) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
@@ -348,8 +348,8 @@ console.log("[PRODUCT][PATCH] start", { userId, productId: id });
       variants,
       shipping_rates: shippingRates,
     });
-  } catch {
-    console.error("[PRODUCT][PATCH] ERROR", err);
+  } catch (err) {
+  console.error("[PRODUCT][PATCH] ERROR", err);
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
