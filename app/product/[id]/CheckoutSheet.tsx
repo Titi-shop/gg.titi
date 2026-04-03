@@ -216,6 +216,18 @@ const quantity = useMemo(() => {
       ? item.finalPrice
       : item.price;
   }, [item]);
+   const availableRegions = useMemo(() => {
+  if (!shipping?.country) return [];
+
+  const country = shipping.country.toUpperCase();
+
+  return product.shipping_rates.filter((r) => {
+    if (country === "VN") return r.zone === "domestic";
+
+    // TODO: sau này map theo shipping_zone_countries từ backend
+    return true;
+  });
+}, [shipping?.country, product.shipping_rates]);
   const shippingFee = useMemo(() => {
   if (!selectedRegion || !Array.isArray(product.shipping_rates)) {
     console.log("❌ NO SHIPPING RATES");
@@ -226,7 +238,7 @@ const quantity = useMemo(() => {
   console.log("👉 RATES:", product.shipping_rates);
 
   const found = {availableRegions.map((r) => {
-    (r) => r.zone === selectedRegion
+    r.zone === selectedRegion
   );
 
   console.log("👉 FOUND:", found);
