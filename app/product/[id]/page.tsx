@@ -334,7 +334,6 @@ const canBuy = hasVariants
   >
     {gallery.map((img, i) => (
       <SwiperSlide key={i}>
-        <img
           <img
   src={img}
   alt={product.name}
