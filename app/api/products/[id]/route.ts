@@ -127,8 +127,13 @@ if (!p) {
 }
 
 const variants = await getVariantsByProductId(id);
-const shippingRates: ShippingRateFE[] =
-  await getShippingRatesByProduct(p.id);
+let shippingRates: ShippingRateFE[] = [];
+
+try {
+  shippingRates = await getShippingRatesByProduct(p.id);
+} catch {
+  shippingRates = [];
+}
 console.log("[PRODUCT][GET] done", {
     variantCount: variants.length,
     shippingCount: shippingRates.length,
@@ -312,9 +317,23 @@ console.log("[PRODUCT][PATCH] start", { userId, productId: id });
 
     /* ================= REFRESH ================= */
     const p = await getProductById(id);
-    const variants = await getVariantsByProductId(id);
-    const shippingRates: ShippingRateFE[] =
-  await getShippingRatesByProduct(p.id);
+
+if (!p) {
+  return NextResponse.json(
+    { error: "PRODUCT_NOT_FOUND" },
+    { status: 404 }
+  );
+}
+
+const variants = await getVariantsByProductId(id);
+
+let shippingRates: ShippingRateFE[] = [];
+
+try {
+  shippingRates = await getShippingRatesByProduct(id);
+} catch {
+  shippingRates = [];
+}
     if (!p) {
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
