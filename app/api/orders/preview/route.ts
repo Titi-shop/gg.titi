@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { previewOrder } from "@/lib/db/orders";
-import { getZoneByCountry } from "@/lib/db/shipping";
 
 export const runtime = "nodejs";
 
@@ -14,6 +13,7 @@ type PreviewItem = {
 
 type PreviewBody = {
   country?: string;
+  selectedRegion?: string;
   items?: PreviewItem[];
 };
 
@@ -61,6 +61,17 @@ export async function POST(req: NextRequest) {
     const { country, items } = body;
 
     if (!country || typeof country !== "string") {
+      const selectedRegion =
+  typeof body.selectedRegion === "string"
+    ? body.selectedRegion
+    : "";
+
+if (!selectedRegion) {
+  return NextResponse.json(
+    { error: "MISSING_REGION" },
+    { status: 400 }
+  );
+}
       console.log("🔴 INVALID COUNTRY");
       return NextResponse.json(
         { error: "INVALID_COUNTRY" },
@@ -74,23 +85,6 @@ export async function POST(req: NextRequest) {
         { error: "INVALID_ITEMS" },
         { status: 400 }
       );
-    }
-
-    /* ================= GET ZONE FROM DB ================= */
-
-    console.log("🟡 GET ZONE FROM DB:", country);
-
-    const zone = await getZoneByCountry(country);
-
-    console.log("🟢 ZONE:", zone);
-
-    if (!zone) {
-      console.log("🔴 UNSUPPORTED COUNTRY");
-      return NextResponse.json(
-        { error: "UNSUPPORTED_COUNTRY" },
-        { status: 400 }
-      );
-    }
 
     /* ================= VALIDATE ITEMS ================= */
 
