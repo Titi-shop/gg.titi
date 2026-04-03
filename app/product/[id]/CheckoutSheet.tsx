@@ -121,6 +121,16 @@ const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
   };
+   const getErrorKey = (code?: string) => {
+  const map: Record<string, string> = {
+    UNSUPPORTED_COUNTRY: "unsupported_country",
+    PREVIEW_FAILED: "order_preview_failed",
+    INVALID_REGION: "invalid_region",
+    SHIPPING_NOT_AVAILABLE: "shipping_not_available",
+  };
+
+  return map[code || ""] || "unknown_error";
+};
 
   const item = useMemo(() => {
   if (!product) return null;
@@ -276,9 +286,9 @@ const quantity = useMemo(() => {
     const data = await res.json();
 
     if (!res.ok) {
-      showMessage(data.error || t.order_preview_failed);
-      return false;
-    }
+  showMessage(t[getErrorKey(data.error)]);
+  return false;
+}
 
     return true;
   } catch {
