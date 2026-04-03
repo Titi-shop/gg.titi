@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
-import { upsertShippingRates } from "@/lib/db/shipping";
+import { upsertShippingRates, getShippingRatesByProduct } from "@/lib/db/shipping";
 
 import type { ProductRecord } from "@/lib/db/products";
 import {
@@ -176,7 +176,7 @@ export async function GET(req: Request) {
           rating_avg: p.rating_avg ?? 0,
           rating_count: p.rating_count ?? 0,
           variants,
-          shipping_rates: [] 
+          shipping_rates, 
         };
       })
     );
@@ -255,7 +255,7 @@ export async function POST(req: Request) {
     });
     if (Array.isArray(body.shipping_rates)) {
   await upsertShippingRates({
-    sellerId: userId,
+    productId: product.id,
     rates: body.shipping_rates,
   });
 }
@@ -353,7 +353,7 @@ export async function PUT(req: Request) {
 
     if (Array.isArray(body.shipping_rates)) {
   await upsertShippingRates({
-    sellerId: userId,
+    productId: productId,
     rates: body.shipping_rates,
   });
 }
