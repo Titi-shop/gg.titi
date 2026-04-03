@@ -19,10 +19,30 @@ export default function CartPage() {
   const { t } = useTranslation();
 
   const { cart, updateQty, removeFromCart } = useCart();
-
+  const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [message, setMessage] = useState<Message | null>(null);
+useEffect(() => {
+  if (typeof window === "undefined") return;
 
+  const raw = localStorage.getItem("checkout_payload");
+  if (!raw) return;
+
+  try {
+    const data = JSON.parse(raw);
+
+    // ✅ đúng product thì mới mở
+    if (data.product_id === product.id) {
+      localStorage.removeItem("checkout_payload");
+
+      setTimeout(() => {
+        setOpenCheckout(true);
+      }, 300);
+    }
+  } catch {
+    localStorage.removeItem("checkout_payload");
+  }
+}, [product.id]);
   /* ================= MESSAGE ================= */
 
   const showMessage = (text: string, type: "error" | "success" = "error") => {
@@ -82,13 +102,36 @@ export default function CartPage() {
       return;
     }
 
-    // ✅ lưu item để checkout dùng
-    localStorage.setItem("checkout_item", JSON.stringify(item));
+    const handleCheckout = () => {
+  if (selectedItems.length === 0) {
+    showMessage(t.please_select_product);
+    return;
+  }
 
-    // ✅ chuyển sang trang product → mở checkout
-    router.push(`/product/${item.product_id}`);
-  };
+  if (selectedItems.length > 1) {
+    showMessage(t.only_one_product_supported);
+    return;
+  }
 
+  const item = selectedItems[0];
+
+  if (!item?.product_id) {
+    showMessage(t.invalid_product);
+    return;
+  }
+
+  // 🔥 chỉ set flag checkout
+  localStorage.setItem(
+    "checkout_payload",
+    JSON.stringify({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      variant_id: item.variant?.id ?? null,
+    })
+  );
+
+  router.push(`/product/${item.product_id}`);
+};
   /* ================= EMPTY ================= */
 
   if (cart.length === 0) {
@@ -241,6 +284,11 @@ export default function CartPage() {
           <span className="font-bold text-orange-600">
             {formatPi(total)} π
           </span>
+          <CheckoutSheet
+  open={openCheckout}
+  onClose={() => setOpenCheckout(false)}
+  product={product}
+/>
         </div>
 
         <button
