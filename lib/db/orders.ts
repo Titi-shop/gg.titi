@@ -364,6 +364,7 @@ export async function getReturnsByBuyer(userId: string) {
 export async function processPiPayment(params: {
   userId: string;
   productId: string;
+  variantId?: string | null;
   quantity: number;
   paymentId: string;
   txid: string;
@@ -437,7 +438,7 @@ export async function processPiPayment(params: {
       SELECT sr.price
       FROM shipping_rates sr
       JOIN shipping_zones sz ON sz.id = sr.zone_id
-      WHERE sr.seller_id = $1
+      WHERE sr.product_id = $1
       AND sz.code = $2
       LIMIT 1
       `,
@@ -527,6 +528,7 @@ export async function processPiPayment(params: {
       INSERT INTO order_items (
         order_id,
         product_id,
+        variant_id,
         seller_id,
         product_name,
         thumbnail,
@@ -539,6 +541,7 @@ export async function processPiPayment(params: {
       [
         orderId,
         product.id,
+        params.variantId ?? null,
         product.seller_id,
         product.name,
         product.thumbnail ?? "",
