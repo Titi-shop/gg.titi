@@ -30,12 +30,11 @@ type Body = {
   paymentId?: unknown;
   txid?: unknown;
   product_id?: unknown;
+  variant_id?: unknown;
   quantity?: unknown;
-
   shipping?: {
     country?: string;
   };
-
   selectedRegion?: unknown;
 };
 
@@ -67,6 +66,8 @@ export async function POST(req: Request) {
     const productId =
       typeof body.product_id === "string" ? body.product_id : "";
 
+    const variantId =
+  typeof body.variant_id === "string" ? body.variant_id : null;
     const quantity = safeQuantity(body.quantity);
 
     const selectedRegion =
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
       paymentId,
       txid,
       productId,
+      variantId,
       quantity,
       selectedRegion,
       country,
@@ -111,6 +113,12 @@ export async function POST(req: Request) {
       );
     }
 
+    if (variantId && !isUUID(variantId)) {
+  return NextResponse.json(
+    { error: "INVALID_VARIANT_ID" },
+    { status: 400 }
+  );
+}
     /* ================= AUTH ================= */
 
     const authUser = await getUserFromBearer(req);
@@ -196,6 +204,7 @@ export async function POST(req: Request) {
     const result = await processPiPayment({
       userId,
       productId,
+      variantId,
       quantity,
       paymentId,
       txid,
