@@ -483,11 +483,11 @@ const canBuy = hasVariants
 
   {product.detail ? (
     <div
-      className="text-sm text-gray-700 leading-relaxed"
-      dangerouslySetInnerHTML={{
-        __html: product.detail,
-      }}
-    />
+  className="text-sm text-gray-700 leading-relaxed"
+  dangerouslySetInnerHTML={{
+    __html: formatDetail(product.detail),
+  }}
+/>
   ) : (
     <p className="text-sm text-gray-400">
       {t.no_description}
