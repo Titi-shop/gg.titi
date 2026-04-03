@@ -114,72 +114,88 @@ export async function GET(req: Request) {
 
     /* ================= ENRICH ================= */
     const enriched = await Promise.all(
-      products.map(async (p) => {
-        let variants: ProductVariantInput[] = [];
+  products.map(async (p) => {
+    let variants: ProductVariantInput[] = [];
 
-        try {
-          variants = await getVariantsByProductId(p.id);
-        } catch {
-          // không log verbose production
-        }
+    try {
+      variants = await getVariantsByProductId(p.id);
+    } catch {
+      // ignore
+    }
 
-        const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
-        const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
+    /* ================= SHIPPING ================= */
+    let shipping_rates: ShippingRateFE[] = [];
 
-        const isSale =
-          typeof p.sale_price === "number" &&
-          start !== null &&
-          end !== null &&
-          now >= start &&
-          now <= end;
+    try {
+      shipping_rates = await getShippingRatesByProduct(p.id);
+    } catch {
+      // ignore
+    }
 
-        const baseStock =
-          typeof p.stock === "number" ? p.stock : 0;
+    /* ================= SALE ================= */
+    const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+    const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
-        const hasVariants = variants.length > 0;
+    const isSale =
+      typeof p.sale_price === "number" &&
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
 
-        const totalVariantStock = hasVariants
-          ? variants.reduce((s, v) => s + (v.stock || 0), 0)
-          : 0;
+    /* ================= STOCK ================= */
+    const baseStock =
+      typeof p.stock === "number" ? p.stock : 0;
 
-        const finalStock = hasVariants ? totalVariantStock : baseStock;
+    const hasVariants = variants.length > 0;
 
-        const isActive = p.is_active !== false;
+    const totalVariantStock = hasVariants
+      ? variants.reduce((s, v) => s + (v.stock || 0), 0)
+      : 0;
 
-        return {
-          id: p.id,
-          name: p.name,
+    const finalStock = hasVariants ? totalVariantStock : baseStock;
 
-          description: p.description ?? "",
-          detail: p.detail ?? "",
+    const isActive = p.is_active !== false;
 
-          images: Array.isArray(p.images) ? p.images : [],
-          thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
+    /* ================= RETURN ================= */
+    return {
+      id: p.id,
+      name: p.name,
 
-          categoryId: p.category_id ?? null,
+      description: p.description ?? "",
+      detail: p.detail ?? "",
 
-          price: typeof p.price === "number" ? p.price : 0,
-          salePrice:
-            typeof p.sale_price === "number" ? p.sale_price : null,
+      images: Array.isArray(p.images) ? p.images : [],
+      thumbnail: p.thumbnail ?? p.images?.[0] ?? "",
 
-          isSale,
-          finalPrice:
-            isSale && typeof p.sale_price === "number"
-              ? p.sale_price
-              : p.price,
+      categoryId: p.category_id ?? null,
 
-          stock: finalStock,
-          isActive,
-          isOutOfStock: finalStock <= 0 || !isActive,
-          views: p.views ?? 0,
-          sold: p.sold ?? 0,
-          rating_avg: p.rating_avg ?? 0,
-          rating_count: p.rating_count ?? 0,
-          variants,
-          shipping_rates, 
-        };
-      })
-    );
+      price: typeof p.price === "number" ? p.price : 0,
+      salePrice:
+        typeof p.sale_price === "number" ? p.sale_price : null,
+
+      isSale,
+      finalPrice:
+        isSale && typeof p.sale_price === "number"
+          ? p.sale_price
+          : p.price,
+
+      stock: finalStock,
+      isActive,
+      isOutOfStock: finalStock <= 0 || !isActive,
+
+      views: p.views ?? 0,
+      sold: p.sold ?? 0,
+      rating_avg: p.rating_avg ?? 0,
+      rating_count: p.rating_count ?? 0,
+
+      variants,
+
+      /* ✅ QUAN TRỌNG */
+      shipping_rates,
+    };
+  })
+);
 
     return NextResponse.json(enriched);
   } catch {
