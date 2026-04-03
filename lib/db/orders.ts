@@ -464,11 +464,6 @@ export async function processPiPayment(params: {
 
     const addr = addrRes.rows[0];
     if (!addr) throw new Error("NO_ADDRESS");
-
-    /* ================= STOCK ================= */
-
-let price = Number(product.price);
-
 /* ===== VARIANT ===== */
 
 if (params.variantId) {
