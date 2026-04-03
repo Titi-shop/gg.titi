@@ -343,8 +343,6 @@ const canBuy = hasVariants
       </SwiperSlide>
     ))}
   </Swiper>
-
-</div>
       </div>
 
       {/* INFO */}
