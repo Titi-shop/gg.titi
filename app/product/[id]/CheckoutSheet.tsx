@@ -251,6 +251,7 @@ const quantity = useMemo(() => {
       },
       body: JSON.stringify({
         country: shipping?.country,
+         selectedRegion,
         items: [
           {
             product_id: item!.id,
