@@ -11,6 +11,7 @@ function formatDetail(text: string) {
   return text
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n")
+    .replace(/\n/g, "<br/>")
     .trim();
 }
 
