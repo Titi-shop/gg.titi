@@ -345,35 +345,6 @@ const canBuy = hasVariants
   </Swiper>
 
 </div>
-        )}
-
-        {gallery.length > 1 && (
-  <>
-    <button
-      onClick={prev}
-      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-    >
-      ‹
-    </button>
-    <button
-      onClick={next}
-      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white px-2 rounded"
-    >
-      ›
-    </button>
-
-    <div className="absolute bottom-3 flex gap-2 w-full justify-center">
-      {gallery.map((_, i) => (
-        <span
-          key={i}
-          className={`w-2 h-2 rounded-full ${
-            i === currentIndex
-              ? "bg-orange-700"
-              : "bg-gray-700"
-          }`}
-        />
-      ))}
-    </div>
   </>
 )}
       </div>
