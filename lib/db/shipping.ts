@@ -19,7 +19,7 @@ export type ShippingRateInput = {
 
 type ShippingRateRow = {
   product_id: string;
-  zone_code: string;
+  zone_id: string;
   price: number;
 };
 
@@ -66,7 +66,7 @@ export async function upsertShippingRates({
       typeof r.price === "number" &&
       !Number.isNaN(r.price) &&
       r.price >= 0 &&
-      isValidRegion(r.zone)
+      isValidRegion(r.zone_id)
   );
 
   /* ================= DELETE OLD ================= */
@@ -90,7 +90,7 @@ export async function upsertShippingRates({
 
   for (const r of cleanRates) {
     placeholders.push(`($${idx++}, $${idx++}, $${idx++})`);
-    values.push(productId, r.zone, r.price);
+    values.push(productId, r.zoneId, r.price);
   }
 
   await query(
@@ -114,11 +114,11 @@ export async function getShippingRatesByProduct(
   }
 
   const { rows } = await query<{
-    zone_code: string;
+    zone_id: string;
     price: number;
   }>(
     `
-    SELECT zone_code, price
+    SELECT zone_id, price
     FROM shipping_rates
     WHERE product_id = $1
     `,
@@ -126,9 +126,9 @@ export async function getShippingRatesByProduct(
   );
 
   return rows
-    .filter((r) => isValidRegion(r.zone_code))
+    .filter((r) => isValidRegion(r.zone_id))
     .map((r) => ({
-      zone: r.zone_code,
+      zone: r.zone_id,
       price: Number(r.price),
     }));
 }
@@ -150,7 +150,7 @@ export async function getShippingRatesByProducts(
 
   const { rows } = await query<ShippingRateRow>(
     `
-    SELECT product_id, zone_code, price
+    SELECT product_id, zone_id, price
     FROM shipping_rates
     WHERE product_id = ANY($1::uuid[])
     `,
@@ -158,10 +158,10 @@ export async function getShippingRatesByProducts(
   );
 
   return rows
-    .filter((r) => isValidRegion(r.zone_code))
+    .filter((r) => isValidRegion(r.zone_id))
     .map((r) => ({
       product_id: r.product_id,
-      zone: r.zone_code,
+      zone: r.zone_id,
       price: Number(r.price),
     }));
 }
