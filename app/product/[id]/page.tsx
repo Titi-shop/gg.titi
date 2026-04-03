@@ -349,14 +349,18 @@ const canBuy = hasVariants
 {/* 👇 ZOOM đặt ở đây */}
 {zoomImage && (
   <div
-    className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center"
-    onClick={() => setZoomImage(null)}
-  >
-    <img
-      src={zoomImage}
-      className="max-w-full max-h-full object-contain"
-    />
-  </div>
+  className="fixed inset-0 z-[999] bg-black/90 flex items-center justify-center overflow-auto"
+  onClick={() => setZoomImage(null)}
+>
+  <img
+    src={zoomImage}
+    onClick={(e) => e.stopPropagation()} 
+    className="max-w-full max-h-full object-contain"
+    style={{
+      touchAction: "pan-x pan-y", 
+    }}
+  />
+</div>
 )}
 
       {/* INFO */}
