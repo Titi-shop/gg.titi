@@ -111,7 +111,6 @@ export default function ProductDetail() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
