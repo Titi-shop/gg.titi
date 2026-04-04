@@ -11,35 +11,27 @@ type CartItem = {
   product_id?: string;
  variant_id?: string | null;
   name: string;
-
   price: number;
   sale_price?: number | null;
-
   stock?: number;
-
   variant?: {
     optionValue?: string;
     stock?: number;
   };
-
   description?: string;
   thumbnail?: string;
   image?: string;
   images?: string[];
-
   quantity?: number;
 };
 
 type CartContextType = {
   cart: CartItem[];
-
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
-
   updateQty: (id: string, qty: number) => void;
   updateItem: (id: string, data: Partial<CartItem>) => void;
-
   total: number;
 };
 
@@ -59,8 +51,6 @@ const mergeCartOnLogin = async () => {
 
     const localRaw = localStorage.getItem("cart");
     const localCart: CartItem[] = localRaw ? JSON.parse(localRaw) : [];
-
-    // 👉 CHỈ LẤY ITEM CHƯA SYNC
     const newItems = localCart.filter((i) => !i.synced);
 
     if (newItems.length > 0) {
@@ -92,9 +82,18 @@ const mergeCartOnLogin = async () => {
 
     // 👉 set tất cả là synced
     const finalCart = serverCart.map((item: CartItem) => ({
-      ...item,
-      synced: true,
-    }));
+  ...item,
+
+  // ✅ FIX ID UNIQUE
+  id: item.variant_id
+    ? `${item.product_id}_${item.variant_id}`
+    : item.product_id!,
+
+  // ✅ đảm bảo có quantity
+  quantity: item.quantity ?? 1,
+
+  synced: true,
+}));
 
     setCart(finalCart);
     localStorage.removeItem("cart"); // 🔥 QUAN TRỌNG
@@ -142,19 +141,24 @@ useEffect(() => {
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
+  // ✅ tạo id chuẩn
+  const uniqueId = item.variant_id
+    ? `${item.product_id}_${item.variant_id}`
+    : item.product_id!;
+
   const maxStock = item.variant?.stock ?? item.stock ?? 99;
   const safeQty = Math.min(maxStock, item.quantity ?? 1);
 
   setCart((prev) => {
-    const found = prev.find((p) => p.id === item.id);
+    const found = prev.find((p) => p.id === uniqueId);
 
     if (found) {
       return prev.map((p) =>
-        p.id === item.id
+        p.id === uniqueId
           ? {
               ...p,
               quantity: Math.min(maxStock, (p.quantity ?? 1) + safeQty),
-              synced: false, // 🔥 quan trọng
+              synced: false,
             }
           : p
       );
@@ -164,14 +168,15 @@ useEffect(() => {
       ...prev,
       {
         ...item,
-        quantity: safeQty,
+        id: uniqueId, // ✅ FIX QUAN TRỌNG
         product_id: item.product_id ?? item.id,
-        synced: false, // 🔥 quan trọng
+        quantity: safeQty,
+        synced: false,
       },
     ];
   });
 
-  // 👉 nếu đã login thì sync ngay
+  // 👉 API giữ nguyên
   try {
     if (!user) return;
 
