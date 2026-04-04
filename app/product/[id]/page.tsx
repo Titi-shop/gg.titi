@@ -318,7 +318,6 @@ const canBuy = hasVariants
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
       {/* MAIN IMAGES */}
-      <{/* MAIN IMAGES */}
 <div className="mt-14 relative bg-white">
 
   {/* SALE BADGE */}
