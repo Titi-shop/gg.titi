@@ -116,6 +116,25 @@ export default function ProductDetail() {
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const quantity = 1;
+  const [scale, setScale] = useState(1);
+const [position, setPosition] = useState({ x: 0, y: 0 });
+const [dragging, setDragging] = useState(false);
+const [start, setStart] = useState({ x: 0, y: 0 });
+
+  let lastTap = 0;
+
+const handleDoubleTap = () => {
+  const now = Date.now();
+  if (now - lastTap < 300) {
+    if (scale === 1) {
+      setScale(2);
+    } else {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+    }
+  }
+  lastTap = now;
+};
 
   /* =======================
      LOAD PRODUCT
@@ -337,7 +356,11 @@ const canBuy = hasVariants
         <img
           src={img}
           alt={product.name}
-          onClick={() => setZoomImage(img)}
+          onClick={() => {
+  setZoomImage(img);
+  setScale(1);
+  setPosition({ x: 0, y: 0 });
+}}
           className="w-full aspect-square object-cover"
         />
       </SwiperSlide>
@@ -353,13 +376,65 @@ const canBuy = hasVariants
   onClick={() => setZoomImage(null)}
 >
   <img
-    src={zoomImage}
-    onClick={(e) => e.stopPropagation()} 
-    className="max-w-full max-h-full object-contain"
-    style={{
-      touchAction: "pan-x pan-y", 
-    }}
-  />
+  src={zoomImage}
+  onClick={(e) => e.stopPropagation()}
+
+  // 👉 DOUBLE TAP
+  onTouchEnd={handleDoubleTap}
+
+  // 👉 DRAG (MOBILE)
+  onTouchStart={(e) => {
+    const touch = e.touches[0];
+    setDragging(true);
+    setStart({
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y,
+    });
+  }}
+
+  onTouchMove={(e) => {
+    if (!dragging) return;
+    const touch = e.touches[0];
+    setPosition({
+      x: touch.clientX - start.x,
+      y: touch.clientY - start.y,
+    });
+  }}
+
+  onTouchEndCapture={() => setDragging(false)}
+
+  // 👉 DRAG (PC)
+  onMouseDown={(e) => {
+    setDragging(true);
+    setStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    });
+  }}
+
+  onMouseMove={(e) => {
+    if (!dragging) return;
+    setPosition({
+      x: e.clientX - start.x,
+      y: e.clientY - start.y,
+    });
+  }}
+
+  onMouseUp={() => setDragging(false)}
+  onMouseLeave={() => setDragging(false)}
+  onWheel={(e) => {
+    e.preventDefault();
+    const newScale = Math.min(Math.max(scale + e.deltaY * -0.001, 1), 4);
+    setScale(newScale);
+  }}
+
+  style={{
+    transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+    transition: dragging ? "none" : "0.2s",
+  }}
+
+  className="max-w-full max-h-full object-contain cursor-grab"
+/>
 </div>
 )}
 
