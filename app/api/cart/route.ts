@@ -9,23 +9,26 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/* ================= GET CART ================= */
+/* =========================================================
+   GET CART
+========================================================= */
 
 export async function GET() {
   try {
-    /* ================= AUTH ================= */
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
 
-    /* ================= DB ================= */
+    console.log("[CART][GET] userId:", userId);
+
     const items = await getCartByBuyer(userId);
 
-    return NextResponse.json(items);
+    console.log("[CART][GET] items:", items);
 
-  } catch {
-    console.error("[CART] GET_FAILED");
+    return NextResponse.json(items);
+  } catch (err) {
+    console.error("[CART][GET_FAILED]", err);
 
     return NextResponse.json(
       { error: "GET_CART_FAILED" },
@@ -34,7 +37,9 @@ export async function GET() {
   }
 }
 
-/* ================= ADD / UPDATE CART ================= */
+/* =========================================================
+   POST CART (UPSERT)
+========================================================= */
 
 type CartItemInput = {
   product_id: string;
@@ -44,18 +49,23 @@ type CartItemInput = {
 
 export async function POST(req: NextRequest) {
   try {
-    /* ================= AUTH ================= */
+    /* ===== AUTH ===== */
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
 
-    /* ================= BODY ================= */
+    console.log("[CART][POST] userId:", userId);
+
+    /* ===== BODY ===== */
     let body: unknown;
 
     try {
       body = await req.json();
-    } catch {
+      console.log("[CART][POST] raw body:", body);
+    } catch (err) {
+      console.error("[CART][POST] INVALID_BODY", err);
+
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -64,15 +74,24 @@ export async function POST(req: NextRequest) {
 
     const rawItems: unknown[] = Array.isArray(body) ? body : [body];
 
+    console.log("[CART][POST] rawItems:", rawItems);
+
+    /* ===== VALIDATE ===== */
     const items: CartItemInput[] = rawItems
-      .map((item) => {
-        if (typeof item !== "object" || item === null) return null;
+      .map((item, index) => {
+        if (typeof item !== "object" || item === null) {
+          console.error("[CART][POST] INVALID_ITEM_OBJECT:", index, item);
+          return null;
+        }
 
         const row = item as Record<string, unknown>;
 
-        if (typeof row.product_id !== "string") return null;
+        if (typeof row.product_id !== "string") {
+          console.error("[CART][POST] INVALID_PRODUCT_ID:", row.product_id);
+          return null;
+        }
 
-        return {
+        const parsedItem: CartItemInput = {
           product_id: row.product_id,
           variant_id:
             typeof row.variant_id === "string"
@@ -84,23 +103,39 @@ export async function POST(req: NextRequest) {
               ? row.quantity
               : 1,
         };
+
+        return parsedItem;
       })
       .filter((item): item is CartItemInput => item !== null);
 
+    console.log("[CART][POST] parsed items:", items);
+
     if (items.length === 0) {
+      console.error("[CART][POST] INVALID_ITEMS_AFTER_PARSE");
+
       return NextResponse.json(
         { error: "INVALID_ITEMS" },
         { status: 400 }
       );
     }
 
-    /* ================= DB ================= */
-    await upsertCartItems(userId, items);
+    /* ===== DB ===== */
+    try {
+      await upsertCartItems(userId, items);
 
-    return NextResponse.json({ success: true });
+      console.log("[CART][POST] UPSERT SUCCESS");
 
-  } catch {
-    console.error("[CART] UPSERT_FAILED");
+      return NextResponse.json({ success: true });
+    } catch (dbErr) {
+      console.error("[CART][POST][DB_ERROR]", dbErr);
+
+      return NextResponse.json(
+        { error: "UPSERT_CART_FAILED" },
+        { status: 500 }
+      );
+    }
+  } catch (err) {
+    console.error("[CART][POST_FAILED]", err);
 
     return NextResponse.json(
       { error: "UPSERT_CART_FAILED" },
@@ -109,22 +144,27 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/* ================= DELETE CART ITEM ================= */
+/* =========================================================
+   DELETE CART ITEM
+========================================================= */
 
 export async function DELETE(req: NextRequest) {
   try {
-    /* ================= AUTH ================= */
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 
     const userId = auth.userId;
 
-    /* ================= BODY ================= */
+    console.log("[CART][DELETE] userId:", userId);
+
     let body: unknown;
 
     try {
       body = await req.json();
-    } catch {
+      console.log("[CART][DELETE] body:", body);
+    } catch (err) {
+      console.error("[CART][DELETE] INVALID_BODY", err);
+
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -132,6 +172,8 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (typeof body !== "object" || body === null) {
+      console.error("[CART][DELETE] BODY_NOT_OBJECT");
+
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
@@ -150,20 +192,36 @@ export async function DELETE(req: NextRequest) {
         ? data.variant_id
         : null;
 
+    console.log("[CART][DELETE] parsed:", {
+      productId,
+      variantId,
+    });
+
     if (!productId) {
+      console.error("[CART][DELETE] INVALID_PRODUCT_ID");
+
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
         { status: 400 }
       );
     }
 
-    /* ================= DB ================= */
-    await deleteCartItem(userId, productId, variantId);
+    try {
+      await deleteCartItem(userId, productId, variantId);
 
-    return NextResponse.json({ success: true });
+      console.log("[CART][DELETE] SUCCESS");
 
-  } catch {
-    console.error("[CART] DELETE_FAILED");
+      return NextResponse.json({ success: true });
+    } catch (dbErr) {
+      console.error("[CART][DELETE][DB_ERROR]", dbErr);
+
+      return NextResponse.json(
+        { error: "DELETE_CART_FAILED" },
+        { status: 500 }
+      );
+    }
+  } catch (err) {
+    console.error("[CART][DELETE_FAILED]", err);
 
     return NextResponse.json(
       { error: "DELETE_CART_FAILED" },
