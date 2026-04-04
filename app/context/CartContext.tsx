@@ -11,35 +11,26 @@ type CartItem = {
   product_id?: string;
  variant_id?: string | null;
   name: string;
-
   price: number;
   sale_price?: number | null;
-
   stock?: number;
-
   variant?: {
     optionValue?: string;
     stock?: number;
   };
-
   description?: string;
   thumbnail?: string;
   image?: string;
   images?: string[];
-
   quantity?: number;
 };
-
 type CartContextType = {
   cart: CartItem[];
-
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: string) => void;
   clearCart: () => void;
-
   updateQty: (id: string, qty: number) => void;
   updateItem: (id: string, data: Partial<CartItem>) => void;
-
   total: number;
 };
 
@@ -73,7 +64,7 @@ const mergeCartOnLogin = async () => {
         },
         body: JSON.stringify(
           newItems.map((item) => ({
-            product_id: item.product_id ?? item.id,
+           product_id: item.product_id!,
             variant_id: item.variant_id ?? null,
             quantity: item.quantity ?? 1,
           }))
@@ -165,13 +156,16 @@ useEffect(() => {
       {
         ...item,
         quantity: safeQty,
-        product_id: item.product_id ?? item.id,
+        if (!item.product_id) {
+  console.error("❌ Missing product_id", item);
+  return;
+}
+
+       product_id: item.product_id
         synced: false, // 🔥 quan trọng
       },
     ];
   });
-
-  // 👉 nếu đã login thì sync ngay
   try {
     if (!user) return;
 
@@ -186,7 +180,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: item.product_id ?? item.id,
+        product_id: item.product_id!,
         variant_id: item.variant_id ?? null,
         quantity: safeQty,
       }),
@@ -217,7 +211,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: item.product_id ?? item.id,
+        product_id: item.product_id!,
         variant_id: item.variant_id ?? null 
       }),
     });
@@ -266,7 +260,7 @@ useEffect(() => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        product_id: target.product_id ?? target.id,
+        product_id: target.product_id!,
         variant_id: target.variant_id ?? null,
         quantity: target.quantity,
       }),
