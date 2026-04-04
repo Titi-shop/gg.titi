@@ -666,23 +666,27 @@ export async function upsertCartItems(
   if (productIds.length === 0) return;
 
   await query(
-    `
-    INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
-    SELECT 
-      $1,
-      x.product_id,
-      x.variant_id,
-      x.quantity
-    FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
-      AS x(product_id, variant_id, quantity)
+  `
+  INSERT INTO cart_items (buyer_id, product_id, variant_id, quantity)
+  SELECT 
+    $1,
+    x.product_id,
+    x.variant_id,
+    x.quantity
+  FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
+    AS x(product_id, variant_id, quantity)
 
-    ON CONFLICT (buyer_id, product_id, variant_id)
-    DO UPDATE SET
-      quantity = cart_items.quantity + EXCLUDED.quantity,
-      updated_at = NOW()
-    `,
-    [userId, productIds, variantIds, quantities]
-  );
+  ON CONFLICT (
+    buyer_id,
+    product_id,
+    COALESCE(variant_id, '00000000-0000-0000-0000-000000000000')
+  )
+  DO UPDATE SET
+    quantity = cart_items.quantity + EXCLUDED.quantity,
+    updated_at = NOW()
+  `,
+  [userId, productIds, variantIds, quantities]
+);
 }
 
 export async function cancelOrderByBuyer(
