@@ -355,7 +355,7 @@ const canBuy = hasVariants
     setScale(1);
     setPosition({ x: 0, y: 0 });
   }}
-  className="w-full aspect-square object-contain bg-white cursor-zoom-in"
+  className="w-full aspect-square object-cover"
 />
       </SwiperSlide>
     ))}
