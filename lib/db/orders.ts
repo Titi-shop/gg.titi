@@ -317,10 +317,22 @@ export async function getOrderByBuyerId(
 export async function getCartByBuyer(userId: string) {
   const { rows } = await query(
     `
-    SELECT *
-    FROM cart_items
-    WHERE buyer_id = $1
-    ORDER BY created_at DESC
+    SELECT 
+      c.product_id,
+      c.variant_id,
+      c.quantity,
+
+      p.name,
+      p.price,
+      p.sale_price,
+      p.thumbnail,
+      p.images
+
+    FROM cart_items c
+    JOIN products p ON p.id = c.product_id
+
+    WHERE c.buyer_id = $1
+    ORDER BY c.created_at DESC
     `,
     [userId]
   );
