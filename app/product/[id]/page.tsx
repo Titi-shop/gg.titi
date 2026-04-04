@@ -591,42 +591,45 @@ const canBuy = hasVariants
     
 
       {/* RELATED */}
-      {relatedProducts.length > 0 && (
-        <div className="bg-white mt-2 p-4">
-          <h3 className="text-sm font-semibold mb-3">
-            🔗 {t.product_related_products ?? "Sản phẩm liên quan"}
-          </h3>
+      {/* RELATED */}
+{relatedProducts.length > 0 && (
+  <div className="bg-white mt-2 p-4">
+    <h3 className="text-base font-semibold mb-3">
+      🔗 {t.product_related_products ?? "Sản phẩm liên quan"}
+    </h3>
 
-          <div className="flex gap-3 overflow-x-auto">
-            {relatedProducts.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => router.push(`/product/${p.id}`)}
-                className="min-w-[140px] bg-gray-50 rounded-lg p-2"
-              >
-                <img
-                  src={p.thumbnail || p.images[0] || "/placeholder.png"}
-                  className="w-full h-24 object-cover rounded"
-                />
+    <div className="grid grid-cols-2 gap-3">
+      {relatedProducts.slice(0, 6).map((p) => (
+        <div
+          key={p.id}
+          onClick={() => router.push(`/product/${p.id}`)}
+          className="bg-gray-50 rounded-lg overflow-hidden cursor-pointer"
+        >
+          <img
+            src={p.thumbnail || p.images?.[0] || "/placeholder.png"}
+            className="w-full aspect-square object-contain bg-white"
+          />
 
-                <p className="text-xs mt-2 line-clamp-2">
-                  {p.name}
-                </p>
+          <div className="p-2">
+            <p className="text-xs line-clamp-2 min-h-[32px]">
+              {p.name}
+            </p>
 
-                <p className="text-sm font-semibold text-orange-600">
-                  π {formatPi(p.finalPrice)}
-                </p>
+            <p className="text-sm font-semibold text-orange-600 mt-1">
+              π {formatPi(p.finalPrice)}
+            </p>
 
-                {p.isSale && (
-                  <p className="text-xs text-gray-400 line-through">
-                    π {formatPi(p.price)}
-                  </p>
-                )}
-              </div>
-            ))}
+            {p.isSale && (
+              <p className="text-xs text-gray-400 line-through">
+                π {formatPi(p.price)}
+              </p>
+            )}
           </div>
         </div>
-      )}
+      ))}
+    </div>
+  </div>
+)}
 
       {/* ACTIONS */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
