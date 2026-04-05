@@ -143,7 +143,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = authUser.id;
+    const userId = authUser.userId;
 
     console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
 
@@ -170,14 +170,6 @@ export async function POST(req: Request) {
       status: payment.status,
       user_uid: payment.user_uid,
     });
-
-    if (payment.user_uid !== authUser.pi_uid) {
-      console.error("❌ [PAYMENT][INVALID_OWNER]");
-      return NextResponse.json(
-        { error: "INVALID_PAYMENT_OWNER" },
-        { status: 403 }
-      );
-    }
 
     if (payment.status !== "approved") {
       console.error("❌ [PAYMENT][NOT_APPROVED]", payment.status);
