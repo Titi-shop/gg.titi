@@ -254,7 +254,7 @@ const quantity = useMemo(() => {
   console.log("👉 FOUND:", found);
 
   return found?.price ?? 0;
-}, [selectedRegion, availableRegions]);
+}, [zone, availableRegions]);
 
   const total = useMemo(
   () => Number((unitPrice * quantity + shippingFee).toFixed(6)),
