@@ -434,11 +434,6 @@ setProcessing(true);
           },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-            try {
-               console.log("🟡 COMPLETE START:", paymentId, txid);
-              const token = await getPiAccessToken();
-
-              onReadyForServerCompletion: async (paymentId, txid) => {
   try {
     console.log("🟡 COMPLETE START:", paymentId, txid);
 
@@ -451,7 +446,7 @@ setProcessing(true);
       variant_id: product.variant_id ?? null,
       quantity,
       shipping,
-      selectedRegion, // ✅ FIX
+      selectedRegion, // ✅ đúng key backend
     };
 
     console.log("🟡 SEND COMPLETE PAYLOAD:", payload);
@@ -491,20 +486,6 @@ setProcessing(true);
     setProcessing(false);
     processingRef.current = false;
     showMessage(t.payment_failed);
-  }
-},
-
-          onCancel: () => {
-             console.log("🟡 PAYMENT CANCEL");
-            setProcessing(false);
-             processingRef.current = false;
-            showMessage(t.payment_cancelled);
-          },
-
-          onError: () => {
-            setProcessing(false);
-             processingRef.current = false;
-            showMessage(t.payment_failed);
           },
         }
       );
