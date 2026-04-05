@@ -209,16 +209,37 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 
   /* ===== LOAD DATA ===== */
   useEffect(() => {
-    Promise.all([
-      fetch("/api/products", { cache: "no-store" }).then((r) => r.json()),
-      fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()),
-    ])
-      .then(([productData, categoryData]) => {
-        setProducts(Array.isArray(productData) ? productData : []);
-        setCategories(Array.isArray(categoryData) ? categoryData : []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  // ⚡ LOAD CACHE TRƯỚC
+  const cachedProducts = localStorage.getItem("products");
+  const cachedCategories = localStorage.getItem("categories");
+
+  if (cachedProducts) {
+    setProducts(JSON.parse(cachedProducts));
+    setLoading(false);
+  }
+
+  if (cachedCategories) {
+    setCategories(JSON.parse(cachedCategories));
+  }
+
+  // 🔄 FETCH NGẦM
+  Promise.all([
+    fetch("/api/products").then((r) => r.json()),
+    fetch("/api/categories").then((r) => r.json()),
+  ])
+    .then(([productData, categoryData]) => {
+      if (Array.isArray(productData)) {
+        setProducts(productData);
+        localStorage.setItem("products", JSON.stringify(productData));
+      }
+
+      if (Array.isArray(categoryData)) {
+        setCategories(categoryData);
+        localStorage.setItem("categories", JSON.stringify(categoryData));
+      }
+    })
+    .finally(() => setLoading(false));
+}, []);
 
   /* ===== FILTER ===== */
   const filteredProducts = useMemo(() => {
@@ -237,13 +258,14 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
     return list;
   }, [products, selectedCategory, sortType]);
 
-  if (loading) {
-    return (
-      <p className="text-center mt-10">
-        {t.loading_products || "Loading products..."}
-      </p>
-    );
-  }
+  // CHỈ loading nếu KHÔNG có data
+if (loading && products.length === 0) {
+  return (
+    <p className="text-center mt-10">
+      {t.loading_products || "Loading products..."}
+    </p>
+  );
+}
 
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
