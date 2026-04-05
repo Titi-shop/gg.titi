@@ -133,7 +133,10 @@ export default function SellerOrderDetailPage() {
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
     pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    pdf.save(`order-${order?.order_number}.pdf`);
+    const blob = pdf.output("blob");
+const url = URL.createObjectURL(blob);
+
+window.open(url);
   };
 
   /* ================= LOAD ORDER ================= */
