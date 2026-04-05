@@ -134,11 +134,29 @@ export async function getSellerOrderById(
       o.order_number,
       o.created_at,
 
+      -- 📦 trạng thái đơn
+      o.status AS order_status,
+      o.payment_status,
+      o.total AS order_total,
+
+      -- 👤 buyer
+      u.full_name AS buyer_name,
+
+      -- 🚚 shipping
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address,
+      o.shipping_zone,
+      o.shipping_fee,
+      o.shipping_country,
+
+      -- 📦 items (chỉ của seller)
       COALESCE(
         json_agg(
           json_build_object(
             'id', oi.id,
             'product_id', oi.product_id,
+            'variant_id', oi.variant_id,
             'product_name', oi.product_name,
             'thumbnail', oi.thumbnail,
             'quantity', oi.quantity,
@@ -150,14 +168,17 @@ export async function getSellerOrderById(
         '[]'
       ) AS order_items,
 
-      SUM(oi.total_price)::float AS total
+      -- 💰 tiền của seller
+      SUM(oi.total_price)::float AS seller_total
 
     FROM orders o
     JOIN order_items oi ON oi.order_id = o.id
+    JOIN users u ON u.id = o.buyer_id
 
-    WHERE o.id = $1 AND oi.seller_id = $2
+    WHERE o.id = $1
+      AND oi.seller_id = $2
 
-    GROUP BY o.id
+    GROUP BY o.id, u.full_name
     `,
     [orderId, sellerId]
   );
