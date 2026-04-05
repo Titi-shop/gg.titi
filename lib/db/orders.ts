@@ -671,32 +671,32 @@ const orderRes = await client.query(
 
     /* ================= ITEM ================= */
     await client.query(
-      `
-      INSERT INTO order_items (
-        order_id,
-        product_id,
-        variant_id,
-        seller_id,
-        product_name,
-        thumbnail,
-        unit_price,
-        quantity,
-        total_price
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      `,
-      [
-        orderId,
-        product.id,
-        params.variantId ?? null,
-        product.seller_id,
-        product.name,
-        product.thumbnail ?? "",
-        price,
-        params.quantity,
-        subtotal,
-      ]
-    );
+  `
+  INSERT INTO order_items (
+    order_id,
+    product_id,
+    variant_id,
+    seller_id,
+    product_name,
+    thumbnail,
+    unit_price,
+    quantity,
+    total_price
+  )
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+  `,
+  [
+    orderId,
+    product.id,
+    params.variantId ?? null,
+    product.seller_id,
+    product.name,
+    product.thumbnail ?? "",
+    price,
+    params.quantity,
+    subtotal,
+  ]
+);
 
     console.log("🟢 [ORDER] SUCCESS", { orderId });
 
