@@ -46,9 +46,11 @@ export async function POST(req: Request) {
     const body = raw as Body;
 
     const paymentId =
-      typeof body.paymentId === "string"
-        ? body.paymentId.trim()
-        : "";
+  typeof body.paymentId === "string"
+    ? body.paymentId.trim()
+    : "";
+
+console.log("🟡 [PI][APPROVE] PAYMENT_ID", paymentId); // ✅ THÊM Ở ĐÂY
 
     if (!paymentId) {
       console.error("❌ [PI][APPROVE] MISSING_PAYMENT_ID");
