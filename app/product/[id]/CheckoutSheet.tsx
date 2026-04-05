@@ -391,9 +391,9 @@ setProcessing(true);
           amount: total,
           memo: t.payment_memo_order || "Order payment",
           metadata: {
-            shipping,
-             zone: selectedRegion,
-            product: {
+         shipping,
+         selectedRegion,
+         product: {
               id: item!.id,
               name: item!.name,
               image: item!.thumbnail || "",
@@ -445,13 +445,14 @@ setProcessing(true);
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
+              console.log("🟡 SEND COMPLETE PAYLOAD:", {
               paymentId,
               txid,
               product_id: item!.id,
               variant_id: product.variant_id ?? null,
               quantity,
               shipping,
-               zone: selectedRegion, 
+              selectedRegion, 
               }),
               });
                console.log("🟢 COMPLETE RES:", res.status);
