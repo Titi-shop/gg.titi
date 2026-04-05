@@ -392,7 +392,8 @@ export async function processPiPayment(params: {
   function isUUID(v: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
   }
-
+const zone = params.zone?.trim().toLowerCase();
+const country = params.country?.trim().toUpperCase();
   if (!isUUID(params.productId)) {
     console.error("❌ [ORDER] INVALID_PRODUCT_ID", params.productId);
     throw new Error("INVALID_PRODUCT_ID");
@@ -427,7 +428,7 @@ export async function processPiPayment(params: {
       WHERE szc.country_code = $1
       LIMIT 1
       `,
-      [params.country.toUpperCase()]
+      [country]
     );
 
     console.log("🟡 [ORDER] ZONE_RESULT", zoneRes.rows);
@@ -444,10 +445,10 @@ export async function processPiPayment(params: {
       zone: params.zone,
     });
 
-    if (realZone !== params.zone) {
+    if (realZone !== zone) {
       console.error("❌ [ORDER] INVALID_REGION", {
         realZone,
-        zone: params.zone,
+        zone,
       });
       throw new Error("INVALID_REGION");
     }
@@ -484,18 +485,19 @@ export async function processPiPayment(params: {
       AND sz.code = $2
       LIMIT 1
       `,
-      [product.seller_id, realZone]
+      [
+        [params.productId, realZone]
     );
 
     console.log("🟡 [ORDER] SHIPPING_RESULT", shippingRes.rows);
 
-    if (!shippingRes.rows.length) {
-      console.error("❌ [ORDER] SHIPPING_NOT_AVAILABLE", {
-        seller_id: product.seller_id,
-        zone: realZone,
-      });
-      throw new Error("SHIPPING_NOT_AVAILABLE");
-    }
+if (!shippingRes.rows.length) {
+  console.error("❌ [ORDER] SHIPPING_NOT_AVAILABLE", {
+    productId: params.productId,
+    zone: realZone,
+  });
+  throw new Error("SHIPPING_NOT_AVAILABLE");
+}
 
     const shippingFee = Number(shippingRes.rows[0].price);
 
@@ -649,7 +651,7 @@ const orderRes = await client.query(
 
     "PI",                  // currency
     "paid",                // payment_status
-    NOW(),            // paid_at
+     new Date(),        // paid_at
 
     addr.full_name,
     addr.phone,
