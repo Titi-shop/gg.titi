@@ -75,14 +75,14 @@ export async function POST(req: Request) {
     const quantity = safeQuantity(body.quantity);
 
        const zone =
-       typeof body.zone === "string"
-          ? body.zone
-             : "";
+  typeof body.zone === "string"
+    ? body.zone.trim().toLowerCase()
+    : "";
 
-    const country =
-      typeof body.shipping?.country === "string"
-        ? body.shipping.country
-        : "";
+const country =
+  typeof body.shipping?.country === "string"
+    ? body.shipping.country.trim().toUpperCase()
+    : "";
 
     console.log("🟢 [PAYMENT][PARSED]", {
       paymentId,
@@ -171,14 +171,7 @@ console.log("🟢 [PAYMENT][AUTH_OK]", { userId });
       user_uid: payment.user_uid,
     });
 
-    if (payment.status !== "approved") {
-      console.error("❌ [PAYMENT][NOT_APPROVED]", payment.status);
-      return NextResponse.json(
-        { error: "PAYMENT_NOT_APPROVED" },
-        { status: 400 }
-      );
-    }
-
+  
     /* ================= COMPLETE PI ================= */
 
     console.log("🟡 [PAYMENT][COMPLETE_PI]");
