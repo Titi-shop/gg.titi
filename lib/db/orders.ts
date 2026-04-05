@@ -1077,7 +1077,10 @@ export async function previewOrder(
   }
 
   const realZone = zoneRows[0].code;
-
+console.log("🟡 [PREVIEW][ZONE_CHECK]", {
+  zone,
+  realZone,
+});
   /* ================= VALIDATE REGION ================= */
 
   if (zone !== realZone) {
