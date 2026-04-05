@@ -7,7 +7,6 @@ import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useEffect, useMemo, useState, useRef } from "react";
 import QRCode from "qrcode";
 import html2canvas from "html2canvas";
@@ -32,7 +31,6 @@ interface Order {
   shipping_name: string;
   shipping_phone: string;
   shipping_address: string;
-  shipping_provider: string | null;
   shipping_country: string | null;
   shipping_postal_code: string | null;
 
@@ -44,8 +42,7 @@ interface Order {
 
 function formatDate(date: string) {
   const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
 function safeNumber(v: unknown): number {
@@ -63,7 +60,6 @@ export default function SellerOrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { t } = useTranslation();
 
   const id =
     typeof params?.id === "string"
@@ -71,9 +67,10 @@ export default function SellerOrderDetailPage() {
       : Array.isArray(params?.id)
       ? params.id[0]
       : undefined;
- const [qr, setQr] = useState<string>("");
+
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [qr, setQr] = useState<string>("");
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -89,73 +86,17 @@ export default function SellerOrderDetailPage() {
     );
   }, [order]);
 
-  /* ================= PRINT ================= */
-
-  const handlePrint = () => {
-    const content = printRef.current;
-    if (!content) return;
-
-    const win = window.open("", "", "width=800,height=900");
-    if (!win) return;
-
-    win.document.write(`
-      <html>
-        <head>
-          <title>Print</title>
-          <style>
-            body { font-family: Arial; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; }
-            td, th { border: 1px solid #ccc; padding: 6px; }
-          </style>
-        </head>
-        <body>${content.innerHTML}</body>
-      </html>
-    `);
-
-    win.document.close();
-    win.focus();
-    win.print();
-    win.close();
-  };
-
-  /* ================= PDF ================= */
-
-  const handleDownloadPDF = async () => {
-    const element = printRef.current;
-    if (!element) return;
-
-    const canvas = await html2canvas(element);
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    const blob = pdf.output("blob");
-const url = URL.createObjectURL(blob);
-
-window.open(url);
-  };
-
-  /* ================= LOAD ORDER ================= */
+  /* ================= LOAD ================= */
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) return;
-    if (!id) return;
+    if (authLoading || !user || !id) return;
 
-    const loadOrder = async () => {
+    const load = async () => {
       try {
-        const res = await apiAuthFetch(
-          `/api/seller/orders/${id}`,
-          { cache: "no-store" }
-        );
+        const res = await apiAuthFetch(`/api/seller/orders/${id}`);
 
         if (!res.ok) {
           setOrder(null);
-          setLoading(false);
           return;
         }
 
@@ -177,29 +118,52 @@ window.open(url);
           shipping_name: safeString(data.shipping_name),
           shipping_phone: safeString(data.shipping_phone),
           shipping_address: safeString(data.shipping_address),
-          shipping_provider: data.shipping_provider ?? null,
           shipping_country: data.shipping_country ?? null,
           shipping_postal_code: data.shipping_postal_code ?? null,
           total: safeNumber(data.total),
           order_items: items,
         });
-      } catch (err) {
-        console.error("ORDER LOAD ERROR:", err);
+      } catch {
         setOrder(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadOrder();
+    load();
   }, [authLoading, user, id]);
-  useEffect(() => {
-  if (!order?.id) return;
 
-  QRCode.toDataURL(`order:${order.id}`)
-    .then(setQr)
-    .catch(console.error);
-}, [order]);
+  /* ================= QR ================= */
+
+  useEffect(() => {
+    if (!order?.id) return;
+
+    QRCode.toDataURL(`order:${order.id}`)
+      .then(setQr)
+      .catch(() => {});
+  }, [order]);
+
+  /* ================= PDF ================= */
+
+  const handleOpenPDF = async () => {
+    const el = printRef.current;
+    if (!el) return;
+
+    const canvas = await html2canvas(el, { scale: 2 });
+    const img = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const width = 210;
+    const height = (canvas.height * width) / canvas.width;
+
+    pdf.addImage(img, "PNG", 0, 10, width, height);
+
+    const blob = pdf.output("blob");
+    const url = URL.createObjectURL(blob);
+
+    window.open(url);
+  };
 
   /* ================= UI ================= */
 
@@ -214,37 +178,39 @@ window.open(url);
   return (
     <main className="min-h-screen bg-gray-100 p-6">
 
-      {/* BUTTONS */}
+      {/* ACTIONS */}
       <div className="flex justify-end gap-2 mb-6">
-        <button onClick={() => router.back()} className="px-4 py-2 border rounded">
+        <button
+          onClick={() => router.back()}
+          className="px-4 py-2 border rounded"
+        >
           Back
         </button>
 
-        <button onClick={handlePrint} className="px-4 py-2 bg-black text-white rounded">
-          Print
-        </button>
-
-        <button onClick={handleDownloadPDF} className="px-4 py-2 bg-blue-600 text-white rounded">
-          Save PDF
+        <button
+          onClick={handleOpenPDF}
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          📄 Xem / In hóa đơn
         </button>
       </div>
 
-      {/* PRINT AREA */}
+      {/* INVOICE */}
       <section
         ref={printRef}
         className="max-w-2xl mx-auto bg-white p-6 border shadow"
       >
-        <h1 className="text-xl font-semibold mb-6 text-center">
-          Delivery Note
+        <h1 className="text-xl font-bold text-center mb-4">
+          DELIVERY NOTE
         </h1>
-        {qr && (
-  <div className="flex justify-center mb-4">
-    <img src={qr} alt="QR Code" />
-  </div>
-)}
 
-        {/* SHIPPING */}
-        <div className="space-y-1 text-sm mb-6">
+        {qr && (
+          <div className="flex justify-center mb-4">
+            <img src={qr} alt="QR" />
+          </div>
+        )}
+
+        <div className="text-sm space-y-1 mb-6">
           <p><b>Receiver:</b> {order.shipping_name}</p>
           <p><b>Phone:</b> {order.shipping_phone}</p>
           <p><b>Address:</b> {order.shipping_address}</p>
@@ -253,14 +219,13 @@ window.open(url);
           <p><b>Created:</b> {formatDate(order.created_at)}</p>
         </div>
 
-        {/* ITEMS */}
         <table className="w-full border text-sm">
           <thead className="bg-gray-100">
             <tr>
               <th className="border px-2 py-1">#</th>
               <th className="border px-2 py-1">Product</th>
               <th className="border px-2 py-1">Qty</th>
-              <th className="border px-2 py-1">π</th>
+              <th className="border px-2 py-1 text-right">π</th>
             </tr>
           </thead>
 
