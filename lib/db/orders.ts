@@ -487,6 +487,7 @@ const country = params.country?.trim().toUpperCase();
       `,
       [
         [params.productId, realZone]
+        ]
     );
 
     console.log("🟡 [ORDER] SHIPPING_RESULT", shippingRes.rows);
