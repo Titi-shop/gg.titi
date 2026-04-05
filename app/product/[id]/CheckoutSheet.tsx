@@ -278,7 +278,7 @@ const quantity = useMemo(() => {
   ],
 };
 console.log("🟡 [CHECKOUT][FINAL_DATA]", {
-  country: shipping?.country,
+  country: shipping?.country?.toUpperCase(),
   zone,
 });
     console.log("🟡 PREVIEW PAYLOAD:", payload);
@@ -408,28 +408,33 @@ setProcessing(true);
         },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
-            try {
-               console.log("🟡 APPROVE START:", paymentId);
+  console.log("🔥 CLIENT PAYMENT_ID:", paymentId);
+  try {
+    console.log("🟡 APPROVE START:", paymentId);
               const token = await getPiAccessToken();
 
               const res = await fetch("/api/pi/approve", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ paymentId }),
-              });
-            console.log("🟢 APPROVE RES:", res.status);
-              if (!res.ok) {
-                 console.log("🔴 APPROVE FAILED");
-                setProcessing(false);
-                 processingRef.current = false;
-                showMessage(t.payment_approve_failed);
-                return;
-              }
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ paymentId }),
+});
 
-              callback();
+const text = await res.text();
+
+console.log("🟢 APPROVE RES:", res.status, text);
+
+if (!res.ok) {
+  console.log("🔴 APPROVE FAILED FULL:", text);
+
+  setProcessing(false);
+  processingRef.current = false;
+  showMessage(t.payment_approve_failed);
+  return;
+}
+callback();
             } catch {
               setProcessing(false);
                processingRef.current = false;
