@@ -1038,6 +1038,8 @@ type PreviewItemInput = {
 type PreviewOrderInput = {
   userId: string;
   items: PreviewItemInput[];
+  country: string;
+  zone: string;
 };
 
 type PreviewOrderResult = {
