@@ -445,7 +445,7 @@ setProcessing(true);
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-              console.log("🟡 SEND COMPLETE PAYLOAD:", {
+              
               paymentId,
               txid,
               product_id: item!.id,
