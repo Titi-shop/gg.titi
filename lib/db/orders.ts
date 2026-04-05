@@ -387,7 +387,7 @@ export async function processPiPayment(params: {
   paymentId: string;
   txid: string;
   country: string;
-  selectedRegion: string;
+  zone: string;
 }) {
   function isUUID(v: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -441,13 +441,13 @@ export async function processPiPayment(params: {
 
     console.log("🟡 [ORDER] ZONE_CHECK", {
       realZone,
-      selectedRegion: params.selectedRegion,
+      zone: params.zone,
     });
 
-    if (realZone !== params.selectedRegion) {
+    if (realZone !== params.zone) {
       console.error("❌ [ORDER] INVALID_REGION", {
         realZone,
-        selected: params.selectedRegion,
+        zone: params.zone,
       });
       throw new Error("INVALID_REGION");
     }
@@ -595,8 +595,6 @@ export async function processPiPayment(params: {
       shippingFee,
       total,
     });
-
-    /* ================= ORDER ================= */
     /* ================= ORDER ================= */
 
 const orderRes = await client.query(
@@ -651,7 +649,7 @@ const orderRes = await client.query(
 
     "PI",                  // currency
     "paid",                // payment_status
-    new Date(),            // paid_at
+    NOW(),            // paid_at
 
     addr.full_name,
     addr.phone,
