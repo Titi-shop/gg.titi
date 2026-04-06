@@ -149,11 +149,16 @@ const handleDoubleTap = () => {
 
       const res = await fetch(`/api/products/${id}`);
 
+      console.log("[PRODUCT_STATUS]", res.status);
+
       if (!res.ok) {
-        throw new Error("FETCH_PRODUCT_FAILED");
+        console.error("[PRODUCT_API_ERROR]", res.status);
+        return;
       }
 
       const data: unknown = await res.json();
+
+      console.log("[PRODUCT_DATA]", data);
 
       if (!data || typeof data !== "object") return;
 
