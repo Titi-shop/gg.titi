@@ -16,41 +16,18 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   TYPES
-========================================================= */
-
-type ShippingRateFE = {
-  zone: string;
-  price: number;
-};
-type PatchBody = {
-  name?: string;
-  description?: string;
-  detail?: string;
-  images?: string[];
-  thumbnail?: string | null;
-  categoryId?: string | null;
-  price?: number;
-  salePrice?: number | null;
-  saleStart?: string | null;
-  saleEnd?: string | null;
-  stock?: number;
-  is_active?: boolean;
-  variants?: ProductVariant[];
-  shipping_rates?: {
-  zone: string;
-  price: number;
-}[];
-};
-
-/* =========================================================
    NORMALIZE VARIANTS
 ========================================================= */
 
 function normalizeVariants(input: unknown): ProductVariant[] {
-  if (!Array.isArray(input)) return [];
+  console.log("[PRODUCT][VARIANT] normalize start");
 
-  return input
+  if (!Array.isArray(input)) {
+    console.log("[PRODUCT][VARIANT] not array");
+    return [];
+  }
+
+  const result = input
     .map((item, index) => {
       if (typeof item !== "object" || item === null) return null;
 
@@ -81,8 +58,7 @@ function normalizeVariants(input: unknown): ProductVariant[] {
             ? row.sku.trim()
             : null,
         sortOrder:
-          typeof row.sortOrder === "number" &&
-          !Number.isNaN(row.sortOrder)
+          typeof row.sortOrder === "number"
             ? row.sortOrder
             : index,
         isActive:
@@ -92,14 +68,20 @@ function normalizeVariants(input: unknown): ProductVariant[] {
       };
     })
     .filter((i): i is ProductVariant => i !== null);
+
+  console.log("[PRODUCT][VARIANT] normalized:", result.length);
+
+  return result;
 }
 
 function getTotalVariantStock(variants: ProductVariant[]) {
-  return variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+  const total = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+  console.log("[PRODUCT][STOCK] variant total:", total);
+  return total;
 }
 
 /* =========================================================
-   GET — PRODUCT DETAIL
+   GET
 ========================================================= */
 
 export async function GET(
@@ -109,81 +91,96 @@ export async function GET(
   try {
     const id = context?.params?.id;
 
+    console.log("[PRODUCT][GET] start", { id });
+
     if (!id) {
+      console.warn("[PRODUCT][GET] missing id");
       return NextResponse.json(
         { error: "MISSING_PRODUCT_ID" },
         { status: 400 }
       );
     }
-console.log("[PRODUCT][GET] start", { id });
+
     const p = await getProductById(id);
 
-if (!p) {
-  console.log("[PRODUCT][GET] not found");
-  return NextResponse.json(
-    { error: "PRODUCT_NOT_FOUND" },
-    { status: 404 }
-  );
-}
+    if (!p) {
+      console.log("[PRODUCT][GET] not found");
+      return NextResponse.json(
+        { error: "PRODUCT_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
 
-const variants = await getVariantsByProductId(id);
-let shippingRates: ShippingRateFE[] = [];
+    console.log("[PRODUCT][GET] product found");
 
-try {
-  shippingRates = await getShippingRatesByProduct(p.id);
-} catch {
-  shippingRates = [];
-}
-console.log("[PRODUCT][GET] done", {
-    variantCount: variants.length,
-    shippingCount: shippingRates.length,
-  });
-return NextResponse.json({
-  id: p.id,
-  name: p.name,
-  price: p.price,
-  salePrice: p.sale_price ?? null,
-  saleStart: p.sale_start ?? null,
-  saleEnd: p.sale_end ?? null,
-  description: p.description ?? "",
-  detail: p.detail ?? "",
-  images: p.images ?? [],
-  thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-  categoryId: p.category_id ?? null,
-  stock: p.stock ?? 0,
-  is_active: p.is_active ?? true,
-  views: p.views ?? 0,
-  sold: p.sold ?? 0,
-  rating_avg: p.rating_avg ?? 0,
-  rating_count: p.rating_count ?? 0,
-  variants,
-  shipping_rates: shippingRates,
-});
+    const variants = await getVariantsByProductId(id);
+    console.log("[PRODUCT][GET] variants:", variants.length);
+
+    let shippingRates: { zone: string; price: number }[] = [];
+
+    try {
+      shippingRates = await getShippingRatesByProduct(p.id);
+      console.log("[PRODUCT][GET] shipping:", shippingRates.length);
+    } catch {
+      console.warn("[PRODUCT][GET] shipping failed");
+      shippingRates = [];
+    }
+
+    console.log("[PRODUCT][GET] done");
+
+    return NextResponse.json({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      salePrice: p.sale_price ?? null,
+      saleStart: p.sale_start ?? null,
+      saleEnd: p.sale_end ?? null,
+      description: p.description ?? "",
+      detail: p.detail ?? "",
+      images: p.images ?? [],
+      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
+      categoryId: p.category_id ?? null,
+      stock: p.stock ?? 0,
+      is_active: p.is_active ?? true,
+      views: p.views ?? 0,
+      sold: p.sold ?? 0,
+      rating_avg: p.rating_avg ?? 0,
+      rating_count: p.rating_count ?? 0,
+      variants,
+      shipping_rates: shippingRates,
+    });
   } catch (err) {
-  console.error("[PRODUCT][GET] ERROR", err);
+    console.error("[PRODUCT][GET] ERROR");
 
-  return NextResponse.json(
-    { error: "FAILED_TO_FETCH_PRODUCT" },
-    { status: 500 }
-  );
-}
+    return NextResponse.json(
+      { error: "FAILED_TO_FETCH_PRODUCT" },
+      { status: 500 }
+    );
+  }
 }
 
 /* =========================================================
-   PATCH — UPDATE PRODUCT
+   PATCH
 ========================================================= */
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  console.log("[PRODUCT][PATCH] start");
+
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+  if (!auth.ok) {
+    console.warn("[PRODUCT][PATCH] auth failed");
+    return auth.response;
+  }
 
   const userId = auth.userId;
 
   try {
     const id = params.id;
+
+    console.log("[PRODUCT][PATCH] productId:", id);
 
     if (!id) {
       return NextResponse.json(
@@ -191,8 +188,13 @@ export async function PATCH(
         { status: 400 }
       );
     }
-console.log("[PRODUCT][PATCH] start", { userId, productId: id });
-    const body = (await req.json()) as PatchBody;
+
+    const body = await req.json();
+
+    console.log("[PRODUCT][PATCH] body received", {
+      hasVariants: Array.isArray(body?.variants),
+      hasShipping: Array.isArray(body?.shipping_rates),
+    });
 
     if (!body || typeof body !== "object") {
       return NextResponse.json(
@@ -202,12 +204,8 @@ console.log("[PRODUCT][PATCH] start", { userId, productId: id });
     }
 
     /* ================= VARIANTS ================= */
-    console.log("[PRODUCT][PATCH] body", {
-    hasShipping: Array.isArray(body.shipping_rates),
-    variantCount: Array.isArray(body.variants) ? body.variants.length : 0,
-  });
     const normalizedVariants = normalizeVariants(body.variants);
-    console.log("[PRODUCT][PATCH] normalizedVariants", normalizedVariants.length);
+
     const hasVariants = normalizedVariants.length > 0;
 
     const finalStock = hasVariants
@@ -216,150 +214,107 @@ console.log("[PRODUCT][PATCH] start", { userId, productId: id });
       ? body.stock
       : 0;
 
-    /* ================= SAFE PAYLOAD ================= */
-    const payload: {
-      name?: string;
-      description?: string;
-      detail?: string;
-      images?: string[];
-      thumbnail?: string | null;
-      category_id?: string | null;
-      price?: number;
-      sale_price?: number | null;
-      sale_start?: string | null;
-      sale_end?: string | null;
-      stock?: number;
-      is_active?: boolean;
-
-    } = {};
-
-    if (typeof body.name === "string") payload.name = body.name.trim();
-
-    if (body.description !== undefined)
-      payload.description = body.description;
-
-    if (body.detail !== undefined) payload.detail = body.detail;
-
-    if (Array.isArray(body.images)) {
-      payload.images = body.images.filter(
-        (i): i is string => typeof i === "string"
-      );
-    }
-
-    if (body.thumbnail !== undefined) {
-      payload.thumbnail =
-        typeof body.thumbnail === "string" ? body.thumbnail : null;
-    }
-
-    if (body.categoryId !== undefined) {
-      payload.category_id =
-        typeof body.categoryId === "string" &&
-        body.categoryId.trim()
-          ? body.categoryId
-          : null;
-    }
-
-    if (
-  typeof body.price === "number" &&
-  !Number.isNaN(body.price)
-) {
-  payload.price = body.price;
-}
-
-/* ================= SHIPPING ================= */
-
-    if (body.salePrice !== undefined) {
-      payload.sale_price =
-        typeof body.salePrice === "number"
-          ? body.salePrice
-          : null;
-    
-    }
-
-    if (body.saleStart !== undefined)
-      payload.sale_start = body.saleStart;
-
-    if (body.saleEnd !== undefined)
-      payload.sale_end = body.saleEnd;
-
-    payload.stock = finalStock;
-
-    if (body.is_active !== undefined)
-      payload.is_active = body.is_active;
+    console.log("[PRODUCT][PATCH] finalStock:", finalStock);
 
     /* ================= UPDATE ================= */
     const updated = await updateProductBySeller(
       userId,
       id,
-      payload
+      {
+        name: typeof body.name === "string" ? body.name.trim() : undefined,
+        description: body.description,
+        detail: body.detail,
+        images: Array.isArray(body.images)
+          ? body.images.filter((i: unknown): i is string => typeof i === "string")
+          : undefined,
+        thumbnail:
+          body.thumbnail !== undefined
+            ? typeof body.thumbnail === "string"
+              ? body.thumbnail
+              : null
+            : undefined,
+        category_id:
+          typeof body.categoryId === "string"
+            ? body.categoryId
+            : null,
+        price:
+          typeof body.price === "number" ? body.price : undefined,
+        sale_price:
+          typeof body.salePrice === "number"
+            ? body.salePrice
+            : null,
+        sale_start: body.saleStart,
+        sale_end: body.saleEnd,
+        stock: finalStock,
+        is_active: body.is_active,
+      }
     );
-    console.log("[PRODUCT][PATCH] updated", updated);
-    if (Array.isArray(body.shipping_rates)) {
-  await upsertShippingRates({
-  productId: id,
-  rates: body.shipping_rates,
-});
-}
+
+    console.log("[PRODUCT][PATCH] updated:", updated);
 
     if (!updated) {
-      console.log("[PRODUCT][PATCH] NOT FOUND");
+      console.warn("[PRODUCT][PATCH] not found");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
       );
     }
 
+    /* ================= SHIPPING ================= */
+    if (Array.isArray(body.shipping_rates)) {
+      console.log("[PRODUCT][PATCH] upsert shipping:", body.shipping_rates.length);
+
+      await upsertShippingRates({
+        productId: id,
+        rates: body.shipping_rates,
+      });
+    }
+
     /* ================= VARIANTS ================= */
     if (Array.isArray(body.variants)) {
-      console.log("[PRODUCT][PATCH] upsertShippingRates", body.shipping_rates);
+      console.log("[PRODUCT][PATCH] replace variants");
+
       await replaceVariantsByProductId(id, normalizedVariants);
     }
 
     /* ================= REFRESH ================= */
     const p = await getProductById(id);
 
-if (!p) {
-  return NextResponse.json(
-    { error: "PRODUCT_NOT_FOUND" },
-    { status: 404 }
-  );
-}
-
-const variants = await getVariantsByProductId(id);
-
-let shippingRates: ShippingRateFE[] = [];
-
-try {
-  shippingRates = await getShippingRatesByProduct(id);
-} catch {
-  shippingRates = [];
-}
     if (!p) {
+      console.warn("[PRODUCT][PATCH] product missing after update");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
+    const variants = await getVariantsByProductId(id);
+
+    let shippingRates: { zone: string; price: number }[] = [];
+
+    try {
+      shippingRates = await getShippingRatesByProduct(id);
+    } catch {
+      console.warn("[PRODUCT][PATCH] shipping reload failed");
+      shippingRates = [];
+    }
+
+    console.log("[PRODUCT][PATCH] done");
+
     return NextResponse.json({
       id: p.id,
       name: p.name,
       price: p.price,
-
       salePrice: p.sale_price ?? null,
       saleStart: p.sale_start ?? null,
       saleEnd: p.sale_end ?? null,
-
       description: p.description ?? "",
       detail: p.detail ?? "",
-
       images: p.images ?? [],
       thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-
       categoryId: p.category_id ?? null,
       stock: p.stock ?? 0,
       is_active: p.is_active ?? true,
-
       views: p.views ?? 0,
       sold: p.sold ?? 0,
       rating_avg: p.rating_avg ?? 0,
@@ -368,7 +323,8 @@ try {
       shipping_rates: shippingRates,
     });
   } catch (err) {
-  console.error("[PRODUCT][PATCH] ERROR", err);
+    console.error("[PRODUCT][PATCH] ERROR");
+
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
