@@ -91,35 +91,22 @@ export type UpdateProductInput = Partial<
    HELPERS
 ========================================================= */
 
-function toAppProductFromList(row: ProductListRow): ProductRecord & {
-  finalPrice: number;
-  isSale: boolean;
-} {
-  const price = Number(row.price);
-
-  const salePrice =
-    row.sale_price !== null ? Number(row.sale_price) : null;
-
+function toAppProduct(row: ProductRow): ProductRecord {
   return {
-    // giữ structure ProductRecord
-    id: row.id,
-    name: row.name,
-    description: "",
-    detail: "",
-    thumbnail: row.thumbnail,
-    images: [],
-    price,
-    sale_price: salePrice,
-    stock: 0,
-    category_id: null,
-    seller_id: "",
-    created_at: "",
-    updated_at: null,
+    ...row,
 
-    // 👇 thêm cho FE
-    finalPrice: salePrice ?? price,
-    isSale: salePrice !== null && salePrice < price,
-    sold: row.sold ?? 0,
+    price:
+      typeof row.price === "number"
+        ? row.price
+        : Number(row.price) || 0,
+
+    sale_price:
+      row.sale_price !== null &&
+      row.sale_price !== undefined
+        ? Number(row.sale_price)
+        : null,
+
+    images: Array.isArray(row.images) ? row.images : [],
   };
 }
 /* =========================================================
