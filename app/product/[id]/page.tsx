@@ -58,6 +58,7 @@ interface ApiProduct {
   id: string;
   name: string;
   price: number;
+  salePrice?: number | null;
   finalPrice?: number;
   description?: string;
   detail?: string;
