@@ -69,8 +69,10 @@ export default function CategoriesClient() {
       try {
         const [cateRes, prodRes] = await Promise.all([
           fetch("/api/categories"),
-          fetch("/api/products"),
-        ]);
+          fetch("/api/products", {
+          next: { revalidate: 60 },
+           })
+           ]);
 
         const cateData = await cateRes.json();
         const prodData = await prodRes.json();
@@ -104,8 +106,8 @@ export default function CategoriesClient() {
     if (activeCategoryId === null) return products;
 
     return products.filter(
-      (p) => String(p.categoryId) === String(activeCategoryId)
-    );
+  (p) => p.categoryId == activeCategoryId
+);
   }, [products, activeCategoryId]);
 
   /* ================= ADD TO CART ================= */
@@ -227,9 +229,9 @@ export default function CategoriesClient() {
 
         {/* RIGHT */}
         <section className="p-2">
-          {loading ? (
-            <p>{t.loading_products || "Loading..."}</p>
-          ) : (
+          <div className="text-center text-gray-400 py-10">
+          {t.loading_products || "Đang tải..."}
+         </div>
             <div className="grid grid-cols-2 gap-2">
               {visibleProducts.map((p) => (
                 <Link key={p.id} href={`/product/${p.id}`}>
@@ -250,14 +252,15 @@ export default function CategoriesClient() {
                       </p>
 
                       <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleAddToCart(p);
-                        }}
-                      >
-                        <ShoppingCart size={14} />
-                      </button>
+                     className="absolute top-2 right-2 bg-white p-2 rounded-full shadow active:scale-95"
+                    onClick={(e) => {
+                  e.preventDefault();
+                   e.stopPropagation();
+                    handleAddToCart(p);
+                   }}
+                    >
+                    <ShoppingCart size={16} />
+                    </button>
                     </div>
                   </div>
                 </Link>
