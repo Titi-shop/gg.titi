@@ -105,16 +105,23 @@ function toAppProduct(row: ProductRow): ProductRecord {
 
 export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   const { rows } = await query<ProductRecord>(
-    `
-    SELECT id, name, price, thumbnail, sold
-    FROM products
-    WHERE is_active = true
-      AND deleted_at IS NULL
-    ORDER BY created_at DESC
-    LIMIT $1
-    `,
-    [limit]
-  );
+  `
+  SELECT 
+    id,
+    name,
+    price,
+    sale_price,      -- ✅ thêm
+    thumbnail,
+    sold,
+    is_sale          -- ✅ thêm
+  FROM products
+  WHERE is_active = true
+    AND deleted_at IS NULL
+  ORDER BY created_at DESC
+  LIMIT $1
+  `,
+  [limit]
+);
 
   return rows.map(toAppProduct);
 }
