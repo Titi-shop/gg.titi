@@ -148,6 +148,11 @@ const handleDoubleTap = () => {
       if (!id) return;
 
       const res = await fetch(`/api/products/${id}`);
+
+      if (!res.ok) {
+        throw new Error("FETCH_PRODUCT_FAILED");
+      }
+
       const data: unknown = await res.json();
 
       if (!data || typeof data !== "object") return;
@@ -155,10 +160,10 @@ const handleDoubleTap = () => {
       const api = data as ApiProduct;
 
       const finalPrice =
-  typeof api.salePrice === "number" &&
-  api.salePrice < api.price
-    ? api.salePrice
-    : api.price;
+        typeof api.salePrice === "number" &&
+        api.salePrice < api.price
+          ? api.salePrice
+          : api.price;
 
       const normalized: Product = {
         id: api.id,
@@ -172,49 +177,34 @@ const handleDoubleTap = () => {
 
         views: api.views ?? 0,
         sold: api.sold ?? 0,
-        ratingAvg:
-          typeof api.rating_avg === "number"
-            ? api.rating_avg
-            : 0,
-        ratingCount:
-          typeof api.rating_count === "number"
-            ? api.rating_count
-            : 0,
+        ratingAvg: api.rating_avg ?? 0,
+        ratingCount: api.rating_count ?? 0,
 
         thumbnail: api.thumbnail ?? "",
         images: Array.isArray(api.images) ? api.images : [],
         categoryId: api.categoryId ?? null,
 
-        stock:
-          typeof api.stock === "number" ? api.stock : 0,
+        stock: api.stock ?? 0,
         isActive: api.isActive !== false,
         isOutOfStock:
-          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
-          api.isActive === false,
+          (api.stock ?? 0) <= 0 || api.isActive === false,
 
-        variants: Array.isArray(api.variants)
-          ? api.variants
-          : [],
+        variants: Array.isArray(api.variants) ? api.variants : [],
         shipping_rates: Array.isArray(api.shipping_rates)
-  ? api.shipping_rates.filter(
-      (r) =>
-        r &&
-        typeof r.zone === "string" &&
-        typeof r.price === "number"
-    )
-  : [],
+          ? api.shipping_rates
+          : [],
       };
 
       setProduct(normalized);
 
-      const firstAvailableVariant =
+      const firstVariant =
         normalized.variants.find(
           (v) => (v.isActive ?? true) && v.stock > 0
         ) ?? null;
 
-      setSelectedVariant(firstAvailableVariant);
-    } catch {
-      // không log sensitive
+      setSelectedVariant(firstVariant);
+    } catch (err) {
+      console.error("[PRODUCT_PAGE] LOAD ERROR", err);
     } finally {
       setLoading(false);
     }
@@ -222,42 +212,6 @@ const handleDoubleTap = () => {
 
   loadProduct();
 }, [id]);
-  useEffect(() => {
-  async function loadProducts() {
-    if (!product?.categoryId) return;
-
-    try {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-
-      if (!Array.isArray(data)) return;
-
-      const normalized = data.map((api: ApiProduct) => {
-        const finalPrice =
-          typeof api.finalPrice === "number"
-            ? api.finalPrice
-            : api.price;
-
-        return {
-          id: api.id,
-          name: api.name,
-          price: api.price,
-          finalPrice,
-          isSale: finalPrice < api.price,
-          thumbnail: api.thumbnail ?? "",
-          images: Array.isArray(api.images) ? api.images : [],
-          categoryId: api.categoryId ?? null,
-        };
-      });
-
-      setProducts(normalized);
-    } catch (err) {
-      console.error("Load products failed:", err);
-    }
-  }
-
-  loadProducts();
-}, [product]);
 
   /* =======================
    INCREMENT VIEW
@@ -487,7 +441,7 @@ const canBuy = hasVariants
   </span>
 
   <span className="flex items-center gap-1">
-  ⭐ {product.ratingAvg.toFixed(1)}
+  ⭐ {(product.ratingAvg ?? 0).toFixed(1)}
   <span className="text-gray-400">
     ({product.ratingCount} {t.reviews})
   </span>
