@@ -114,15 +114,20 @@ function toAppProduct(row: ProductRow): ProductRecord {
 ========================================================= */
 
 export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
-  const { rows } = await query<ProductListRow>(
+  const { rows } = await query<ProductRecord>(
     `
     SELECT 
       id,
       name,
       price,
       sale_price,
+      sale_start,
+      sale_end,
       thumbnail,
-      sold
+      sold,
+      stock,
+      is_active,
+      category_id
     FROM products
     WHERE is_active = true
       AND deleted_at IS NULL
@@ -132,7 +137,7 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
     [limit]
   );
 
-  return rows.map(toAppProductFromList);
+  return rows.map(toAppProduct);
 }
 /* =========================================================
    GET — SELLER PRODUCTS
