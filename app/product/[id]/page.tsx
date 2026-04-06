@@ -1,6 +1,5 @@
-
 "use client";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -11,6 +10,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
+
 
 function formatDetail(text: string) {
   return text
@@ -58,7 +58,6 @@ interface ApiProduct {
   id: string;
   name: string;
   price: number;
-  salePrice?: number | null;
   finalPrice?: number;
   description?: string;
   detail?: string;
@@ -128,170 +127,173 @@ const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
 
-  const lastTapRef = useRef(0);
+  let lastTap = 0;
 
 const handleDoubleTap = () => {
   const now = Date.now();
-  if (now - lastTapRef.current < 300) {
-    setScale((prev) => (prev === 1 ? 2 : 1));
+  if (now - lastTap < 300) {
+    setScale(scale === 1 ? 2 : 1);
     setPosition({ x: 0, y: 0 });
   }
-  lastTapRef.current = now;
+  lastTap = now;
 };
 
   /* =======================
      LOAD PRODUCT
   ======================= */
  useEffect(() => {
-  let mounted = true;
-
-  async function loadAll() {
+  async function loadProduct() {
     try {
       if (!id) return;
 
-      setLoading(true);
+      const res = await fetch(`/api/products/${id}`);
+      const data: unknown = await res.json();
 
-      const productRes = await fetch(`/api/products/${id}`);
-const listRes = await fetch(`/api/products`);
+      if (!data || typeof data !== "object") return;
 
-      const productData: unknown = await productRes.json();
-      const listData: unknown = await listRes.json();
+      const api = data as ApiProduct;
 
-      if (!mounted) return;
+      const finalPrice =
+  typeof api.salePrice === "number" &&
+  api.salePrice < api.price
+    ? api.salePrice
+    : api.price;
 
-      /* ================= PRODUCT ================= */
-      if (productData && typeof productData === "object") {
-        const api = productData as ApiProduct;
+      const normalized: Product = {
+        id: api.id,
+        name: api.name,
+        price: api.price,
+        finalPrice,
+        isSale: finalPrice < api.price,
 
+        description: api.description ?? "",
+        detail: api.detail ?? "",
+
+        views: api.views ?? 0,
+        sold: api.sold ?? 0,
+        ratingAvg:
+          typeof api.rating_avg === "number"
+            ? api.rating_avg
+            : 0,
+        ratingCount:
+          typeof api.rating_count === "number"
+            ? api.rating_count
+            : 0,
+
+        thumbnail: api.thumbnail ?? "",
+        images: Array.isArray(api.images) ? api.images : [],
+        categoryId: api.categoryId ?? null,
+
+        stock:
+          typeof api.stock === "number" ? api.stock : 0,
+        isActive: api.isActive !== false,
+        isOutOfStock:
+          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
+          api.isActive === false,
+
+        variants: Array.isArray(api.variants)
+          ? api.variants
+          : [],
+        shipping_rates: Array.isArray(api.shipping_rates)
+  ? api.shipping_rates.filter(
+      (r) =>
+        r &&
+        typeof r.zone === "string" &&
+        typeof r.price === "number"
+    )
+  : [],
+      };
+
+      setProduct(normalized);
+
+      const firstAvailableVariant =
+        normalized.variants.find(
+          (v) => (v.isActive ?? true) && v.stock > 0
+        ) ?? null;
+
+      setSelectedVariant(firstAvailableVariant);
+    } catch {
+      // không log sensitive
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadProduct();
+}, [id]);
+  useEffect(() => {
+  async function loadProducts() {
+    if (!product?.categoryId) return;
+
+    try {
+      const res = await fetch("/api/products");
+      const data = await res.json();
+
+      if (!Array.isArray(data)) return;
+
+      const normalized = data.map((api: ApiProduct) => {
         const finalPrice =
-          typeof api.salePrice === "number" &&
-          api.salePrice < api.price
-            ? api.salePrice
+          typeof api.finalPrice === "number"
+            ? api.finalPrice
             : api.price;
 
-        const normalized: Product = {
+        return {
           id: api.id,
           name: api.name,
           price: api.price,
           finalPrice,
           isSale: finalPrice < api.price,
-
-          description: api.description ?? "",
-          detail: api.detail ?? "",
-
-          views: api.views ?? 0,
-          sold: api.sold ?? 0,
-          ratingAvg: api.rating_avg ?? 0,
-          ratingCount: api.rating_count ?? 0,
-
           thumbnail: api.thumbnail ?? "",
           images: Array.isArray(api.images) ? api.images : [],
           categoryId: api.categoryId ?? null,
-
-          stock: api.stock ?? 0,
-          isActive: api.isActive !== false,
-          isOutOfStock:
-            (api.stock ?? 0) <= 0 || api.isActive === false,
-
-          variants: Array.isArray(api.variants) ? api.variants : [],
-          shipping_rates: Array.isArray(api.shipping_rates)
-            ? api.shipping_rates
-            : [],
         };
+      });
 
-        setProduct(normalized);
-
-        const firstVariant =
-          normalized.variants.find(
-            (v) => (v.isActive ?? true) && v.stock > 0
-          ) ?? null;
-
-        setSelectedVariant(firstVariant);
-      }
-
-      /* ================= RELATED ================= */
-      if (Array.isArray(listData)) {
-        const normalizedList: Product[] = listData.map((api: ApiProduct) => {
-          const finalPrice =
-            typeof api.finalPrice === "number"
-              ? api.finalPrice
-              : api.price;
-
-          return {
-            id: api.id,
-            name: api.name,
-            price: api.price,
-            finalPrice,
-            isSale: finalPrice < api.price,
-            description: "",
-            detail: "",
-            views: 0,
-            sold: 0,
-            ratingAvg: 0,
-            ratingCount: 0,
-            thumbnail: api.thumbnail ?? "",
-            images: Array.isArray(api.images) ? api.images : [],
-            stock: 0,
-            isActive: true,
-            isOutOfStock: false,
-            categoryId: api.categoryId ?? null,
-            variants: [],
-            shipping_rates: [],
-          };
-        });
-
-        setProducts(normalizedList);
-      }
+      setProducts(normalized);
     } catch (err) {
-      console.error("[PRODUCT_PAGE] LOAD ERROR", err);
-    } finally {
-      if (mounted) setLoading(false);
+      console.error("Load products failed:", err);
     }
   }
 
-  loadAll();
+  loadProducts();
+}, [product]);
 
-  return () => {
-    mounted = false;
-  };
-}, [id]);
+  /* =======================
+   INCREMENT VIEW
+======================= */
+  useEffect(() => {
+    if (!id) return;
+
+    fetch("/api/products/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch((err) =>
+      console.error("View update failed:", err)
+    );
+  }, [id]);
 
   /* =======================
      STATES
   ======================= */
-  if (loading) {
-  return (
-    <div className="p-4 space-y-4 animate-pulse">
-      <div className="bg-gray-200 h-64 rounded-xl" />
-      <div className="h-4 bg-gray-200 w-2/3 rounded" />
-      <div className="h-4 bg-gray-200 w-1/2 rounded" />
-    </div>
-  );
-}
-if (!product) return <p className="p-4">{t.no_products}</p>;
-
-const gallery = useMemo(() => {
-  const displayImages = [
-    ...(product.thumbnail ? [product.thumbnail] : []),
-    ...product.images.filter((img) => img && img !== product.thumbnail),
-  ];
-
-  return displayImages.length > 0
-    ? displayImages
-    : ["/placeholder.png"];
-}, [product]);
+  if (loading) return <p className="p-4">{t.loading}</p>;
   if (!product) return <p className="p-4">{t.no_products}</p>;
 
-  const relatedProducts = useMemo(() => {
-  if (!product) return [];
-
-  return products.filter(
+  const relatedProducts = products.filter(
     (p) =>
       p.id !== product.id &&
       p.categoryId &&
       p.categoryId === product.categoryId
   );
-}, [products, product]);
+
+  const displayImages = [
+  ...(product.thumbnail ? [product.thumbnail] : []),
+  ...product.images.filter((img) => img && img !== product.thumbnail),
+];
+const gallery =
+  displayImages.length > 0 ? displayImages : ["/placeholder.png"];
+
+
   const hasVariants = product.variants.length > 0;
 
 const availableVariants = product.variants.filter(
