@@ -240,6 +240,7 @@ useEffect(() => {
   p.isSale && p.price > 0
     ? Math.round(((p.price - p.finalPrice) / p.price) * 100)
     : 0;
+      return (
                 <Link key={p.id} href={`/product/${p.id}`}>
                   <div className="bg-white rounded-xl border overflow-hidden relative">
                     <Image
