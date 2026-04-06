@@ -30,7 +30,6 @@ type Product = {
   isSale: boolean;
   thumbnail?: string;
 
-  // ✅ chuẩn mới
   isActive?: boolean;
   stock?: number;
   variants?: ProductVariant[];
@@ -39,17 +38,12 @@ type Product = {
   sold: number;
 };
 
-/* ================= HELPERS ================= */
-
-function getMainImage(product: Product) {
-  return product.thumbnail || "/placeholder.png";
-}
-
-/* ================= CLIENT PAGE ================= */
+/* ================= COMPONENT ================= */
 
 export default function CategoriesClient() {
   const { t } = useTranslation();
   const { addToCart } = useCart();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategoryId, setActiveCategoryId] =
@@ -57,95 +51,121 @@ export default function CategoriesClient() {
   const [loading, setLoading] = useState(true);
 
   const [message, setMessage] = useState<{
-  text: string;
-  type: "error" | "success";
-} | null>(null);
+    text: string;
+    type: "error" | "success";
+  } | null>(null);
 
-const showMessage = (text: string, type: "error" | "success" = "error") => {
-  setMessage({ text, type });
-  setTimeout(() => setMessage(null), 3000);
-};
+  const showMessage = (text: string, type: "error" | "success" = "error") => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 2500);
+  };
 
-  const handleAddToCart = (product: Product) => {
-  if (product.isActive === false) {
-    showMessage(t.product_unavailable || "Product is unavailable");
-    return;
-  }
-
-  if (product.variants && product.variants.length > 0) {
-    showMessage(t.select_variant || "Please select size / variant");
-    return;
-  }
-
-  if (product.stock !== undefined && product.stock <= 0) {
-    showMessage(t.out_of_stock || "Out of stock");
-    return;
-  }
-
-  addToCart({
-    id: String(product.id),
-    name: product.name,
-    price: product.price,
-    sale_price: product.finalPrice,
-    quantity: 1,
-    thumbnail: product.thumbnail,
-  });
-
-  showMessage(t.added_to_cart || "Added to cart", "success");
-};
-
-  /* ================= LOAD DATA ================= */
+  /* ================= LOAD DATA (OPTIMIZED) ================= */
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()),
-      fetch("/api/products", { cache: "no-store" }).then((r) => r.json()),
-    ])
-      .then(([cateData, prodData]: [Category[], Product[]]) => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const [cateRes, prodRes] = await Promise.all([
+          fetch("/api/categories"),
+          fetch("/api/products"),
+        ]);
+
+        const cateData = await cateRes.json();
+        const prodData = await prodRes.json();
+
+        if (!mounted) return;
+
         setCategories(
-          [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
+          Array.isArray(cateData)
+            ? [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
+            : []
         );
 
         setProducts(Array.isArray(prodData) ? prodData : []);
-      })
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.error("[CATEGORY_LOAD_ERROR]", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   /* ================= FILTER ================= */
 
   const visibleProducts = useMemo(() => {
     if (activeCategoryId === null) return products;
+
     return products.filter(
       (p) => String(p.categoryId) === String(activeCategoryId)
     );
   }, [products, activeCategoryId]);
 
+  /* ================= ADD TO CART ================= */
+
+  const handleAddToCart = (product: Product) => {
+    if (product.isActive === false) {
+      showMessage(t.product_unavailable || "Product unavailable");
+      return;
+    }
+
+    if (product.variants?.length) {
+      showMessage(t.select_variant || "Select variant");
+      return;
+    }
+
+    if (product.stock !== undefined && product.stock <= 0) {
+      showMessage(t.out_of_stock || "Out of stock");
+      return;
+    }
+
+    addToCart({
+      id: String(product.id),
+      name: product.name,
+      price: product.price,
+      sale_price: product.finalPrice,
+      quantity: 1,
+      thumbnail: product.thumbnail,
+    });
+
+    showMessage(t.added_to_cart || "Added", "success");
+  };
+
+  /* ================= UI ================= */
+
   return (
     <main className="bg-gray-50 min-h-screen pb-24">
+      {/* MESSAGE */}
       {message && (
-  <div
-    className={`fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded px-4 py-2 shadow-lg ${
-      message.type === "error"
-        ? "bg-red-500 text-white"
-        : "bg-green-500 text-white"
-    }`}
-  >
-    {message.text}
-  </div>
-)}
-      {/* BANNER */}
-      <div className="mt-3">
-        <Image
-          src="/banners/30FD1BCC-E31C-4702-9E63-8BF08C5E311C.png"
-          alt="Banner"
-          width={1200}
-          height={400}
-          className="w-full h-[160px] object-cover"
-          priority
-        />
-      </div>
+        <div
+          className={`fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded px-4 py-2 shadow-lg ${
+            message.type === "error"
+              ? "bg-red-500 text-white"
+              : "bg-green-500 text-white"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
 
-      <div className="mt-2 grid grid-cols-[70px_1fr] gap-0">
+      {/* BANNER */}
+      <Image
+        src="/banners/30FD1BCC-E31C-4702-9E63-8BF08C5E311C.png"
+        alt="Banner"
+        width={1200}
+        height={400}
+        className="w-full h-[160px] object-cover mt-3"
+        priority
+      />
+
+      <div className="mt-2 grid grid-cols-[70px_1fr]">
         {/* ===== LEFT CATEGORY ===== */}
         <aside className="bg-white border-r">
           <div className="flex flex-col items-center py-2 gap-4">
@@ -205,81 +225,43 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
           </div>
         </aside>
 
-        {/* ===== RIGHT PRODUCTS ===== */}
-        <section className="bg-gray-100 p-1">
+        {/* RIGHT */}
+        <section className="p-2">
           {loading ? (
-            <p className="text-sm text-gray-400">
-              {t["loading_products"] || "Đang tải..."}
-            </p>
-          ) : visibleProducts.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              {t["no_products"] ?? "Chưa có sản phẩm"}
-            </p>
+            <p>{t.loading_products || "Loading..."}</p>
           ) : (
-            <div className="grid grid-cols-2 gap-[6px]">
-              {visibleProducts.map((p) => {
-                const isSale = p.isSale;
-                const finalPrice = p.finalPrice;
+            <div className="grid grid-cols-2 gap-2">
+              {visibleProducts.map((p) => (
+                <Link key={p.id} href={`/product/${p.id}`}>
+                  <div className="bg-white rounded-xl border overflow-hidden">
+                    <Image
+                      src={p.thumbnail || "/placeholder.png"}
+                      alt={p.name}
+                      width={300}
+                      height={300}
+                      className="w-full h-40 object-cover"
+                    />
 
-                const discount =
-                  isSale && p.salePrice !== null && p.price > 0
-                    ? Math.round(((p.price - p.salePrice) / p.price) * 100)
-                    : 0;
+                    <div className="p-2">
+                      <p className="text-sm line-clamp-2">{p.name}</p>
 
-                return (
-                  <Link
-                    key={p.id}
-                    href={`/product/${p.id}`}
-                  >
-                    <div className="bg-white rounded-xl overflow-hidden border">
-                      <div className="relative">
-                        <Image
-                          src={getMainImage(p)}
-                          alt={p.name}
-                          width={300}
-                          height={300}
-                          className="w-full h-44 object-cover"
-                        />
+                      <p className="text-red-600 font-bold">
+                        {formatPi(p.finalPrice)} π
+                      </p>
 
-                        {isSale && (
-                          <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-                            -{discount}%
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                       e.preventDefault();
-                      e.stopPropagation();
-                      handleAddToCart(p);
-                       }}
-                          className="absolute top-2 right-2 bg-white p-2 rounded-full shadow active:scale-95"
-                          aria-label="Add to cart"
-                        >
-                          <ShoppingCart size={16} />
-                        </button>
-                      </div>
-
-                      <div className="p-3">
-                        <p className="text-sm line-clamp-2 min-h-[40px]">
-                          {p.name}
-                        </p>
-
-                        <p className="text-red-600 font-bold mt-1">
-                          {formatPi(finalPrice)} π
-                        </p>
-
-                        {isSale && (
-                          <p className="text-xs text-gray-400 line-through">
-                            {formatPi(p.price)} π
-                          </p>
-                        )}
-                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleAddToCart(p);
+                        }}
+                      >
+                        <ShoppingCart size={14} />
+                      </button>
                     </div>
-                  </Link>
-                );
-              })}
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </section>
