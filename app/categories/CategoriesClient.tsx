@@ -29,12 +29,9 @@ type Product = {
   finalPrice: number;
   isSale: boolean;
   thumbnail?: string;
-
-  // ✅ chuẩn mới
   isActive?: boolean;
   stock?: number;
   variants?: ProductVariant[];
-
   categoryId: number | string;
   sold: number;
 };
@@ -97,19 +94,32 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
   /* ================= LOAD DATA ================= */
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/categories", { cache: "no-store" }).then((r) => r.json()),
-      fetch("/api/products", { cache: "no-store" }).then((r) => r.json()),
-    ])
-      .then(([cateData, prodData]: [Category[], Product[]]) => {
-        setCategories(
-          [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
-        );
+  let mounted = true;
 
-        setProducts(Array.isArray(prodData) ? prodData : []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  Promise.all([
+    fetch("/api/categories").then((r) => r.json()),
+    fetch("/api/products").then((r) => r.json()),
+  ])
+    .then(([cateData, prodData]) => {
+      if (!mounted) return;
+
+      setCategories(
+        Array.isArray(cateData)
+          ? [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
+          : []
+      );
+
+      setProducts(Array.isArray(prodData) ? prodData : []);
+    })
+    .catch(console.error)
+    .finally(() => {
+      if (mounted) setLoading(false);
+    });
+
+  return () => {
+    mounted = false;
+  };
+}, []);
 
   /* ================= FILTER ================= */
 
