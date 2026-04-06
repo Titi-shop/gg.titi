@@ -91,12 +91,35 @@ export type UpdateProductInput = Partial<
    HELPERS
 ========================================================= */
 
-function toAppProduct(row: ProductRow): ProductRecord {
+function toAppProductFromList(row: ProductListRow): ProductRecord & {
+  finalPrice: number;
+  isSale: boolean;
+} {
+  const price = Number(row.price);
+
+  const salePrice =
+    row.sale_price !== null ? Number(row.sale_price) : null;
+
   return {
-    ...row,
-    price: Number(row.price),
-    sale_price:
-      row.sale_price !== null ? Number(row.sale_price) : null,
+    // giữ structure ProductRecord
+    id: row.id,
+    name: row.name,
+    description: "",
+    detail: "",
+    thumbnail: row.thumbnail,
+    images: [],
+    price,
+    sale_price: salePrice,
+    stock: 0,
+    category_id: null,
+    seller_id: "",
+    created_at: "",
+    updated_at: null,
+
+    // 👇 thêm cho FE
+    finalPrice: salePrice ?? price,
+    isSale: salePrice !== null && salePrice < price,
+    sold: row.sold ?? 0,
   };
 }
 /* =========================================================
@@ -104,7 +127,7 @@ function toAppProduct(row: ProductRow): ProductRecord {
 ========================================================= */
 
 export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
-  const { rows } = await query<ProductRecord>(
+  const { rows } = await query<ProductListRow>(
     `
     SELECT 
       id,
@@ -122,7 +145,7 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
     [limit]
   );
 
-  return rows.map(toAppProduct);
+  return rows.map(toAppProductFromList);
 }
 /* =========================================================
    GET — SELLER PRODUCTS
