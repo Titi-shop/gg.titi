@@ -230,9 +230,14 @@ useEffect(() => {
         {/* RIGHT */}
         <section className="p-2">
       {loading ? (
-    <div className="text-center text-gray-400 py-10">
-      {t.loading_products || "Đang tải..."}
-    </div>
+    <div className="grid grid-cols-2 gap-2">
+  {[...Array(6)].map((_, i) => (
+    <div
+      key={i}
+      className="bg-white h-52 animate-pulse rounded-xl"
+    />
+  ))}
+</div>
   ) : (
     <div className="grid grid-cols-2 gap-2">
       {visibleProducts.map((p) => {
