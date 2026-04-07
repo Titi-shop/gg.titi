@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+ import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import {
   upsertShippingRates,
@@ -18,6 +18,7 @@ import {
   createVariantsForProduct,
   replaceVariantsByProductId,
 } from "@/lib/db/variants";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -153,7 +154,7 @@ export async function GET(req: Request) {
           console.warn("[PRODUCT_API][GET] variant fail:", p.id);
         }
 
-        const body.shippingRates = shippingMap.get(p.id) ?? [];
+        const shippingRates = shippingMap.get(p.id) ?? [];
 
         const start = p.sale_start
           ? new Date(p.sale_start).getTime()
@@ -182,41 +183,58 @@ export async function GET(req: Request) {
         return {
   id: p.id,
   sellerId: p.seller_id,
+
   name: p.name,
   slug: p.slug ?? "",
+
   shortDescription: p.short_description ?? "",
   description: p.description ?? "",
   detail: p.detail ?? "",
+
   thumbnail: p.thumbnail ?? "",
   images: p.images ?? [],
   detailImages: p.detail_images ?? [],
+
   videoUrl: p.video_url ?? "",
+
   price: p.price ?? 0,
   salePrice: p.sale_price ?? null,
+
   isSale,
-  finalPrice: isSale ? p.sale_price : p.price,
+  finalPrice: isSale ? p.sale_price ?? p.price : p.price
+
   currency: p.currency ?? "PI",
+
   stock: finalStock,
   isUnlimited: p.is_unlimited ?? false,
+
   sold: p.sold ?? 0,
   views: p.views ?? 0,
+
   ratingAvg: p.rating_avg ?? 0,
   ratingCount: p.rating_count ?? 0,
+
   isActive: p.is_active ?? true,
   isFeatured: p.is_featured ?? false,
   isDigital: p.is_digital ?? false,
+
   status: p.status ?? "active",
+
   categoryId: p.category_id ?? null,
+
   saleStart: p.sale_start ?? null,
   saleEnd: p.sale_end ?? null,
+
   metaTitle: p.meta_title ?? "",
   metaDescription: p.meta_description ?? "",
+
   createdAt: p.created_at,
   updatedAt: p.updated_at,
   deletedAt: p.deleted_at ?? null,
+
   variants,
-  shippingRates: body.shippingRates, // ⚠️ đổi tên
-};
+  shippingRates: shippingRates 
+      };
       })
     );
 
@@ -263,14 +281,14 @@ export async function POST(req: Request) {
       ? body.stock
       : 0;
 
-    const price =
-      typeof body.price === "number" && !Number.isNaN(body.price)
-      ? body.price
-      : 0;
+     const price =
+  typeof body.price === "number" && !Number.isNaN(body.price)
+    ? body.price
+    : 0;
 
-const product = await createProduct(userId, {
+      const product = await createProduct(userId, {
       name: String(body.name).trim(),
-      price, 
+      price,
       description: body.description ?? "",
       detail: body.detail ?? "",
       images: Array.isArray(body.images)
@@ -279,7 +297,7 @@ const product = await createProduct(userId, {
       thumbnail:
         typeof body.thumbnail === "string" ? body.thumbnail : null,
       category_id:
-        typeof body.categoryId === "number" ? body.categoryId  : null,
+        typeof body.categoryId === "number" ? body.categoryId : null,
       sale_price:
         typeof body.salePrice === "number" ? body.salePrice : null,
       sale_start:
@@ -288,19 +306,19 @@ const product = await createProduct(userId, {
         typeof body.saleEnd === "string" ? body.saleEnd : null,
       stock: finalStock,
       is_active:
-       typeof body.isActive === "boolean" ? body.isActive : true,
+        typeof body.isActive === "boolean" ? body.isActive : true,
       views: 0,
       sold: 0,
     });
 
     console.log("[PRODUCT_API][POST] product created:", product.id);
 
-    if (Array.isArray(body.shipping_rates)) {
+    if (Array.isArray(body.shippingRates)) {
       console.log("[PRODUCT_API][POST] upsert shipping");
-      await upsertShippingRates({
-        productId: product.id,
-        rates: body.shippingRates
-      });
+     await upsertShippingRates({
+    productId: product.id,
+    rates: body.shippingRates,
+    });
     }
 
     if (hasVariants) {
@@ -349,15 +367,17 @@ export async function PUT(req: Request) {
       ? body.stock
       : 0;
 
-    const updated = await updateProductBySeller(
-      userId,
-      productId,
-      {
+    const price =
+  typeof body.price === "number" && !Number.isNaN(body.price)
+    ? body.price
+    : 0;
+
+   const updated = await updateProductBySeller(
+       userId,
+       productId,
+       {
         name: String(body.name).trim(),
-        const price =
-   typeof body.price === "number" && !Number.isNaN(body.price)
-      ? body.price
-      : 0;
+        price,
         description: body.description ?? "",
         detail: body.detail ?? "",
         images: Array.isArray(body.images)
@@ -366,7 +386,7 @@ export async function PUT(req: Request) {
         thumbnail:
           typeof body.thumbnail === "string" ? body.thumbnail : null,
         category_id:
-          typeof body.categoryId === "number"  ? body.categoryId : null,
+          typeof body.categoryId === "number" ? body.categoryId : null,
         sale_price:
           typeof body.salePrice === "number" ? body.salePrice : null,
         sale_start:
@@ -375,7 +395,7 @@ export async function PUT(req: Request) {
           typeof body.saleEnd === "string" ? body.saleEnd : null,
         stock: finalStock,
         is_active:
-         typeof body.isActive === "boolean" ? body.isActive : true,
+           typeof body.isActive === "boolean" ? body.isActive : true,
       }
     );
 
@@ -392,7 +412,7 @@ export async function PUT(req: Request) {
     if (Array.isArray(body.shipping_rates)) {
       await upsertShippingRates({
         productId,
-        rates: body.shipping_rates,
+        rates: body.shippingRates
       });
     }
 
