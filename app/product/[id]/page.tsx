@@ -127,16 +127,10 @@ const handleDoubleTap = () => {
 
       /* ================= RELATED ================= */
       if (Array.isArray(listData)) {
-        const normalizedList: Product[] = listData.map((api: Product) => {
-          const finalPrice =
-            typeof api.finalPrice === "number"
-              ? api.finalPrice
-              : api.price;
-
-          return {
-  ...api,
-};
-        });
+        return {
+     ...api,
+     finalPrice,
+   };
 
         setProducts(normalizedList);
       }
@@ -189,9 +183,9 @@ const gallery = useMemo(() => {
       p.categoryId === product.categoryId
   );
 }, [products, product]);
-  const hasVariants = product.variants.length > 0;
+  const hasVariants = (product.variants ?? []).length > 0;
 const isSale = product.finalPrice < product.price;
-const availableVariants = product.variants.filter(
+const availableVariants = (product.variants ?? []).filter(
   (v) => (v.isActive ?? true) && v.optionValue
 );
 
