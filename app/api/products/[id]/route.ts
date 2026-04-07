@@ -386,11 +386,12 @@ export async function PATCH(
   shippingRates,
 });
   } catch (err) {
-    console.error("[PRODUCT][PATCH] ERROR");
+  console.error("[PRODUCT][PATCH] ERROR:", err);
 
-    return NextResponse.json(
-      { error: "FAILED_TO_UPDATE_PRODUCT" },
-      { status: 500 }
+  return NextResponse.json(
+    { error: "FAILED_TO_UPDATE_PRODUCT" },
+    { status: 500 }
+
     );
   }
 }
