@@ -154,7 +154,7 @@ export async function GET(req: Request) {
           console.warn("[PRODUCT_API][GET] variant fail:", p.id);
         }
 
-        const shipping_rates = shippingMap.get(p.id) ?? [];
+        const body.shippingRates = shippingMap.get(p.id) ?? [];
 
         const start = p.sale_start
           ? new Date(p.sale_start).getTime()
@@ -216,7 +216,7 @@ export async function GET(req: Request) {
   updatedAt: p.updated_at,
   deletedAt: p.deleted_at ?? null,
   variants,
-  shippingRates: shipping_rates, // ⚠️ đổi tên
+  shippingRates: body.shippingRates, // ⚠️ đổi tên
 };
       })
     );
@@ -289,7 +289,7 @@ const product = await createProduct(userId, {
         typeof body.saleEnd === "string" ? body.saleEnd : null,
       stock: finalStock,
       is_active:
-        typeof body.is_active === "boolean" ? body.is_active : true,
+       typeof body.isActive === "boolean" ? body.isActive : true,
       views: 0,
       sold: 0,
     });
@@ -300,7 +300,7 @@ const product = await createProduct(userId, {
       console.log("[PRODUCT_API][POST] upsert shipping");
       await upsertShippingRates({
         productId: product.id,
-        rates: body.shipping_rates,
+        rates: body.shippingRates
       });
     }
 
@@ -355,7 +355,10 @@ export async function PUT(req: Request) {
       productId,
       {
         name: String(body.name).trim(),
-        price: Number(body.price),
+        const price =
+   typeof body.price === "number" && !Number.isNaN(body.price)
+      ? body.price
+      : 0;
         description: body.description ?? "",
         detail: body.detail ?? "",
         images: Array.isArray(body.images)
@@ -373,7 +376,7 @@ export async function PUT(req: Request) {
           typeof body.saleEnd === "string" ? body.saleEnd : null,
         stock: finalStock,
         is_active:
-          typeof body.is_active === "boolean" ? body.is_active : true,
+         typeof body.isActive === "boolean" ? body.isActive : true,
       }
     );
 
