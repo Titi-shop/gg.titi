@@ -1,7 +1,6 @@
 
 "use client";
-import type { Product, ProductVariant } from "@/types/Product";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -42,6 +41,67 @@ function getDistance(touches: TouchList) {
   const dy = touches[0].clientY - touches[1].clientY;
   return Math.sqrt(dx * dx + dy * dy);
 }
+/* =======================
+   TYPES
+======================= */
+
+interface ProductVariant {
+  id?: string;
+  optionName?: string;
+  optionValue: string;
+  stock: number;
+  sku?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+interface ApiProduct {
+  id: string;
+  name: string;
+  price: number;
+  finalPrice?: number;
+  description?: string;
+  detail?: string;
+  views?: number;
+  sold?: number;
+  rating_avg?: number;
+  rating_count?: number;
+  thumbnail?: string;
+  images?: string[];
+  stock?: number;
+  isActive?: boolean;
+  categoryId?: string | null;
+  variants?: ProductVariant[];
+  shipping_rates?: {
+  zone: string;
+  price: number;
+}[];
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  finalPrice: number;
+  isSale: boolean;
+  description: string;
+  detail: string;
+  views: number;
+  sold: number;
+  ratingAvg: number;
+  ratingCount: number;
+  thumbnail?: string;
+  images: string[];
+  stock: number;
+  isActive: boolean;
+  isOutOfStock: boolean;
+  categoryId: string | null;
+  variants: ProductVariant[];
+  shipping_rates: {
+  zone: string;
+  price: number;
+}[];
+}
 
 /* =======================
    PAGE
@@ -68,21 +128,21 @@ const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
 
-  const lastTapRef = useRef(0);
+  let lastTap = 0;
 
 const handleDoubleTap = () => {
   const now = Date.now();
-  if (now - lastTapRef.current < 300) {
-    setScale((prev) => (prev === 1 ? 2 : 1));
+  if (now - lastTap < 300) {
+    setScale(scale === 1 ? 2 : 1);
     setPosition({ x: 0, y: 0 });
   }
-  lastTapRef.current = now;
+  lastTap = now;
 };
 
   /* =======================
      LOAD PRODUCT
   ======================= */
-  useEffect(() => {
+ useEffect(() => {
   async function loadProduct() {
     try {
       if (!id) return;
@@ -199,45 +259,45 @@ const handleDoubleTap = () => {
   loadProducts();
 }, [product]);
 
+  /* =======================
+   INCREMENT VIEW
+======================= */
+  useEffect(() => {
+    if (!id) return;
+
+    fetch("/api/products/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch((err) =>
+      console.error("View update failed:", err)
+    );
+  }, [id]);
 
   /* =======================
      STATES
   ======================= */
-  if (loading) {
-  return (
-    <div className="p-4 space-y-4 animate-pulse">
-      <div className="bg-gray-200 h-64 rounded-xl" />
-      <div className="h-4 bg-gray-200 w-2/3 rounded" />
-      <div className="h-4 bg-gray-200 w-1/2 rounded" />
-    </div>
-  );
-}
-if (!product) return <p className="p-4">{t.no_products}</p>;
+  if (loading) return <p className="p-4">{t.loading}</p>;
+  if (!product) return <p className="p-4">{t.no_products}</p>;
 
-const gallery = useMemo(() => {
-  const displayImages = [
-    ...(product.thumbnail ? [product.thumbnail] : []),
-    ...product.images.filter((img) => img && img !== product.thumbnail),
-  ];
-
-  return displayImages.length > 0
-    ? displayImages
-    : ["/placeholder.png"];
-}, [product.thumbnail, product.images]);
-
-  const relatedProducts = useMemo(() => {
-  if (!product) return [];
-
-  return products.filter(
+  const relatedProducts = products.filter(
     (p) =>
       p.id !== product.id &&
       p.categoryId &&
       p.categoryId === product.categoryId
   );
-}, [products, product]);
-  const hasVariants = (product.variants ?? []).length > 0;
-const isSale = product.finalPrice < product.price;
-const availableVariants = (product.variants ?? []).filter(
+
+  const displayImages = [
+  ...(product.thumbnail ? [product.thumbnail] : []),
+  ...product.images.filter((img) => img && img !== product.thumbnail),
+];
+const gallery =
+  displayImages.length > 0 ? displayImages : ["/placeholder.png"];
+
+
+  const hasVariants = product.variants.length > 0;
+
+const availableVariants = product.variants.filter(
   (v) => (v.isActive ?? true) && v.optionValue
 );
 
@@ -245,12 +305,9 @@ const selectedStock = hasVariants
   ? selectedVariant?.stock ?? 0
   : product.stock;
 
-const isOutOfStock =
-  product.stock <= 0 || product.isActive === false;
-
 const canBuy = hasVariants
   ? !!selectedVariant && selectedStock > 0
-  : !isOutOfStock;
+  : !product.isOutOfStock;
   /* =======================
      ACTIONS
   ======================= */
@@ -315,7 +372,7 @@ const canBuy = hasVariants
 <div className="mt-14 relative bg-white">
 
   {/* SALE BADGE */}
-  {isSale && (
+  {product.isSale && (
     <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
       -{calcSalePercent(product.price, product.finalPrice)}%
     </div>
@@ -486,7 +543,7 @@ const canBuy = hasVariants
         })}
       </div>
     </div>
-  ) : isOutOfStock ? (
+  ) : product.isOutOfStock ? (
     <span className="text-red-500 font-semibold">
       ❌ {t.out_of_stock}
     </span>
@@ -614,7 +671,7 @@ const canBuy = hasVariants
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     stock: selectedStock,
-    shippingRates: product.shippingRates,
+    shipping_rates: product.shipping_rates,
   }}
 />
     </div>
