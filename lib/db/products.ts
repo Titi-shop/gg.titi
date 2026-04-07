@@ -355,13 +355,22 @@ export async function updateProductBySeller(
 
     if (value === undefined) continue;
 
-    // ✅ sanitize nhẹ
-    if (key === "price" || key === "sale_price") {
-      if (typeof value !== "number" || Number.isNaN(value)) {
-        console.warn("[DB][PRODUCT][UPDATE] invalid price", key);
-        continue;
-      }
-    }
+    if (key === "price") {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    console.warn("[DB][PRODUCT][UPDATE] invalid price");
+    continue;
+  }
+}
+
+if (key === "sale_price") {
+  if (
+    value !== null &&
+    (typeof value !== "number" || Number.isNaN(value))
+  ) {
+    console.warn("[DB][PRODUCT][UPDATE] invalid sale_price");
+    continue;
+  }
+}
 
     if (key === "stock") {
       if (typeof value !== "number" || value < 0) {
