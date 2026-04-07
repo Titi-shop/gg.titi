@@ -129,26 +129,43 @@ export async function GET(
     console.log("[PRODUCT][GET] done");
 
     return NextResponse.json({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      salePrice: p.sale_price ?? null,
-      saleStart: p.sale_start ?? null,
-      saleEnd: p.sale_end ?? null,
-      description: p.description ?? "",
-      detail: p.detail ?? "",
-      images: p.images ?? [],
-      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-      categoryId: p.category_id ?? null,
-      stock: p.stock ?? 0,
-      is_active: p.is_active ?? true,
-      views: p.views ?? 0,
-      sold: p.sold ?? 0,
-      rating_avg: p.rating_avg ?? 0,
-      rating_count: p.rating_count ?? 0,
-      variants,
-      shipping_rates: shippingRates,
-    });
+  id: p.id,
+  sellerId: p.seller_id,
+  name: p.name,
+  slug: p.slug ?? "",
+  shortDescription: p.short_description ?? "",
+  description: p.description ?? "",
+  detail: p.detail ?? "",
+  thumbnail: p.thumbnail ?? "",
+  images: p.images ?? [],
+  detailImages: p.detail_images ?? [],
+  videoUrl: p.video_url ?? "",
+  price: p.price ?? 0,
+  salePrice: p.sale_price ?? null,
+  finalPrice: p.sale_price ?? p.price,
+  currency: p.currency ?? "PI",
+  stock: p.stock ?? 0,
+  isUnlimited: p.is_unlimited ?? false,
+  sold: p.sold ?? 0,
+  views: p.views ?? 0,
+  ratingAvg: p.rating_avg ?? 0,
+  ratingCount: p.rating_count ?? 0,
+  isActive: p.is_active ?? true,
+  isFeatured: p.is_featured ?? false,
+  isDigital: p.is_digital ?? false,
+  status: p.status ?? "active",
+  categoryId: p.category_id ?? null,
+  saleStart: p.sale_start ?? null,
+  saleEnd: p.sale_end ?? null,
+  metaTitle: p.meta_title ?? "",
+  metaDescription: p.meta_description ?? "",
+  createdAt: p.created_at,
+  updatedAt: p.updated_at,
+  deletedAt: p.deleted_at ?? null,
+
+  variants,
+  shippingRates,
+});
   } catch (err) {
     console.error("[PRODUCT][GET] ERROR");
 
@@ -302,26 +319,53 @@ export async function PATCH(
     console.log("[PRODUCT][PATCH] done");
 
     return NextResponse.json({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      salePrice: p.sale_price ?? null,
-      saleStart: p.sale_start ?? null,
-      saleEnd: p.sale_end ?? null,
-      description: p.description ?? "",
-      detail: p.detail ?? "",
-      images: p.images ?? [],
-      thumbnail: p.thumbnail ?? (p.images?.[0] ?? ""),
-      categoryId: p.category_id ?? null,
-      stock: p.stock ?? 0,
-      is_active: p.is_active ?? true,
-      views: p.views ?? 0,
-      sold: p.sold ?? 0,
-      rating_avg: p.rating_avg ?? 0,
-      rating_count: p.rating_count ?? 0,
-      variants,
-      shipping_rates: shippingRates,
-    });
+  id: p.id,
+  sellerId: p.seller_id,
+
+  name: p.name,
+  slug: p.slug ?? "",
+
+  shortDescription: p.short_description ?? "",
+  description: p.description ?? "",
+  detail: p.detail ?? "",
+
+  thumbnail: p.thumbnail ?? "",
+  images: p.images ?? [],
+  detailImages: p.detail_images ?? [],
+
+  videoUrl: p.video_url ?? "",
+
+  price: p.price ?? 0,
+  salePrice: p.sale_price ?? null,
+  finalPrice: p.sale_price ?? p.price,
+
+  currency: p.currency ?? "PI",
+
+  stock: p.stock ?? 0,
+  isUnlimited: p.is_unlimited ?? false,
+
+  sold: p.sold ?? 0,
+  views: p.views ?? 0,
+
+  ratingAvg: p.rating_avg ?? 0,
+  ratingCount: p.rating_count ?? 0,
+
+  isActive: p.is_active ?? true,
+  isFeatured: p.is_featured ?? false,
+  isDigital: p.is_digital ?? false,
+  status: p.status ?? "active",
+
+  categoryId: p.category_id ?? null,
+  saleStart: p.sale_start ?? null,
+  saleEnd: p.sale_end ?? null,
+  metaTitle: p.meta_title ?? "",
+  metaDescription: p.meta_description ?? "",
+  createdAt: p.created_at,
+  updatedAt: p.updated_at,
+  deletedAt: p.deleted_at ?? null,
+  variants,
+  shippingRates,
+});
   } catch (err) {
     console.error("[PRODUCT][PATCH] ERROR");
 
