@@ -1,5 +1,4 @@
-Đã sửa nhưng vẫn lổi như hình không như code này .
-Tiếp theo nâng câp file app/product/[id]/page.tsx nhanh mượt hơn không loading.
+
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
