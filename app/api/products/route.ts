@@ -74,7 +74,7 @@ function normalizeVariants(input: unknown) {
             : true,
       };
     })
-    .filter((i): i is any => i !== null);
+     .filter((i) => i !== null);
 
   console.log("[PRODUCT_API] normalizeVariants done:", result.length);
 
@@ -315,7 +315,7 @@ export async function POST(req: Request) {
     if (Array.isArray(body.shippingRates)) {
       console.log("[PRODUCT_API][POST] upsert shipping");
      await upsertShippingRates({
-  productId: productId,
+  productId: product.id,
   rates: body.shippingRates,
    });
     }
@@ -353,7 +353,14 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
 
-    const productId = String(body.id);
+    if (!body.id) {
+  return NextResponse.json(
+    { error: "MISSING_PRODUCT_ID" },
+    { status: 400 }
+  );
+}
+
+const productId = String(body.id);
     console.log("[PRODUCT_API][PUT] productId:", productId);
 
     const normalizedVariants = normalizeVariants(body.variants);
