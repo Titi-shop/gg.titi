@@ -58,6 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+  if (!piReady) return;
+
+  // 👉 Trigger authenticate để bắt pending payment
+  getPiAccessToken().catch(() => {});
+}, [piReady]);
 
   /* ================= INIT (NO AUTO LOGIN) ================= */
 
