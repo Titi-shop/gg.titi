@@ -1,6 +1,7 @@
 
 "use client";
-import { useEffect, useState } from "react";
+import type { Product, ProductVariant } from "@/types/Product";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -41,67 +42,6 @@ function getDistance(touches: TouchList) {
   const dy = touches[0].clientY - touches[1].clientY;
   return Math.sqrt(dx * dx + dy * dy);
 }
-/* =======================
-   TYPES
-======================= */
-
-interface ProductVariant {
-  id?: string;
-  optionName?: string;
-  optionValue: string;
-  stock: number;
-  sku?: string | null;
-  sortOrder?: number;
-  isActive?: boolean;
-}
-
-interface ApiProduct {
-  id: string;
-  name: string;
-  price: number;
-  finalPrice?: number;
-  description?: string;
-  detail?: string;
-  views?: number;
-  sold?: number;
-  rating_avg?: number;
-  rating_count?: number;
-  thumbnail?: string;
-  images?: string[];
-  stock?: number;
-  isActive?: boolean;
-  categoryId?: string | null;
-  variants?: ProductVariant[];
-  shipping_rates?: {
-  zone: string;
-  price: number;
-}[];
-}
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  finalPrice: number;
-  isSale: boolean;
-  description: string;
-  detail: string;
-  views: number;
-  sold: number;
-  ratingAvg: number;
-  ratingCount: number;
-  thumbnail?: string;
-  images: string[];
-  stock: number;
-  isActive: boolean;
-  isOutOfStock: boolean;
-  categoryId: string | null;
-  variants: ProductVariant[];
-  shipping_rates: {
-  zone: string;
-  price: number;
-}[];
-}
 
 /* =======================
    PAGE
@@ -128,175 +68,129 @@ const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
 
-  let lastTap = 0;
+  const lastTapRef = useRef(0);
 
 const handleDoubleTap = () => {
   const now = Date.now();
-  if (now - lastTap < 300) {
-    setScale(scale === 1 ? 2 : 1);
+  if (now - lastTapRef.current < 300) {
+    setScale((prev) => (prev === 1 ? 2 : 1));
     setPosition({ x: 0, y: 0 });
   }
-  lastTap = now;
+  lastTapRef.current = now;
 };
 
   /* =======================
      LOAD PRODUCT
   ======================= */
  useEffect(() => {
-  async function loadProduct() {
+  let mounted = true;
+
+  async function loadAll() {
     try {
       if (!id) return;
 
-      const res = await fetch(`/api/products/${id}`);
-      const data: unknown = await res.json();
+      setLoading(true);
 
-      if (!data || typeof data !== "object") return;
+      const [productRes, listRes] = await Promise.all([
+        fetch(`/api/products/${id}`),
+        fetch(`/api/products`),
+      ]);
 
-      const api = data as ApiProduct;
+      if (!productRes.ok) throw new Error("product fetch fail");
+      const productData: unknown = await productRes.json();
+      const listData: unknown = await listRes.json();
 
-      const finalPrice =
-  typeof api.salePrice === "number" &&
-  api.salePrice < api.price
-    ? api.salePrice
-    : api.price;
+      if (!mounted) return;
 
-      const normalized: Product = {
-        id: api.id,
-        name: api.name,
-        price: api.price,
-        finalPrice,
-        isSale: finalPrice < api.price,
+      /* ================= PRODUCT ================= */
+      if (productData && typeof productData === "object") {
+        const api = productData as Product;
 
-        description: api.description ?? "",
-        detail: api.detail ?? "",
-
-        views: api.views ?? 0,
-        sold: api.sold ?? 0,
-        ratingAvg:
-          typeof api.rating_avg === "number"
-            ? api.rating_avg
-            : 0,
-        ratingCount:
-          typeof api.rating_count === "number"
-            ? api.rating_count
-            : 0,
-
-        thumbnail: api.thumbnail ?? "",
-        images: Array.isArray(api.images) ? api.images : [],
-        categoryId: api.categoryId ?? null,
-
-        stock:
-          typeof api.stock === "number" ? api.stock : 0,
-        isActive: api.isActive !== false,
-        isOutOfStock:
-          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
-          api.isActive === false,
-
-        variants: Array.isArray(api.variants)
-          ? api.variants
-          : [],
-        shipping_rates: Array.isArray(api.shipping_rates)
-  ? api.shipping_rates.filter(
-      (r) =>
-        r &&
-        typeof r.zone === "string" &&
-        typeof r.price === "number"
-    )
-  : [],
-      };
-
-      setProduct(normalized);
-
-      const firstAvailableVariant =
-        normalized.variants.find(
-          (v) => (v.isActive ?? true) && v.stock > 0
-        ) ?? null;
-
-      setSelectedVariant(firstAvailableVariant);
-    } catch {
-      // không log sensitive
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  loadProduct();
-}, [id]);
-  useEffect(() => {
-  async function loadProducts() {
-    if (!product?.categoryId) return;
-
-    try {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-
-      if (!Array.isArray(data)) return;
-
-      const normalized = data.map((api: ApiProduct) => {
         const finalPrice =
-          typeof api.finalPrice === "number"
-            ? api.finalPrice
+          typeof api.salePrice === "number" &&
+          api.salePrice < api.price
+            ? api.salePrice
             : api.price;
+        const normalized: Product = {
+        ...api,
+      finalPrice,
+       };
+        setProduct(normalized);
 
-        return {
-          id: api.id,
-          name: api.name,
-          price: api.price,
-          finalPrice,
-          isSale: finalPrice < api.price,
-          thumbnail: api.thumbnail ?? "",
-          images: Array.isArray(api.images) ? api.images : [],
-          categoryId: api.categoryId ?? null,
-        };
-      });
+        const firstVariant =
+          (normalized.variants ?? []).find(
+            (v) => (v.isActive ?? true) && v.stock > 0
+          ) ?? null;
 
-      setProducts(normalized);
+        setSelectedVariant(firstVariant);
+      }
+
+      /* ================= RELATED ================= */
+      if (Array.isArray(listData)) {
+        const normalizedList: Product[] = listData.map((api: Product) => {
+          const finalPrice =
+            typeof api.finalPrice === "number"
+              ? api.finalPrice
+              : api.price;
+
+          return {
+  ...api,
+};
+        });
+
+        setProducts(normalizedList);
+      }
     } catch (err) {
-      console.error("Load products failed:", err);
+      console.error("[PRODUCT_PAGE] LOAD ERROR", err);
+    } finally {
+      if (mounted) setLoading(false);
     }
   }
 
-  loadProducts();
-}, [product]);
+  loadAll();
 
-  /* =======================
-   INCREMENT VIEW
-======================= */
-  useEffect(() => {
-    if (!id) return;
-
-    fetch("/api/products/view", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    }).catch((err) =>
-      console.error("View update failed:", err)
-    );
-  }, [id]);
+  return () => {
+    mounted = false;
+  };
+}, [id]);
 
   /* =======================
      STATES
   ======================= */
-  if (loading) return <p className="p-4">{t.loading}</p>;
-  if (!product) return <p className="p-4">{t.no_products}</p>;
+  if (loading) {
+  return (
+    <div className="p-4 space-y-4 animate-pulse">
+      <div className="bg-gray-200 h-64 rounded-xl" />
+      <div className="h-4 bg-gray-200 w-2/3 rounded" />
+      <div className="h-4 bg-gray-200 w-1/2 rounded" />
+    </div>
+  );
+}
+if (!product) return <p className="p-4">{t.no_products}</p>;
 
-  const relatedProducts = products.filter(
+const gallery = useMemo(() => {
+  const displayImages = [
+    ...(product.thumbnail ? [product.thumbnail] : []),
+    ...product.images.filter((img) => img && img !== product.thumbnail),
+  ];
+
+  return displayImages.length > 0
+    ? displayImages
+    : ["/placeholder.png"];
+}, [product.thumbnail, product.images]);
+
+  const relatedProducts = useMemo(() => {
+  if (!product) return [];
+
+  return products.filter(
     (p) =>
       p.id !== product.id &&
       p.categoryId &&
       p.categoryId === product.categoryId
   );
-
-  const displayImages = [
-  ...(product.thumbnail ? [product.thumbnail] : []),
-  ...product.images.filter((img) => img && img !== product.thumbnail),
-];
-const gallery =
-  displayImages.length > 0 ? displayImages : ["/placeholder.png"];
-
-
+}, [products, product]);
   const hasVariants = product.variants.length > 0;
-
+const isSale = product.finalPrice < product.price;
 const availableVariants = product.variants.filter(
   (v) => (v.isActive ?? true) && v.optionValue
 );
@@ -305,9 +199,12 @@ const selectedStock = hasVariants
   ? selectedVariant?.stock ?? 0
   : product.stock;
 
+const isOutOfStock =
+  product.stock <= 0 || product.isActive === false;
+
 const canBuy = hasVariants
   ? !!selectedVariant && selectedStock > 0
-  : !product.isOutOfStock;
+  : !isOutOfStock;
   /* =======================
      ACTIONS
   ======================= */
@@ -372,7 +269,7 @@ const canBuy = hasVariants
 <div className="mt-14 relative bg-white">
 
   {/* SALE BADGE */}
-  {product.isSale && (
+  {isSale && (
     <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
       -{calcSalePercent(product.price, product.finalPrice)}%
     </div>
@@ -543,7 +440,7 @@ const canBuy = hasVariants
         })}
       </div>
     </div>
-  ) : product.isOutOfStock ? (
+  ) : isOutOfStock ? (
     <span className="text-red-500 font-semibold">
       ❌ {t.out_of_stock}
     </span>
@@ -671,7 +568,7 @@ const canBuy = hasVariants
     finalPrice: product.finalPrice,
     thumbnail: product.thumbnail,
     stock: selectedStock,
-    shipping_rates: product.shipping_rates,
+    shippingRates: product.shippingRates,
   }}
 />
     </div>
