@@ -110,8 +110,6 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const { t } = useTranslation();
   const { user, piReady, pilogin } = useAuth();
 const processingRef = useRef(false);
-   const previewRef = useRef(false);   // ✅ THÊM Ở ĐÂY
-const loadedRef = useRef(false); 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
@@ -158,50 +156,57 @@ const quantity = useMemo(() => {
   ========================= */
 
   useEffect(() => {
-  if (!open) {
-    loadedRef.current = false; 
-    return;
+    async function loadAddress() {
+      try {
+        console.log("🟡 [CHECKOUT] LOAD ADDRESS START");
+
+    const token = await getPiAccessToken();
+    console.log("🟢 TOKEN:", token);
+
+    const res = await fetch("/api/address", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    console.log("🟢 ADDRESS RES:", res.status);
+
+    if (!res.ok) return;
+
+    const data: AddressApiResponse = await res.json();
+    console.log("🟢 ADDRESS DATA:", data);
+
+    const def = data.items?.find((a) => a.is_default);
+    if (!def) return;
+
+    setShipping({
+      name: def.full_name,
+      phone: def.phone,
+      address_line: def.address_line,
+      province: def.province,
+      country: def.country,
+      postal_code: def.postal_code ?? null,
+    });
+
+    console.log("🟢 SHIPPING SET");
+  } catch (err) {
+    console.error("❌ LOAD ADDRESS ERROR:", err);
+    setShipping(null);
   }
+}
 
-  async function loadAddress() {
-    try {
-      const token = await getPiAccessToken();
-
-      const res = await fetch("/api/address", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) return;
-
-      const data: AddressApiResponse = await res.json();
-
-      const def = data.items?.find((a) => a.is_default);
-      if (!def) return;
-
-      setShipping({
-        name: def.full_name,
-        phone: def.phone,
-        address_line: def.address_line,
-        province: def.province,
-        country: def.country,
-        postal_code: def.postal_code ?? null,
-      });
-    } catch {
-      setShipping(null);
-    }
-  }
-
-  if (!user || loadedRef.current) return;
-
-  loadedRef.current = true;
-  loadAddress();
-}, [open, user]);
+    if (open && user) loadAddress();
+  }, [open, user]);
 
   /* =========================
      AUTO PAY AFTER LOGIN
   ========================= */
-useEffect(() => {
-  if (!user || !shipping || processingRef.current) return;
+
+  useEffect(() => {
+  console.log("🟡 AUTO PAY CHECK", {
+    user,
+    shipping,
+    processing,
+  });
+  if (!user || !shipping || processing) return;
 
   const pending = localStorage.getItem("pending_checkout");
   if (!pending) return;
@@ -209,9 +214,10 @@ useEffect(() => {
   localStorage.removeItem("pending_checkout");
 
   setTimeout(() => {
+    console.log("🟢 AUTO PAY TRIGGER");
     handlePay();
   }, 300);
-}, [user, shipping]);
+}, [user, shipping, processing]);
 
   /* ========================= */
 
@@ -226,11 +232,12 @@ useEffect(() => {
 
   const country = shipping.country.toUpperCase();
 
-  if (country === "VN") {
-    return product.shipping_rates.filter((r) => r.zone === "domestic");
-  }
+  return product.shipping_rates.filter((r) => {
+    if (country === "VN") return r.zone === "domestic";
 
-  return product.shipping_rates;
+    // TODO: sau này map theo shipping_zone_countries từ backend
+    return true;
+  });
 }, [shipping?.country, product.shipping_rates]);
   const shippingFee = useMemo(() => {
   if (!zone || !Array.isArray(product.shipping_rates)) {
@@ -372,18 +379,12 @@ console.log("🟡 [CHECKOUT][FINAL_DATA]", {
   const handlePay = useCallback(async () => {
      console.log("🟡 PAY START");
     if (!validateBeforePay()) return;
-const ok = previewRef.current ? true : await previewOrder();
-
+const ok = await previewOrder();
 if (!ok) {
   console.log("🔴 PREVIEW BLOCK PAYMENT");
   return;
 }
-
-previewRef.current = true;
-if (processingRef.current) {
-  showMessage(t.processing);
-  return;
-}
+if (processingRef.current) return;
 
 processingRef.current = true;
 setProcessing(true);
@@ -559,24 +560,21 @@ callback();
         <div className="flex-1 overflow-y-auto px-4 py-3 pb-24">
 
           <div
-  className="border rounded-lg p-3 cursor-pointer mb-4"
-  onClick={() => router.push("/customer/address")}
->
-  {!shipping ? (
-  <div className="animate-pulse space-y-2">
-    <div className="h-3 bg-gray-200 rounded w-1/2" />
-    <div className="h-3 bg-gray-200 rounded w-2/3" />
-  </div>
-) : (
-  <>
-    <p className="font-medium">{shipping.name}</p>
-    <p className="text-sm text-gray-600">{shipping.phone}</p>
-    <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
-    <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-      {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
-    </p>
-  </>
-)}
+            className="border rounded-lg p-3 cursor-pointer mb-4"
+            onClick={() => router.push("/customer/address")}
+          >
+            {shipping ? (
+              <>
+                <p className="font-medium">{shipping.name}</p>
+                <p className="text-sm text-gray-600">{shipping.phone}</p>
+                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
+                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
+                </p>
+              </>
+            ) : (
+              <p className="text-gray-500">➕ {t.add_shipping}</p>
+            )}
           </div>
            {/* SHIPPING REGION */}
 <div className="border rounded-xl p-3 mb-4">
