@@ -18,7 +18,7 @@ type Category = {
 
 type ProductVariant = {
   id: string;
-  name: string;
+  optionValue: string;
   stock: number;
 };
 
@@ -37,19 +37,23 @@ type Product = {
   categoryId: number | string;
   sold: number;
 };
+const fetcher = async <T,>(url: string): Promise<T> => {
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error("FETCH_FAILED");
+  }
+
+  return res.json() as Promise<T>;
+};
 
 /* ================= COMPONENT ================= */
 
 export default function CategoriesClient() {
   const { t } = useTranslation();
   const { addToCart } = useCart();
-
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [activeCategoryId, setActiveCategoryId] =
     useState<number | string | null>(null);
-  const [loading, setLoading] = useState(true);
-
   const [message, setMessage] = useState<{
     text: string;
     type: "error" | "success";
@@ -64,51 +68,40 @@ export default function CategoriesClient() {
 useEffect(() => {
   document.body.style.background = "#f9fafb";
 }, []);
-  useEffect(() => {
-    let mounted = true;
+  const {
+  data: categoriesData,
+  isLoading: loadingCategories,
+} = useSWR<Category[]>("/api/categories", fetcher);
 
-    const load = async () => {
-      try {
-        const [cateRes, prodRes] = await Promise.all([
-          fetch("/api/categories"),
-          fetch("/api/products")
-           ]);
+const {
+  data: productsData,
+  isLoading: loadingProducts,
+} = useSWR<Product[]>("/api/products", fetcher);
 
-        const cateData = await cateRes.json();
-        const prodData = await prodRes.json();
+  const categories = useMemo(() => {
+  if (!categoriesData) return [];
 
-        if (!mounted) return;
+  return [...categoriesData].sort(
+    (a, b) => Number(a.id) - Number(b.id)
+  );
+}, [categoriesData]);
 
-        setCategories(
-          Array.isArray(cateData)
-            ? [...cateData].sort((a, b) => Number(a.id) - Number(b.id))
-            : []
-        );
+const products = useMemo(() => {
+  if (!productsData) return [];
+  return productsData;
+}, [productsData]);
 
-        setProducts(Array.isArray(prodData) ? prodData : []);
-      } catch (err) {
-        console.error("[CATEGORY_LOAD_ERROR]", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    load();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+const loading = loadingCategories || loadingProducts;
 
   /* ================= FILTER ================= */
 
   const visibleProducts = useMemo(() => {
-    if (activeCategoryId === null) return products;
+  if (activeCategoryId === null) return products;
 
-    return products.filter(
-  (p) => p.categoryId == activeCategoryId
-);
-  }, [products, activeCategoryId]);
+  return products.filter(
+    (p) => String(p.categoryId) === String(activeCategoryId)
+  );
+}, [products, activeCategoryId]);
 
   /* ================= ADD TO CART ================= */
 
@@ -119,9 +112,16 @@ useEffect(() => {
     }
 
     if (product.variants?.length) {
-      showMessage(t.select_variant || "Select variant");
-      return;
-    }
+  const available = product.variants.find((v) => v.stock > 0);
+
+  if (!available) {
+    showMessage(t.out_of_stock || "Out of stock");
+    return;
+  }
+
+  showMessage(t.select_variant || "Select variant");
+  return;
+}
 
     if (product.stock !== undefined && product.stock <= 0) {
       showMessage(t.out_of_stock || "Out of stock");
