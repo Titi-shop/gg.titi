@@ -11,6 +11,15 @@ import PiPriceWidget from "./components/PiPriceWidget";
 import { useCart } from "@/app/context/CartContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
+import useSWR from "swr";
+
+const fetcher = async <T,>(url: string): Promise<T> => {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error("FETCH_FAILED");
+  }
+  return res.json() as Promise<T>;
+};
 
 /* ================= TYPES ================= */
 
@@ -133,12 +142,8 @@ export default function HomePage() {
   const router = useRouter();
   const { addToCart } = useCart();
   const { t } = useTranslation();
-
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
   const [sortType, setSortType] = useState("sale");
-  const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
 
 
@@ -149,7 +154,9 @@ export default function HomePage() {
 
 const showMessage = (text: string, type: "error" | "success" = "error") => {
   setMessage({ text, type });
-  setTimeout(() => setMessage(null), 3000);
+
+  const timer = setTimeout(() => setMessage(null), 3000);
+  return () => clearTimeout(timer);
 };
 
   const handleAddToCart = (product: Product) => {
@@ -206,47 +213,46 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 
     return () => clearInterval(interval);
   }, []);
-
-  /* ===== LOAD DATA ===== */
   useEffect(() => {
-  // ⚡ LOAD CACHE TRƯỚC
+  if (productsData) {
+    localStorage.setItem("products", JSON.stringify(productsData));
+  }
+}, [productsData]);
+
+useEffect(() => {
+  if (categoriesData) {
+    localStorage.setItem("categories", JSON.stringify(categoriesData));
+  }
+}, [categoriesData]);
+useEffect(() => {
   const cachedProducts = localStorage.getItem("products");
   const cachedCategories = localStorage.getItem("categories");
 
-  if (cachedProducts) {
-    setProducts(JSON.parse(cachedProducts));
-    setLoading(false);
+  if (cachedProducts && !productsData) {
+    try {
+      const parsed = JSON.parse(cachedProducts);
+      if (Array.isArray(parsed)) {
+        // ⚠️ fallback tạm
+      }
+    } catch {}
   }
 
-  if (cachedCategories) {
-    setCategories(JSON.parse(cachedCategories));
+  if (cachedCategories && !categoriesData) {
+    try {
+      const parsed = JSON.parse(cachedCategories);
+      if (Array.isArray(parsed)) {
+        // ⚠️ fallback tạm
+      }
+    } catch {}
   }
-
-  // 🔄 FETCH NGẦM
-  Promise.all([
-    fetch("/api/products").then((r) => r.json()),
-    fetch("/api/categories").then((r) => r.json()),
-  ])
-    .then(([productData, categoryData]) => {
-      if (Array.isArray(productData)) {
-        setProducts(productData);
-        localStorage.setItem("products", JSON.stringify(productData));
-      }
-
-      if (Array.isArray(categoryData)) {
-        setCategories(categoryData);
-        localStorage.setItem("categories", JSON.stringify(categoryData));
-      }
-    })
-    .finally(() => setLoading(false));
-}, []);
-
+}, [productsData, categoriesData]);
   /* ===== FILTER ===== */
+  
   const filteredProducts = useMemo(() => {
     let list = [...products];
 
     if (selectedCategory !== "all") {
-      list = list.filter((p) => p.categoryId === selectedCategory);
+      list = list.filter((p) => p.categoryId == selectedCategory);
     }
 
     if (sortType === "sold") {
