@@ -104,71 +104,42 @@ const handleDoubleTap = () => {
 
       if (!data || typeof data !== "object") return;
 
-      const api = data as ApiProduct;
+      const api = data as ProductType;
 
+      // ✅ tính finalPrice giống cũ
       const finalPrice =
-  typeof api.salePrice === "number" &&
-  api.salePrice < api.price
-    ? api.salePrice
-    : api.price;
+        typeof api.salePrice === "number" &&
+        api.salePrice < api.price
+          ? api.salePrice
+          : api.price;
 
-      const normalized: Product = {
-        id: api.id,
-        name: api.name,
-        price: api.price,
+      // ✅ normalize kiểu CŨ (AN TOÀN)
+      const normalized: ProductType = {
+        ...api,
+
         finalPrice,
-        isSale: finalPrice < api.price,
 
-        description: api.description ?? "",
-        detail: api.detail ?? "",
-
-        views: api.views ?? 0,
-        sold: api.sold ?? 0,
-        ratingAvg:
-          typeof api.rating_avg === "number"
-            ? api.rating_avg
-            : 0,
-        ratingCount:
-          typeof api.rating_count === "number"
-            ? api.rating_count
-            : 0,
-
-        thumbnail: api.thumbnail ?? "",
+        // ✅ đảm bảo không undefined
         images: Array.isArray(api.images) ? api.images : [],
-        categoryId: api.categoryId ?? null,
+        variants: Array.isArray(api.variants) ? api.variants : [],
 
-        stock:
-          typeof api.stock === "number" ? api.stock : 0,
-        isActive: api.isActive !== false,
-        isOutOfStock:
-          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
-          api.isActive === false,
-
-        variants: Array.isArray(api.variants)
-          ? api.variants
+        // 🔥 QUAN TRỌNG: giữ đúng tên camelCase API
+        shippingRates: Array.isArray(api.shippingRates)
+          ? api.shippingRates
           : [],
-        variants: Array.isArray(p.variants) ? p.variants : [],
-  shippingRates: Array.isArray(p.shippingRates)
-    ? p.shippingRates
-    (
-      (r) =>
-        r &&
-        typeof r.zone === "string" &&
-        typeof r.price === "number"
-    )
-  : [],
       };
 
       setProduct(normalized);
 
-      const firstAvailableVariant =
+      const firstVariant =
         normalized.variants.find(
           (v) => (v.isActive ?? true) && v.stock > 0
         ) ?? null;
 
-      setSelectedVariant(firstAvailableVariant);
-    } catch {
-      // không log sensitive
+      setSelectedVariant(firstVariant);
+
+    } catch (err) {
+      console.error("LOAD PRODUCT ERROR", err);
     } finally {
       setLoading(false);
     }
