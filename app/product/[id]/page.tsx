@@ -238,7 +238,7 @@ const selectedStock = hasVariants
 
 const canBuy = hasVariants
   ? !!selectedVariant && selectedStock > 0
-  : !product.isOutOfStock;
+  : !(product.isOutOfStock ?? false);
   /* =======================
      ACTIONS
   ======================= */
@@ -418,9 +418,9 @@ const canBuy = hasVariants
   </span>
 
   <span className="flex items-center gap-1">
-  ⭐ {product.ratingAvg.toFixed(1)}
+  ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}
   <span className="text-gray-400">
-    ({product.ratingCount} {t.reviews})
+    ({product.ratingCount ?? 0} {t.reviews})
   </span>
 </span>
 </div>
