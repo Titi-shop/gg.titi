@@ -11,10 +11,9 @@ const pool =
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
 
-    // 🔥 cực quan trọng
-    max: 1,
-idleTimeoutMillis: 10000,
-connectionTimeoutMillis: 5000, giới hạn connection
+    max: 1, // giới hạn connection
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000, // giới hạn connection
   });
 
 if (process.env.NODE_ENV !== "production") {
