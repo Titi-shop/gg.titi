@@ -55,34 +55,6 @@ interface ProductVariant {
   sortOrder?: number;
   isActive?: boolean;
 }
-
-
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  finalPrice: number;
-  isSale: boolean;
-  description: string;
-  detail: string;
-  views: number;
-  sold: number;
-  ratingAvg: number;
-  ratingCount: number;
-  thumbnail?: string;
-  images: string[];
-  stock: number;
-  isActive: boolean;
-  isOutOfStock: boolean;
-  categoryId: string | null;
-  variants: ProductVariant[];
-  shipping_rates: {
-  zone: string;
-  price: number;
-}[];
-}
-
 /* =======================
    PAGE
 ======================= */
