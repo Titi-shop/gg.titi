@@ -1,7 +1,7 @@
 
 "use client";
 import type { Product as ProductType,ProductVariant } from "@/types/Product";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -92,35 +92,32 @@ const handleDoubleTap = () => {
       if (!id) return;
 
       const res = await fetch(`/api/products/${id}`);
-      const data: unknown = await res.json();
+      const data = await res.json();
 
       if (!data || typeof data !== "object") return;
 
-      const api = data as ApiProduct;
+      const api = data as ProductType;
 
       const normalized: ProductType = {
-  ...api,
-
-  ratingAvg: api.ratingAvg ?? 0,
-  ratingCount: api.ratingCount ?? 0,
-
-  finalPrice:
-    typeof api.salePrice === "number" &&
-    api.salePrice < api.price
-      ? api.salePrice
-      : api.price,
-};
+        ...api,
+        finalPrice:
+          typeof api.finalPrice === "number"
+            ? api.finalPrice
+            : typeof api.salePrice === "number" &&
+              api.salePrice < api.price
+            ? api.salePrice
+            : api.price,
+      };
 
       setProduct(normalized);
 
-      const firstAvailableVariant =
+      const firstVariant =
         normalized.variants.find(
           (v) => (v.isActive ?? true) && v.stock > 0
         ) ?? null;
 
-      setSelectedVariant(firstAvailableVariant);
+      setSelectedVariant(firstVariant);
     } catch {
-      // không log sensitive
     } finally {
       setLoading(false);
     }
@@ -139,24 +136,12 @@ const handleDoubleTap = () => {
       if (!Array.isArray(data)) return;
 
       const normalized: ProductType[] = data.map((p: ProductType) => ({
-  ...p,
-  finalPrice:
-    typeof p.salePrice === "number" && p.salePrice < p.price
-      ? p.salePrice
-      : p.price,
-}));
-
-        return {
-          id: api.id,
-          name: api.name,
-          price: api.price,
-          finalPrice,
-          isSale: finalPrice < api.price,
-          thumbnail: api.thumbnail ?? "",
-          images: Array.isArray(api.images) ? api.images : [],
-          categoryId: api.categoryId ?? null,
-        };
-      });
+        ...p,
+        finalPrice:
+          typeof p.salePrice === "number" && p.salePrice < p.price
+            ? p.salePrice
+            : p.price,
+      }));
 
       setProducts(normalized);
     } catch (err) {
