@@ -100,73 +100,44 @@ const handleDoubleTap = () => {
       if (!id) return;
 
       const res = await fetch(`/api/products/${id}`);
-      const data: unknown = await res.json();
+      const data = await res.json();
+
+      console.log("🔥 API PRODUCT:", data);
 
       if (!data || typeof data !== "object") return;
 
-      const api = data as ApiProduct;
+      const p = data as Partial<ProductType>;
 
-      const finalPrice =
-  typeof api.salePrice === "number" &&
-  api.salePrice < api.price
-    ? api.salePrice
-    : api.price;
+const normalized: ProductType = {
+  ...p,
 
-      const normalized: Product = {
-        id: api.id,
-        name: api.name,
-        price: api.price,
-        finalPrice,
-        isSale: finalPrice < api.price,
+  shippingRates: Array.isArray(p.shippingRates)
+    ? p.shippingRates
+    : [],
 
-        description: api.description ?? "",
-        detail: api.detail ?? "",
+  variants: Array.isArray(p.variants) ? p.variants : [],
+  images: Array.isArray(p.images) ? p.images : [],
 
-        views: api.views ?? 0,
-        sold: api.sold ?? 0,
-        ratingAvg:
-          typeof api.rating_avg === "number"
-            ? api.rating_avg
-            : 0,
-        ratingCount:
-          typeof api.rating_count === "number"
-            ? api.rating_count
-            : 0,
-
-        thumbnail: api.thumbnail ?? "",
-        images: Array.isArray(api.images) ? api.images : [],
-        categoryId: api.categoryId ?? null,
-
-        stock:
-          typeof api.stock === "number" ? api.stock : 0,
-        isActive: api.isActive !== false,
-        isOutOfStock:
-          (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
-          api.isActive === false,
-
-        variants: Array.isArray(api.variants)
-          ? api.variants
-          : [],
-        shipping_rates: Array.isArray(api.shipping_rates)
-  ? api.shipping_rates.filter(
-      (r) =>
-        r &&
-        typeof r.zone === "string" &&
-        typeof r.price === "number"
-    )
-  : [],
-      };
+  finalPrice:
+    typeof p.finalPrice === "number"
+      ? p.finalPrice
+      : typeof p.salePrice === "number" && p.salePrice < (p.price ?? 0)
+      ? p.salePrice
+      : p.price ?? 0,
+};
 
       setProduct(normalized);
 
-      const firstAvailableVariant =
+      const firstVariant =
         normalized.variants.find(
           (v) => (v.isActive ?? true) && v.stock > 0
         ) ?? null;
 
-      setSelectedVariant(firstAvailableVariant);
-    } catch {
-      // không log sensitive
+      setSelectedVariant(firstVariant);
+
+      console.log("🚚 SHIPPING:", normalized.shippingRates);
+    } catch (err) {
+      console.error("LOAD PRODUCT ERROR", err);
     } finally {
       setLoading(false);
     }
