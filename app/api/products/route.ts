@@ -231,8 +231,8 @@ export async function POST(req: Request) {
         : Promise.resolve(),
 
       variants.length > 0
-        ? createVariantsForProduct(product.id, variants)
-        : Promise.resolve(),
+  ? replaceVariantsByProductId(product.id, variants)
+  : Promise.resolve(),
     ]);
 
     return NextResponse.json({
