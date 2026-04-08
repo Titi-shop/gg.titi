@@ -15,7 +15,6 @@ import {
 
 import {
   getVariantsByProductId,
-  createVariantsForProduct,
   replaceVariantsByProductId,
   type ProductVariant,
 } from "@/lib/db/variants";
@@ -114,7 +113,7 @@ export async function GET(req: Request) {
 
     const enriched = await Promise.all(
       products.map(async (p) => {
-        const variants = await getVariantsByProductId(p.id);
+        const variants = await getVariantsByProducts(productIds);
 
         const start = p.sale_start
           ? new Date(p.sale_start).getTime()
@@ -232,8 +231,8 @@ export async function POST(req: Request) {
         : Promise.resolve(),
 
       variants.length > 0
-        ? createVariantsForProduct(product.id, variants)
-        : Promise.resolve(),
+  ? replaceVariantsByProductId(product.id, variants)
+  : Promise.resolve(),
     ]);
 
     return NextResponse.json({
