@@ -1,4 +1,4 @@
- import { NextResponse } from "next/server";
+  import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import {
   upsertShippingRates,
@@ -15,6 +15,7 @@ import {
 
 import {
   getVariantsByProductId,
+  createVariantsForProduct,
   replaceVariantsByProductId,
   type ProductVariant,
 } from "@/lib/db/variants";
@@ -113,7 +114,7 @@ export async function GET(req: Request) {
 
     const enriched = await Promise.all(
       products.map(async (p) => {
-        const variants = await getVariantsByProducts(productIds);
+        const variants = await getVariantsByProductId(p.id);
 
         const start = p.sale_start
           ? new Date(p.sale_start).getTime()
@@ -231,8 +232,8 @@ export async function POST(req: Request) {
         : Promise.resolve(),
 
       variants.length > 0
-  ? replaceVariantsByProductId(product.id, variants)
-  : Promise.resolve(),
+        ? createVariantsForProduct(product.id, variants)
+        : Promise.resolve(),
     ]);
 
     return NextResponse.json({
