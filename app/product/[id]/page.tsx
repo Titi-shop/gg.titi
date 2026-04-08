@@ -1,7 +1,9 @@
 
 "use client";
 import type { Product as ProductType } from "@/types/Product";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import useSWR from "swr";
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -63,14 +65,56 @@ export default function ProductDetail() {
   const { t } = useTranslation();
   const params = useParams();
   const id = String(params?.id ?? "");
+  const { data, isLoading } = useSWR(
+  id ? `/api/products/${id}` : null,
+  fetcher
+);
   const router = useRouter();
   const { addToCart } = useCart();
 
-  const [product, setProduct] = useState<ProductType | null>(null);
+  const product = useMemo(() => {
+  if (!data) return null;
+
+  const api = data as ProductType;
+
+  const finalPrice =
+    typeof api.salePrice === "number" &&
+    api.salePrice < api.price
+      ? api.salePrice
+      : api.price;
+
+  return {
+    ...api,
+
+    finalPrice,
+
+    images: Array.isArray(api.images) ? api.images : [],
+    variants: Array.isArray(api.variants) ? api.variants : [],
+    shippingRates: Array.isArray(api.shippingRates)
+      ? api.shippingRates
+      : [],
+
+    ratingAvg: Number(api.ratingAvg ?? 0),
+    ratingCount: Number(api.ratingCount ?? 0),
+
+    isSale: finalPrice < api.price,
+    isOutOfStock:
+      (api.stock ?? 0) <= 0 || api.isActive === false,
+  };
+}, [data]);
 const [products, setProducts] = useState<ProductType[]>([]);
-  const [loading, setLoading] = useState(true);
   const [openCheckout, setOpenCheckout] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  useEffect(() => {
+  if (!product) return;
+
+  const first =
+    product.variants.find(
+      (v) => (v.isActive ?? true) && v.stock > 0
+    ) ?? null;
+
+  setSelectedVariant(first);
+}, [product]);
   const quantity = 1;
 const [zoomImage, setZoomImage] = useState<string | null>(null);
 const [scale, setScale] = useState(1);
@@ -79,7 +123,6 @@ const [dragging, setDragging] = useState(false);
 const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
-
   let lastTap = 0;
 
 const handleDoubleTap = () => {
@@ -94,65 +137,6 @@ const handleDoubleTap = () => {
   /* =======================
      LOAD PRODUCT
   ======================= */
-  useEffect(() => {
-  async function loadProduct() {
-    try {
-      if (!id) return;
-
-      const res = await fetch(`/api/products/${id}`);
-      const data: unknown = await res.json();
-
-      if (!data || typeof data !== "object") return;
-
-      const api = data as ProductType;
-
-      // ✅ tính finalPrice giống cũ
-      const finalPrice =
-        typeof api.salePrice === "number" &&
-        api.salePrice < api.price
-          ? api.salePrice
-          : api.price;
-
-      const normalized: ProductType & {
-  isSale: boolean;
-  isOutOfStock: boolean;
-} = {
-  ...api,
-
-  finalPrice,
-
-  images: Array.isArray(api.images) ? api.images : [],
-  variants: Array.isArray(api.variants) ? api.variants : [],
-
-  shippingRates: Array.isArray(api.shippingRates)
-    ? api.shippingRates
-    : [],
-
-  // 🔥 THÊM 2 DÒNG NÀY
-  isSale: finalPrice < api.price,
-  isOutOfStock:
-    (typeof api.stock === "number" ? api.stock : 0) <= 0 ||
-    api.isActive === false,
-};
-
-      setProduct(normalized);
-
-      const firstVariant =
-        normalized.variants.find(
-          (v) => (v.isActive ?? true) && v.stock > 0
-        ) ?? null;
-
-      setSelectedVariant(firstVariant);
-
-    } catch (err) {
-      console.error("LOAD PRODUCT ERROR", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  loadProduct();
-}, [id]);
   useEffect(() => {
   async function loadProducts() {
     if (!product?.categoryId) return;
@@ -208,7 +192,15 @@ const handleDoubleTap = () => {
   /* =======================
      STATES
   ======================= */
-  if (loading) return <p className="p-4">{t.loading}</p>;
+  if (isLoading) {
+  return (
+    <div className="p-4 animate-pulse space-y-4">
+      <div className="w-full h-64 bg-gray-200 rounded-xl" />
+      <div className="h-5 bg-gray-200 w-2/3 rounded" />
+      <div className="h-4 bg-gray-200 w-1/3 rounded" />
+    </div>
+  );
+}
   if (!product) return <p className="p-4">{t.no_products}</p>;
 
   const relatedProducts = products.filter(
