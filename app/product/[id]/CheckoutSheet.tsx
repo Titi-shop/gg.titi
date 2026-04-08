@@ -1,4 +1,5 @@
 "use client";
+import type { Product } from "@/types/Product";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -80,19 +81,8 @@ interface Message {
 interface Props {
   open: boolean;
   onClose: () => void;
-  product: {
-    id: string;
-   variant_id?: string | null;
-    name: string;
-    price: number;
-    finalPrice?: number;
-    thumbnail?: string;
-    stock?: number;
-    shipping_rates: {
-  zone: string;
-  price: number;
-}[];
-    
+  product: Product & {
+    variant_id?: string | null;
   };
 }
 
@@ -229,28 +219,22 @@ const quantity = useMemo(() => {
   }, [item]);
    const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
-
   const country = shipping.country.toUpperCase();
-
-  return product.shipping_rates.filter((r) => {
+  return product.shippingRates.filter((r) => {
     if (country === "VN") return r.zone === "domestic";
-
-    // TODO: sau này map theo shipping_zone_countries từ backend
     return true;
   });
-}, [shipping?.country, product.shipping_rates]);
-  const shippingFee = useMemo(() => {
-  if (!zone || !Array.isArray(product.shipping_rates)) {
-    console.log("❌ NO SHIPPING RATES");
-    return 0;
-  }
+}, [shipping?.country, product.shippingRates]);
 
+   const shippingFee = useMemo(() => {
+  if (!zone) return 0;
+ console.log("❌ NO SHIPPING RATES");
   console.log("👉 SELECTED ZONE:", zone);
-  console.log("👉 RATES:", product.shipping_rates);
+  console.log("👉 RATES:", product.shippingRates);
 
    const found = availableRegions.find(
-  (r) => r.zone === zone
-);
+    (r) => r.zone === zone
+  );
   console.log("👉 FOUND:", found);
 
   return found?.price ?? 0;
