@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { requireSeller } from "@/lib/auth/guard";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
@@ -49,7 +44,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     const filePath = `products/${userId}/${crypto.randomUUID()}.${safeExt}`;
 
     /* ================= UPLOAD ================= */
-    const { error } = await supabase.storage
+    const { error } = await supabaseAdmin.storage
       .from("products")
       .upload(filePath, file, {
         contentType: file.type,
@@ -65,7 +60,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     }
 
     /* ================= URL ================= */
-    const { data } = supabase.storage
+    const { data } = supabaseAdmin.storage
       .from("products")
       .getPublicUrl(filePath);
 
