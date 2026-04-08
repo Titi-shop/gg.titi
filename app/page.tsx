@@ -286,7 +286,7 @@ useEffect(() => {
     let list = [...products];
 
     if (selectedCategory !== "all") {
-      list = list.filter((p) => p.categoryId == selectedCategory);
+      list = list.filter((p) => p.categoryId === selectedCategory);
     }
 
     if (sortType === "sold") {
