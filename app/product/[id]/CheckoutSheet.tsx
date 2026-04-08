@@ -274,32 +274,35 @@ const {
    useEffect(() => {
   if (!previewError) return;
 
-  showMessage(t[getErrorKey(previewError.message)]);
+  const key = getErrorKey(previewError.message);
+showMessage(t[key] ?? key);
 }, [previewError]);
 
   /* ========================= */
 
   const unitPrice = useMemo(() => {
-    if (!item) return 0;
-    return typeof item.finalPrice === "number"
-      ? item.finalPrice
-      : item.price;
-  }, [item]);
-   const availableRegions = useMemo(() => {
+  if (!item) return 0;
+  return typeof item.finalPrice === "number"
+    ? item.finalPrice
+    : item.price;
+}, [item]);
+
+const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
   const country = shipping.country.toUpperCase();
+
   return product.shippingRates.filter((r) => {
     if (country === "VN") return r.zone === "domestic";
     return true;
   });
 }, [shipping?.country, product.shippingRates]);
 
-   const shippingFee = preview?.shipping_fee ?? 0;
+const shippingFee = preview?.shipping_fee ?? 0;
 
 const total = useMemo(() => {
   if (preview) return preview.total;
-  return unitPrice * quantity + shippingFee;
-}, [preview, unitPrice, quantity, shippingFee]);
+  return unitPrice * quantity;
+}, [preview, unitPrice, quantity]);
 
    
   /* =========================
