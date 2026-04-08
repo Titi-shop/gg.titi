@@ -3,6 +3,7 @@
 import type { Product as ProductType } from "@/types/Product";
 import { useEffect, useState, useMemo } from "react";
 import useSWR from "swr";
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 import { useParams, useRouter } from "next/navigation";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
@@ -122,7 +123,6 @@ const [dragging, setDragging] = useState(false);
 const [start, setStart] = useState({ x: 0, y: 0 });
 const [initialDistance, setInitialDistance] = useState(0);
 const [initialScale, setInitialScale] = useState(1);
-const fetcher = (url: string) => fetch(url).then(res => res.json());
   let lastTap = 0;
 
 const handleDoubleTap = () => {
