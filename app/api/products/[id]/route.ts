@@ -200,8 +200,6 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  console.log("[PRODUCT][PATCH] start");
-
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
@@ -209,9 +207,11 @@ export async function PATCH(
 
   try {
     const id = params.id;
-    if (!id) {
+
+    /* ================= VALIDATE ID ================= */
+    if (!id || typeof id !== "string") {
       return NextResponse.json(
-        { error: "MISSING_PRODUCT_ID" },
+        { error: "INVALID_PRODUCT_ID" },
         { status: 400 }
       );
     }
@@ -225,6 +225,39 @@ export async function PATCH(
       );
     }
 
+    /* ================= VALIDATE PRICE ================= */
+    const price =
+      typeof body.price === "number" && !Number.isNaN(body.price)
+        ? body.price
+        : undefined;
+
+    const salePrice =
+      typeof body.salePrice === "number" && !Number.isNaN(body.salePrice)
+        ? body.salePrice
+        : null;
+
+    if (
+      price !== undefined &&
+      salePrice !== null &&
+      salePrice >= price
+    ) {
+      return NextResponse.json(
+        { error: "INVALID_SALE_PRICE" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= NORMALIZE DATE ================= */
+    const saleStart =
+      typeof body.saleStart === "string" && body.saleStart
+        ? body.saleStart
+        : null;
+
+    const saleEnd =
+      typeof body.saleEnd === "string" && body.saleEnd
+        ? body.saleEnd
+        : null;
+
     /* ================= VARIANTS ================= */
     const normalizedVariants = normalizeVariants(body.variants);
     const hasVariants = normalizedVariants.length > 0;
@@ -235,33 +268,53 @@ export async function PATCH(
       ? body.stock
       : 0;
 
-    /* ================= UPDATE PRODUCT ================= */
+    /* ================= CATEGORY ================= */
+    const categoryId =
+      typeof body.categoryId === "string"
+        ? Number(body.categoryId)
+        : typeof body.categoryId === "number"
+        ? body.categoryId
+        : null;
+
+    /* ================= UPDATE ================= */
     const updated = await updateProductBySeller(userId, id, {
-      name: typeof body.name === "string" ? body.name.trim() : undefined,
-      description: body.description,
-      detail: body.detail,
+      name:
+        typeof body.name === "string"
+          ? body.name.trim()
+          : undefined,
+
+      description:
+        typeof body.description === "string"
+          ? body.description
+          : undefined,
+
+      detail:
+        typeof body.detail === "string"
+          ? body.detail
+          : undefined,
+
       images: Array.isArray(body.images)
         ? body.images.filter((i: unknown): i is string => typeof i === "string")
         : undefined,
+
       thumbnail:
         body.thumbnail !== undefined
           ? typeof body.thumbnail === "string"
             ? body.thumbnail
             : null
           : undefined,
-      category_id:
-        typeof body.categoryId === "number"
-          ? body.categoryId
-          : null,
-      price:
-        typeof body.price === "number" ? body.price : undefined,
-      sale_price:
-        typeof body.salePrice === "number"
-          ? body.salePrice
-          : null,
-      sale_start: body.saleStart,
-      sale_end: body.saleEnd,
+
+      category_id: categoryId,
+
+      price,
+
+      sale_price: salePrice,
+
+      sale_start: saleStart,
+      sale_end: saleEnd,
+
       stock: finalStock,
+
       is_active:
         typeof body.isActive === "boolean"
           ? body.isActive
@@ -275,7 +328,7 @@ export async function PATCH(
       );
     }
 
-    /* ================= PARALLEL TASKS ================= */
+    /* ================= PARALLEL ================= */
     await Promise.all([
       Array.isArray(body.shippingRates)
         ? upsertShippingRates({
@@ -289,40 +342,39 @@ export async function PATCH(
         : Promise.resolve(),
     ]);
 
-    /* ================= CALC PRICE (NO DB CALL) ================= */
+    /* ================= FINAL PRICE ================= */
     const now = Date.now();
 
-    const start = body.saleStart
-      ? new Date(body.saleStart).getTime()
+    const start = saleStart
+      ? new Date(saleStart).getTime()
       : null;
 
-    const end = body.saleEnd
-      ? new Date(body.saleEnd).getTime()
+    const end = saleEnd
+      ? new Date(saleEnd).getTime()
       : null;
 
     const isSale =
-      typeof body.salePrice === "number" &&
+      typeof salePrice === "number" &&
       start !== null &&
       end !== null &&
       now >= start &&
       now <= end;
 
-    /* ================= RESPONSE LIGHT ================= */
+    const finalPrice = isSale
+      ? salePrice ?? price ?? 0
+      : price ?? 0;
+
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
-
-      id,
-      name: body.name,
-      price: body.price ?? 0,
-      salePrice: body.salePrice ?? null,
-      finalPrice: isSale
-        ? body.salePrice ?? body.price
-        : body.price,
-
-      stock: finalStock,
-
-      variants: normalizedVariants,
-      shippingRates: body.shippingRates ?? [],
+      data: {
+        id,
+        name: updated.name,
+        price: updated.price,
+        salePrice: updated.sale_price,
+        finalPrice,
+        stock: updated.stock,
+      },
     });
 
   } catch (err) {
