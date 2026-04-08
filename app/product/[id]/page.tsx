@@ -436,7 +436,7 @@ const canBuy = hasVariants
         })}
       </div>
     </div>
-  ) : product.isOutOfStock ? (
+  ) : product.stock <= 0 ? (
     <span className="text-red-500 font-semibold">
       ❌ {t.out_of_stock}
     </span>
