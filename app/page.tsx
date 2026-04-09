@@ -259,21 +259,6 @@ useEffect(() => {
     localStorage.setItem("products", JSON.stringify(productsData));
   }
 }, [productsData]);
-useEffect(() => {
-  const cachedProducts = localStorage.getItem("products");
-  const cachedCategories = localStorage.getItem("categories");
-    } catch {}
-  }
-
-  if (cachedCategories && !categoriesData) {
-    try {
-      const parsed = JSON.parse(cachedCategories);
-      if (Array.isArray(parsed)) {
-        // ⚠️ fallback tạm
-      }
-    } catch {}
-  }
-}, [productsData, categoriesData]);
   /* ===== FILTER ===== */
   
   const filteredProducts = useMemo(() => {
