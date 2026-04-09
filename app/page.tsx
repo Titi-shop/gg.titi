@@ -272,9 +272,12 @@ useEffect(() => {
 
     if (sortType === "sold") {
       list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
-    } else if (sortType === "sale") {
-  list = list.filter((p) => isProductOnSale(p));
-}
+    } list.sort((a, b) => {
+  const discountA = a.price - a.finalPrice;
+  const discountB = b.price - b.finalPrice;
+
+  return discountB - discountA;
+});
 
     return list;
   }, [products, selectedCategory, sortType]);
