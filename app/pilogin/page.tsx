@@ -9,17 +9,22 @@ export default function PiLoginPage() {
   const { loading, user } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
+  const token = localStorage.getItem("pi_access_token");
 
-    if (user) {
-      router.replace("/account");
-    }
-    // ❗ nếu chưa login → stay ở /pilogin
-  }, [loading, user, router]);
+  if (token) {
+    router.replace("/account");
+    return;
+  }
+
+  if (loading) return;
+
+  if (user) {
+    router.replace("/account");
+  }
+}, [loading, user, router]);
 
   return (
     <div className="flex items-center justify-center min-h-[60vh] text-gray-500">
-      ⏳ Đang kiểm tra đăng nhập Pi...
     </div>
   );
 }
