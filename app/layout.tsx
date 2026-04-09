@@ -3,6 +3,7 @@ import Script from "next/script";
 import PiRootClient from "./PiRootClient";
 import { AuthProvider } from "@/context/AuthContext";
 import AlertProvider from "@/app/components/AlertProvider";
+import { SWRConfig } from "swr";
 
 export const metadata = {
   title: "aliali",
@@ -13,15 +14,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <head>
-        <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="afterInteractive" />
+        <Script
+          src="https://sdk.minepi.com/pi-sdk.js"
+          strategy="afterInteractive"
+        />
       </head>
 
       <body>
-        <AlertProvider />
-        <AuthProvider>
-          
-          <PiRootClient>{children}</PiRootClient>
-        </AuthProvider>
+        <SWRConfig
+          value={{
+            revalidateOnFocus: false,
+            dedupingInterval: 5000,
+            shouldRetryOnError: false,
+          }}
+        >
+          <AlertProvider />
+          <AuthProvider>
+            <PiRootClient>{children}</PiRootClient>
+          </AuthProvider>
+        </SWRConfig>
       </body>
     </html>
   );
