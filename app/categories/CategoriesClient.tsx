@@ -115,44 +115,41 @@ const loading = loadingCategories || loadingProducts;
   /* ================= ADD TO CART ================= */
 
   const handleAddToCart = (product: Product) => {
-    if (product.isActive === false) {
-      showMessage(t.product_unavailable || "Product unavailable");
-      return;
-    }
-
-    if (product.variants?.length) {
-  const available = product.variants.find((v) => v.stock > 0);
-
-  if (!available) {
-    showMessage(t.out_of_stock || "Out of stock");
+  if (product.isActive === false) {
+    showMessage(t.product_unavailable || "Product unavailable");
     return;
   }
 
-  // 👉 điều hướng luôn
-  window.location.href = `/product/${product.id}`;
-  return;
-}
+  if (product.variants?.length) {
+    const available = product.variants.find((v) => v.stock > 0);
 
-  showMessage(t.select_variant || "Select variant");
-  return;
-}
-
-    if (product.stock !== undefined && product.stock <= 0) {
+    if (!available) {
       showMessage(t.out_of_stock || "Out of stock");
       return;
     }
 
-    addToCart({
-      id: String(product.id),
-      name: product.name,
-      price: product.price,
-      sale_price: product.finalPrice,
-      quantity: 1,
-      thumbnail: product.thumbnail,
-    });
+    // 👉 điều hướng luôn
+    window.location.href = `/product/${product.id}`;
+    return;
+  }
 
-    showMessage(t.added_to_cart || "Added", "success");
-  };
+  // ❗ CHỈ chạy khi KHÔNG có variants
+  if (product.stock !== undefined && product.stock <= 0) {
+    showMessage(t.out_of_stock || "Out of stock");
+    return;
+  }
+
+  addToCart({
+    id: String(product.id),
+    name: product.name,
+    price: product.price,
+    sale_price: product.finalPrice,
+    quantity: 1,
+    thumbnail: product.thumbnail,
+  });
+
+  showMessage(t.added_to_cart || "Added", "success");
+};
 
   /* ================= UI ================= */
 
