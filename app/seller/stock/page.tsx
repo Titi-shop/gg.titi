@@ -1,5 +1,6 @@
 "use client";
-
+import type { Product as DBProduct } from "@/types/Product";
+import useSWR from "swr";
 import { Plus, Upload } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
@@ -12,6 +13,20 @@ import { formatPi } from "@/lib/pi";
 /* =========================
    TYPES
 ========================= */
+type SellerProduct = Pick<
+  DBProduct,
+  | "id"
+  | "name"
+  | "price"
+  | "salePrice"
+  | "saleStart"
+  | "saleEnd"
+  | "thumbnail"
+  | "stock"
+  | "sold"
+  | "ratingAvg"
+  | "isActive"
+>;
 
 interface Product {
   id: string;
@@ -36,6 +51,10 @@ interface RawProduct {
   sale_start?: unknown;
   sale_end?: unknown;
   thumbnail?: unknown;
+  stock?: unknown;
+  sold?: unknown;
+  rating_avg?: unknown;
+  is_active?: unknown;
 }
 
 interface Message {
@@ -56,13 +75,27 @@ interface ShopProfile {
 /* =========================
    PAGE
 ========================= */
+function isProductOnSale(p: SellerProduct) {
+  if (p.salePrice === null) return false;
+
+  const now = new Date();
+
+  const start = p.saleStart ? new Date(p.saleStart) : null;
+  const end = p.saleEnd ? new Date(p.saleEnd) : null;
+
+  return (
+    start !== null &&
+    end !== null &&
+    now >= start &&
+    now <= end
+  );
+}
 
 export default function SellerStockPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<SellerProduct[]>([]);
   const [pageLoading, setPageLoading] = useState<boolean>(true);
 
   const [message, setMessage] = useState<Message>({
@@ -105,7 +138,7 @@ export default function SellerStockPage() {
         return;
       }
 
-      const mapped: Product[] = raw.map((item) => {
+      const mapped: SellerProduct[] = raw.map((item) => {
   const p = item as Record<string, unknown>;
 
   return {
@@ -116,14 +149,19 @@ export default function SellerStockPage() {
     salePrice:
       typeof p.sale_price === "number" ? p.sale_price : null,
 
-    saleStart: p.sale_start ?? null,
-    saleEnd: p.sale_end ?? null,
+    saleStart:
+      typeof p.sale_start === "string" ? p.sale_start : null,
 
-    thumbnail: p.thumbnail || null,
+    saleEnd:
+      typeof p.sale_end === "string" ? p.sale_end : null,
+
+    thumbnail:
+      typeof p.thumbnail === "string" ? p.thumbnail : "",
 
     stock: Number(p.stock ?? 0),
     sold: Number(p.sold ?? 0),
-    rating_avg: Number(p.rating_avg ?? 0),
+
+    ratingAvg: Number(p.rating_avg ?? 0), 
 
     isActive: Boolean(p.is_active),
   };
@@ -265,7 +303,6 @@ export default function SellerStockPage() {
       {/* SHOP HEADER */}
 
       <div className="mb-10">
-
         <div className="relative">
 
   {/* BANNER */}
@@ -375,31 +412,24 @@ export default function SellerStockPage() {
 
         <div className="space-y-4">
 
+const now = new Date();
 {products.map((product) => {
-
+  const isSale = isProductOnSale(product); 
   const isOut = (product.stock ?? 0) <= 0;
   const isOff = product.isActive === false;
 
-  const now = new Date();
   const start = product.saleStart ? new Date(product.saleStart) : null;
   const end = product.saleEnd ? new Date(product.saleEnd) : null;
 
-  const isSale =
-  product.salePrice !== null &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end;
-
   const upcoming =
-  product.salePrice !== null &&
-  start !== null &&
-  now < start;
+    product.salePrice !== null &&
+    start !== null &&
+    now < start;
 
-const ended =
-  product.salePrice !== null &&
-  end !== null &&
-  now > end;
+  const ended =
+    product.salePrice !== null &&
+    end !== null &&
+    now > end;
 
   // ✅ BADGE (chuẩn nhất)
   const badge:
@@ -489,7 +519,7 @@ const ended =
 
         {/* ACTION */}
         <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
-          <span>⭐ {product.rating_avg ?? 0}</span>
+          <span>⭐ {product.ratingAvg ?? 0}</span>
           <span>📦 {product.stock ?? 0}</span>
           <span>🛒 {product.sold ?? 0}</span>
 
