@@ -9,7 +9,21 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
+import useSWR from "swr";
 
+const fetcher = (url: string) =>
+  apiAuthFetch(url, { cache: "no-store" }).then((res) =>
+    res.ok ? res.json() : []
+  );
+
+const { data: orders = [], isLoading } = useSWR(
+  user ? "/api/seller/orders" : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000,
+  }
+);
 /* ================= TYPES ================= */
 
 type OrderStatus =
@@ -24,34 +38,25 @@ interface OrderItem {
   id: string;
   product_id: string | null;
   product_name: string;
-
   thumbnail: string;
   images: string[] | null;
-
   quantity: number;
-
   unit_price: number;
   total_price: number;
-
   status: OrderStatus;
 }
 
 interface Order {
   id: string;
   order_number: string;
-
   created_at: string;
-
   shipping_name?: string;
   shipping_phone?: string;
   shipping_address?: string;
-
   shipping_provider?: string | null;
   shipping_country?: string | null;
   shipping_postal_code?: string | null;
-
   total: number;
-
   order_items: OrderItem[];
 }
 
@@ -80,10 +85,6 @@ export default function SellerOrdersPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
 
   /* ================= LOAD ================= */
@@ -168,17 +169,6 @@ export default function SellerOrdersPage() {
       ),
     [filteredOrders]
   );
-
-  /* ================= LOADING ================= */
-
-  if (loading) {
-    return (
-      <p className="text-center mt-10 text-gray-400">
-        {t.loading ?? "Loading..."}
-      </p>
-    );
-  }
-
   /* ================= UI ================= */
 
   return (
@@ -234,13 +224,9 @@ export default function SellerOrdersPage() {
               <div className="text-xs mt-1 text-center">
                 {countByStatus(key)}
               </div>
-
             </button>
-
           ))}
-
         </div>
-
       </div>
 
       {/* CONTENT */}
