@@ -14,6 +14,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi">
       <head>
+        {/* 🔥 preload ảnh (QUAN TRỌNG) */}
+  <link rel="preload" as="image" href="/avatar.png" />
+  <link rel="preload" as="image" href="/banners/default-shop.png" />
         <Script
           src="https://sdk.minepi.com/pi-sdk.js"
           strategy="afterInteractive"
