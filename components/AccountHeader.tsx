@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import { UserCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
