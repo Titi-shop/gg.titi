@@ -1,5 +1,5 @@
 "use client";
-
+import useSWR from "swr";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -15,8 +15,27 @@ import {
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
+const fetcher = async (url: string) => {
+  const token = await getPiAccessToken();
+  if (!token) return null;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) return null;
+
+  return res.json();
+};
 
 export default function CustomerMenu() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const { user, pilogin } = useAuth();
+  const [sellerLoading, setSellerLoading] = useState(false);
+  const [sellerMessage, setSellerMessage] = useState<string | null>(null);
+  const isSeller = user?.role === "seller" || user?.role === "admin";
+  export default function CustomerMenu() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, pilogin } = useAuth();
@@ -25,7 +44,14 @@ export default function CustomerMenu() {
   const [sellerMessage, setSellerMessage] = useState<string | null>(null);
 
   const isSeller = user?.role === "seller" || user?.role === "admin";
-
+  const { data: profile } = useSWR(
+    user ? "/api/profile" : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 10000,
+    }
+  );
   async function handleSellerClick() {
   if (sellerLoading) return;
 
