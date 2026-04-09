@@ -293,12 +293,9 @@ useEffect(() => {
     return list;
   }, [products, selectedCategory, sortType]);
 
-  // CHỈ loading nếu KHÔNG có data
-// 🔥 Splash ưu tiên cao nhất
-if (showSplash) {
+  if (showSplash || (loading && products.length === 0)) {
   return <SplashScreen />;
 }
-
 // 👉 Sau đó mới tới loading
 if (loading && products.length === 0) {
   return (
