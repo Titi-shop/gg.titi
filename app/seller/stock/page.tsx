@@ -424,7 +424,6 @@ const now = new Date();
         {/* PRODUCT LIST */}
 
         <div className="space-y-4">
-{products.map((product) => {
   const isSale = isProductOnSale(product); 
   const isOut = (product.stock ?? 0) <= 0;
   const isOff = product.isActive === false;
