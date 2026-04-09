@@ -44,6 +44,18 @@ const fetchProfile = async (): Promise<Profile | null> => {
     return null;
   }
 };
+const fetcher = async (url: string) => {
+  const token = await getPiAccessToken();
+  if (!token) return null;
+
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) return null;
+
+  return res.json();
+};
 
 /* ================= COMPONENT ================= */
 
@@ -51,16 +63,16 @@ export default function AccountHeader() {
   const { user } = useAuth();
   const { t } = useTranslation();
 
-  const { data: profile } = useSWR(
-    user ? "profile" : null,
-    fetchProfile,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    }
-  );
+  const { data } = useSWR(
+  user ? "/api/profile" : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 10000,
+  }
+);
 
-  if (!user) return null;
+const profile = data?.profile;
 
   const avatar =
     profile?.avatar_url ??
