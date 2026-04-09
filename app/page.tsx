@@ -36,8 +36,7 @@ interface Product {
   finalPrice: number;
   isSale: boolean;
   thumbnail?: string;
-
-  // ✅ thêm chuẩn
+  
   isActive?: boolean;
   stock?: number;
   variants?: ProductVariant[];
@@ -110,7 +109,6 @@ function ProductCard({
             e.stopPropagation();
             onAddToCart(product);
             setAdded(true);
-            setAdded(true);
             setTimeout(() => setAdded(false), 600);
           }}
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
@@ -164,17 +162,15 @@ const {
   revalidateOnFocus: false,
   dedupingInterval: 10000,
 });
-
+const [fallbackProducts, setFallbackProducts] = useState<Product[]>([]);
 const products = useMemo(() => {
-  if (productsData) return productsData;
-  return fallbackProducts;
+  return productsData ?? fallbackProducts;
 }, [productsData, fallbackProducts]);
 
 const categories = useMemo(() => {
   if (!categoriesData) return [];
   return categoriesData;
 }, [categoriesData]);
-   const [fallbackProducts, setFallbackProducts] = useState<Product[]>([]);
   const loading = loadingProducts || loadingCategories;
   const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
   const [sortType, setSortType] = useState("sale");
@@ -258,16 +254,14 @@ useEffect(() => {
     localStorage.setItem("categories", JSON.stringify(categoriesData));
   }
 }, [categoriesData]);
+  useEffect(() => {
+  if (productsData) {
+    localStorage.setItem("products", JSON.stringify(productsData));
+  }
+}, [productsData]);
 useEffect(() => {
   const cachedProducts = localStorage.getItem("products");
   const cachedCategories = localStorage.getItem("categories");
-
-  if (cachedProducts && !productsData) {
-    try {
-      const parsed = JSON.parse(cachedProducts);
-      if (Array.isArray(parsed)) {
-        // ⚠️ fallback tạm
-      }
     } catch {}
   }
 
