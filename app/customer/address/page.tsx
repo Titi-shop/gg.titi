@@ -19,6 +19,8 @@ interface Address {
   phone: string;
   country: string;
   province: string;
+  district?: string;
+  ward?: string;
   address_line: string;
   postal_code?: string;
   is_default: boolean;
@@ -32,11 +34,13 @@ interface ApiResponse {
 
 const fetcher = async (): Promise<ApiResponse> => {
   const token = await getPiAccessToken();
+
   const res = await fetch("/api/address", {
     headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!res.ok) throw new Error("FETCH_FAILED");
+
   return res.json();
 };
 
@@ -54,21 +58,44 @@ export default function CustomerAddressPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [form, setForm] = useState<AddressFormData>({
     full_name: "",
     phone: "",
     country: "",
     province: "",
+    district: "",
+    ward: "",
     address_line: "",
     postal_code: "",
   });
 
   const addresses = data?.items ?? [];
 
+  /* ================= HELPERS ================= */
+
   const getCountryDisplay = (code: string) => {
     const c = countries.find((x) => x.code === code);
     return c ? `${c.flag} ${c.name}` : code;
+  };
+
+  /* ================= EDIT ================= */
+
+  const handleEdit = (a: Address) => {
+    setForm({
+      full_name: a.full_name,
+      phone: a.phone,
+      country: a.country,
+      province: a.province || "",
+      district: a.district || "",
+      ward: a.ward || "",
+      address_line: a.address_line,
+      postal_code: a.postal_code || "",
+    });
+
+    setEditingId(a.id);
+    setShowForm(true);
   };
 
   /* ================= SAVE ================= */
@@ -80,21 +107,29 @@ export default function CustomerAddressPage() {
       const token = await getPiAccessToken();
 
       await fetch("/api/address", {
-        method: "POST",
+        method: editingId ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          id: editingId,
+        }),
       });
 
       await mutate();
+
       setShowForm(false);
+      setEditingId(null);
+
       setForm({
         full_name: "",
         phone: "",
         country: "",
         province: "",
+        district: "",
+        ward: "",
         address_line: "",
         postal_code: "",
       });
@@ -102,6 +137,8 @@ export default function CustomerAddressPage() {
       setSaving(false);
     }
   };
+
+  /* ================= DEFAULT ================= */
 
   const setDefault = async (id: string) => {
     const token = await getPiAccessToken();
@@ -118,7 +155,11 @@ export default function CustomerAddressPage() {
     mutate();
   };
 
+  /* ================= DELETE ================= */
+
   const deleteAddress = async (id: string) => {
+    if (!confirm(t.confirm_delete || "Delete?")) return;
+
     const token = await getPiAccessToken();
 
     await fetch(`/api/address?id=${id}`, {
@@ -155,21 +196,45 @@ export default function CustomerAddressPage() {
           </p>
         ) : (
           addresses.map((a) => (
-            <div key={a.id} className="bg-white p-4 rounded-xl shadow">
+            <div
+              key={a.id}
+              className={`bg-white p-4 rounded-xl shadow border ${
+                a.is_default ? "border-orange-500" : "border-gray-200"
+              }`}
+            >
               <p className="font-semibold">{a.full_name}</p>
               <p className="text-sm">{a.phone}</p>
-              <p className="text-sm">{a.address_line}</p>
-              <p className="text-sm">
+
+              <p className="text-sm text-gray-500 mt-1">
+                {a.address_line}
+              </p>
+
+              <p className="text-sm text-gray-500">
                 {a.province} - {getCountryDisplay(a.country)}
               </p>
 
-              <div className="flex gap-3 mt-2 text-sm">
+              <div className="flex gap-4 mt-3 text-sm">
+
+                <button
+                  onClick={() => handleEdit(a)}
+                  className="text-blue-600"
+                >
+                  ✏️ {t.edit}
+                </button>
+
                 {!a.is_default && (
-                  <button onClick={() => setDefault(a.id)}>
-                    {t.set_default}
+                  <button
+                    onClick={() => setDefault(a.id)}
+                    className="text-orange-600"
+                  >
+                    ⭐ {t.set_default}
                   </button>
                 )}
-                <button onClick={() => deleteAddress(a.id)}>
+
+                <button
+                  onClick={() => deleteAddress(a.id)}
+                  className="text-red-500"
+                >
                   {t.delete}
                 </button>
               </div>
@@ -177,8 +242,22 @@ export default function CustomerAddressPage() {
           ))
         )}
 
+        {/* ADD BUTTON */}
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingId(null);
+            setForm({
+              full_name: "",
+              phone: "",
+              country: "",
+              province: "",
+              district: "",
+              ward: "",
+              address_line: "",
+              postal_code: "",
+            });
+            setShowForm(true);
+          }}
           className="w-full py-3 border-dashed border-2 border-orange-400 text-orange-600 rounded-xl"
         >
           {t.add_address}
@@ -188,18 +267,24 @@ export default function CustomerAddressPage() {
       {/* FORM */}
       {showForm && (
         <>
+          {/* overlay */}
           <div
             className="fixed inset-0 bg-black/40 z-40"
             onClick={() => setShowForm(false)}
           />
 
-          <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-2xl h-[80vh]">
-            <AddressForm
-              form={form}
-              setForm={setForm}
-              onSubmit={handleSave}
-              saving={saving}
-            />
+          {/* bottom sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl h-[85vh] flex flex-col">
+
+            <div className="flex-1 overflow-y-auto pb-32">
+              <AddressForm
+                form={form}
+                setForm={setForm}
+                onSubmit={handleSave}
+                saving={saving}
+              />
+            </div>
+
           </div>
         </>
       )}
