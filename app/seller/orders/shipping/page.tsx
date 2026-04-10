@@ -3,7 +3,8 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -44,13 +45,30 @@ interface Order {
   order_items: OrderItem[];
 }
 
+/* ================= FETCHER ================= */
+
+const fetcher = async (): Promise<Order[]> => {
+  try {
+    const res = await apiAuthFetch(
+      "/api/seller/orders?status=shipping",
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) return [];
+
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as Order[]) : [];
+  } catch {
+    return [];
+  }
+};
+
 /* ================= HELPERS ================= */
 
 function formatDate(date?: string): string {
   if (!date) return "—";
 
   const d = new Date(date);
-
   if (Number.isNaN(d.getTime())) return "—";
 
   return d.toLocaleDateString(undefined, {
@@ -67,38 +85,20 @@ export default function SellerShippingOrdersPage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  /* ================= SWR ================= */
+
+  const {
+    data: orders = [],
+    isLoading,
+    mutate,
+  } = useSWR(
+    !authLoading && user
+      ? "/api/seller/orders?status=shipping"
+      : null,
+    fetcher
+  );
+
   const [processingId, setProcessingId] = useState<string | null>(null);
-
-  /* ================= LOAD ================= */
-
-  const loadOrders = useCallback(async () => {
-    try {
-      const res = await apiAuthFetch(
-        "/api/seller/orders?status=shipping",
-        { cache: "no-store" }
-      );
-
-      if (!res.ok) {
-        setOrders([]);
-        return;
-      }
-
-      const data = await res.json();
-
-      setOrders(Array.isArray(data) ? data : []);
-    } catch {
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    void loadOrders();
-  }, [authLoading, loadOrders]);
 
   /* ================= TOTAL ================= */
 
@@ -111,20 +111,32 @@ export default function SellerShippingOrdersPage() {
     [orders]
   );
 
-  /* ================= COMPLETE ================= */
+  /* ================= COMPLETE (OPTIMISTIC) ================= */
 
   async function markDelivered(orderId: string) {
     try {
       setProcessingId(orderId);
+
+      const previous = orders;
+
+      // 🚀 optimistic remove khỏi shipping list
+      await mutate(
+        orders.filter((o) => o.id !== orderId),
+        false
+      );
 
       const res = await apiAuthFetch(
         `/api/seller/orders/${orderId}/complete`,
         { method: "PATCH" }
       );
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        // 🔴 rollback nếu fail
+        await mutate(previous, false);
+        return;
+      }
 
-      await loadOrders();
+      mutate(); // sync lại server
     } finally {
       setProcessingId(null);
     }
@@ -132,7 +144,7 @@ export default function SellerShippingOrdersPage() {
 
   /* ================= LOADING ================= */
 
-  if (loading) {
+  if (isLoading || authLoading) {
     return (
       <p className="text-center mt-10 text-gray-400">
         {t.loading ?? "Loading..."}
@@ -146,10 +158,8 @@ export default function SellerShippingOrdersPage() {
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
-
           <p className="text-sm opacity-90">
             {t.shipping_orders ?? "Shipping orders"}
           </p>
@@ -157,12 +167,10 @@ export default function SellerShippingOrdersPage() {
           <p className="text-xs opacity-80 mt-1">
             {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
           </p>
-
         </div>
       </header>
 
       {/* LIST */}
-
       <section className="mt-6 px-4 space-y-4">
 
         {orders.length === 0 ? (
@@ -180,8 +188,7 @@ export default function SellerShippingOrdersPage() {
               className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
 
-              {/* ORDER HEADER */}
-
+              {/* HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
 
                 <div>
@@ -200,8 +207,7 @@ export default function SellerShippingOrdersPage() {
 
               </div>
 
-              {/* SHIPPING INFO */}
-
+              {/* SHIPPING */}
               <div className="px-4 py-3 text-sm space-y-1 border-b">
 
                 <p>
@@ -222,31 +228,9 @@ export default function SellerShippingOrdersPage() {
                   {order.shipping_address}
                 </p>
 
-                {(order.shipping_provider ||
-                  order.shipping_country ||
-                  order.shipping_postal_code) && (
-
-                  <p className="text-xs text-gray-500">
-
-                    {order.shipping_provider && (
-                      <span>{order.shipping_provider}</span>
-                    )}
-
-                    {order.shipping_country && (
-                      <span> · {order.shipping_country}</span>
-                    )}
-
-                    {order.shipping_postal_code && (
-                      <span> · {order.shipping_postal_code}</span>
-                    )}
-
-                  </p>
-                )}
-
               </div>
 
               {/* PRODUCTS */}
-
               <div className="divide-y">
 
                 {order.order_items.map((item) => (
@@ -282,7 +266,6 @@ export default function SellerShippingOrdersPage() {
               </div>
 
               {/* FOOTER */}
-
               <div
                 className="px-4 py-3 border-t bg-gray-50"
                 onClick={(e) => e.stopPropagation()}
