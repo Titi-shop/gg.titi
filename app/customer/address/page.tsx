@@ -1,127 +1,208 @@
 "use client";
 
-import { ChangeEvent } from "react";
+import useSWR from "swr";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { getPiAccessToken } from "@/lib/piAuth";
+import { useAuth } from "@/context/AuthContext";
+import AddressForm, {
+  AddressFormData,
+} from "@/components/address/AddressForm";
 
 /* ================= TYPES ================= */
 
-export interface AddressFormData {
+interface Address {
+  id: string;
   full_name: string;
   phone: string;
   country: string;
   province: string;
   address_line: string;
-  postal_code: string;
+  postal_code?: string;
+  is_default: boolean;
 }
 
-interface Props {
-  form: AddressFormData;
-  setForm: (v: AddressFormData) => void;
-  onSubmit: () => void;
-  saving: boolean;
+interface ApiResponse {
+  items: Address[];
 }
 
-/* ================= COMPONENT ================= */
+/* ================= FETCHER ================= */
 
-export default function AddressForm({
-  form,
-  setForm,
-  onSubmit,
-  saving,
-}: Props) {
+const fetcher = async (): Promise<ApiResponse> => {
+  const token = await getPiAccessToken();
+  const res = await fetch("/api/address", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error("FETCH_FAILED");
+  return res.json();
+};
+
+/* ================= PAGE ================= */
+
+export default function CustomerAddressPage() {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { user } = useAuth();
 
-  const handleChange =
-    (key: keyof AddressFormData) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      setForm({ ...form, [key]: e.target.value });
-    };
+  const { data, mutate, isLoading } = useSWR(
+    user ? "/api/address" : null,
+    fetcher
+  );
 
-  const handleCountryChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setForm({
-      ...form,
-      country: e.target.value,
-      province: "",
-    });
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [form, setForm] = useState<AddressFormData>({
+    full_name: "",
+    phone: "",
+    country: "",
+    province: "",
+    address_line: "",
+    postal_code: "",
+  });
+
+  const addresses = data?.items ?? [];
+
+  const getCountryDisplay = (code: string) => {
+    const c = countries.find((x) => x.code === code);
+    return c ? `${c.flag} ${c.name}` : code;
   };
 
-  const isValid =
-    form.full_name.trim() &&
-    form.phone.trim() &&
-    form.country.trim() &&
-    form.address_line.trim();
+  /* ================= SAVE ================= */
+
+  const handleSave = async () => {
+    setSaving(true);
+
+    try {
+      const token = await getPiAccessToken();
+
+      await fetch("/api/address", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+
+      await mutate();
+      setShowForm(false);
+      setForm({
+        full_name: "",
+        phone: "",
+        country: "",
+        province: "",
+        address_line: "",
+        postal_code: "",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setDefault = async (id: string) => {
+    const token = await getPiAccessToken();
+
+    await fetch("/api/address", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id }),
+    });
+
+    mutate();
+  };
+
+  const deleteAddress = async (id: string) => {
+    const token = await getPiAccessToken();
+
+    await fetch(`/api/address?id=${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    mutate();
+  };
+
+  /* ================= UI ================= */
 
   return (
-    <>
-      <div className="px-4 overflow-y-auto h-full pb-24 pt-2 space-y-3">
+    <main className="min-h-screen bg-gray-100 pb-28">
 
-        {/* FULL NAME */}
-        <input
-          className="w-full border rounded-lg p-2"
-          placeholder={t.full_name}
-          value={form.full_name}
-          onChange={handleChange("full_name")}
-        />
-
-        {/* PHONE */}
-        <input
-          className="w-full border rounded-lg p-2"
-          placeholder={t.phone_number}
-          value={form.phone}
-          onChange={handleChange("phone")}
-        />
-
-        {/* ADDRESS */}
-        <textarea
-          className="w-full border rounded-lg p-2"
-          rows={2}
-          placeholder={t.address}
-          value={form.address_line}
-          onChange={handleChange("address_line")}
-        />
-
-        {/* PROVINCE / CITY */}
-        <input
-          className="w-full border rounded-lg p-2"
-          placeholder={t.province_city}
-          value={form.province}
-          onChange={handleChange("province")}
-        />
-
-        {/* COUNTRY */}
-        <select
-          className="w-full border rounded-lg p-2"
-          value={form.country}
-          onChange={handleCountryChange}
-        >
-          <option value="">{t.select_country}</option>
-          {countries.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.flag} {c.name}
-            </option>
-          ))}
-        </select>
-
-        {/* POSTAL */}
-        <input
-          className="w-full border rounded-lg p-2"
-          placeholder={t.postal_code_optional}
-          value={form.postal_code}
-          onChange={handleChange("postal_code")}
-        />
+      {/* HEADER */}
+      <div className="fixed top-0 inset-x-0 bg-white border-b z-20">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center">
+          <button onClick={() => router.back()}>←</button>
+          <h1 className="flex-1 text-center font-semibold">
+            {t.shipping_address}
+          </h1>
+        </div>
       </div>
 
-      {/* FOOTER FIXED */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4">
+      {/* LIST */}
+      <div className="max-w-md mx-auto px-4 pt-20 space-y-4">
+
+        {isLoading ? (
+          <p className="text-center text-gray-400">{t.loading}</p>
+        ) : addresses.length === 0 ? (
+          <p className="text-center text-gray-400">
+            {t.no_address}
+          </p>
+        ) : (
+          addresses.map((a) => (
+            <div key={a.id} className="bg-white p-4 rounded-xl shadow">
+              <p className="font-semibold">{a.full_name}</p>
+              <p className="text-sm">{a.phone}</p>
+              <p className="text-sm">{a.address_line}</p>
+              <p className="text-sm">
+                {a.province} - {getCountryDisplay(a.country)}
+              </p>
+
+              <div className="flex gap-3 mt-2 text-sm">
+                {!a.is_default && (
+                  <button onClick={() => setDefault(a.id)}>
+                    {t.set_default}
+                  </button>
+                )}
+                <button onClick={() => deleteAddress(a.id)}>
+                  {t.delete}
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+
         <button
-          onClick={onSubmit}
-          disabled={!isValid || saving}
-          className="w-full py-3 rounded-xl bg-orange-600 text-white font-semibold disabled:opacity-50"
+          onClick={() => setShowForm(true)}
+          className="w-full py-3 border-dashed border-2 border-orange-400 text-orange-600 rounded-xl"
         >
-          {saving ? t.saving : t.save_address}
+          {t.add_address}
         </button>
       </div>
-    </>
+
+      {/* FORM */}
+      {showForm && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => setShowForm(false)}
+          />
+
+          <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-2xl h-[80vh]">
+            <AddressForm
+              form={form}
+              setForm={setForm}
+              onSubmit={handleSave}
+              saving={saving}
+            />
+          </div>
+        </>
+      )}
+    </main>
   );
 }
