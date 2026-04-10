@@ -78,129 +78,114 @@ const orders: Order[] = data?.orders ?? [];
 
   async function handleRebuy(order: Order) {
 
-  if (paying) return;        // ✅ chặn spam
-  setPaying(true);           // ✅ bắt đầu lock
+  if (paying) return;
+  setPaying(true);
+
+  if (authLoading || !user) {
+    alert("Auth chưa sẵn sàng");
+    setPaying(false);
+    return;
+  }
+
+  if (!window.Pi) {
+    alert("Pi chưa sẵn sàng");
+    setPaying(false);
+    return;
+  }
+
+  const item = order.order_items?.[0];
+
+  if (!item) {
+    alert("Không có sản phẩm");
+    setPaying(false);
+    return;
+  }
+
+  const total = Number(order.total);
 
   try {
 
-    if (authLoading || !user) {
-      alert("Auth chưa sẵn sàng");
-      return;
-    }
+    await window.Pi.createPayment(
+      {
+        amount: Number(total.toFixed(6)),
+        memo: "Thanh toán đơn hàng TiTi",
 
-    if (!window.Pi) {
-      alert("Pi chưa sẵn sàng");
-      return;
-    }
-
-    const item = order.order_items?.[0];
-
-    if (!item) {
-      alert("Không có sản phẩm");
-      return;
-    }
-      } catch (err) {
-
-    console.error(err);
-    alert("Không thể thanh toán");
-
-  } finally {
-    setPaying(false); // ✅ mở lại
-  }
-}
-
-    const total = Number(order.total);
-
-    try {
-
-      await window.Pi.createPayment(
-        {
-          amount: Number(total.toFixed(6)),
-          memo: "Thanh toán đơn hàng TiTi",
-
-          metadata: {
-            shipping: null,
-            product: {
-              id: item.product_id,
-              name: item.product_name,
-              image: item.thumbnail || item.images?.[0] || "",
-              price: item.unit_price
-            },
-            quantity: item.quantity
+        metadata: {
+          shipping: null,
+          product: {
+            id: item.product_id,
+            name: item.product_name,
+            image: item.thumbnail || item.images?.[0] || "",
+            price: item.unit_price
           },
+          quantity: item.quantity
+        },
+      },
+      {
+        onReadyForServerApproval: async (paymentId, callback) => {
+          const token = await getPiAccessToken();
+
+          const res = await fetch("/api/pi/approve", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paymentId }),
+          });
+
+          if (!res.ok) {
+            alert("Approve thất bại");
+            return;
+          }
+
+          callback();
         },
 
-        {
+        onReadyForServerCompletion: async (paymentId, txid) => {
+          const token = await getPiAccessToken();
 
-          onReadyForServerApproval: async (paymentId, callback) => {
+          const res = await fetch("/api/pi/complete", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentId,
+              txid,
+              product_id: item.product_id,
+              quantity: item.quantity,
+              total,
+              shipping: null,
+              user: {
+                pi_uid: user.pi_uid
+              }
+            }),
+          });
 
-            const token = await getPiAccessToken();
+          if (!res.ok) {
+            alert("Complete thất bại");
+            return;
+          }
 
-            const res = await fetch("/api/pi/approve", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ paymentId }),
-            });
+          router.push("/customer/pending");
+        },
 
-            if (!res.ok) {
-              alert("Approve thất bại");
-              return;
-            }
+        onCancel: () => {},
+        onError: () => {
+          alert("Thanh toán lỗi");
+        },
+      }
+    );
 
-            callback();
-          },
-
-          onReadyForServerCompletion: async (paymentId, txid) => {
-
-            const token = await getPiAccessToken();
-
-            const res = await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-                txid,
-                product_id: item.product_id,
-                quantity: item.quantity,
-                total,
-                shipping: null,
-                user: {
-                  pi_uid: user.pi_uid
-                }
-              }),
-            });
-
-            if (!res.ok) {
-              alert("Complete thất bại");
-              return;
-            }
-
-            router.push("/customer/pending");
-          },
-
-          onCancel: () => {},
-
-          onError: () => {
-            alert("Thanh toán lỗi");
-          },
-        }
-      );
-
-    } catch (err) {
-
-      console.error(err);
-      alert("Không thể thanh toán");
-
-    }
-
+  } catch (err) {
+    console.error(err);
+    alert("Không thể thanh toán");
+  } finally {
+    setPaying(false);
   }
-
+}
   /* =========================
   FILTER
   ========================= */
