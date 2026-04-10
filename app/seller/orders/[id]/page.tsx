@@ -3,11 +3,12 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
+import useSWR from "swr";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { formatPi } from "@/lib/pi";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useMemo, useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -54,6 +55,61 @@ function safeString(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
+/* ================= FETCHER ================= */
+
+const fetcher = async (url: string): Promise<Order | null> => {
+  try {
+    const res = await apiAuthFetch(url);
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+
+    const items: OrderItem[] = (data.order_items || []).map(
+      (i: unknown) => {
+        const item = i as Record<string, unknown>;
+
+        return {
+          id: safeString(item.id),
+          product_id:
+            typeof item.product_id === "string"
+              ? item.product_id
+              : null,
+          product_name: safeString(item.product_name),
+          quantity: safeNumber(item.quantity),
+          unit_price: safeNumber(item.unit_price),
+          total_price: safeNumber(item.total_price),
+        };
+      }
+    );
+
+    return {
+      id: safeString(data.id),
+      order_number: safeString(data.order_number),
+      created_at: safeString(data.created_at),
+
+      shipping_name: safeString(data.shipping_name),
+      shipping_phone: safeString(data.shipping_phone),
+      shipping_address: safeString(data.shipping_address),
+
+      shipping_country:
+        typeof data.shipping_country === "string"
+          ? data.shipping_country
+          : null,
+
+      shipping_postal_code:
+        typeof data.shipping_postal_code === "string"
+          ? data.shipping_postal_code
+          : null,
+
+      total: safeNumber(data.total),
+      order_items: items,
+    };
+  } catch {
+    return null;
+  }
+};
+
 /* ================= PAGE ================= */
 
 export default function SellerOrderDetailPage() {
@@ -68,12 +124,26 @@ export default function SellerOrderDetailPage() {
       ? params.id[0]
       : undefined;
 
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [qr, setQr] = useState<string>("");
-  const [generating, setGenerating] = useState(false);
+  /* ================= SWR ================= */
 
-  const printRef = useRef<HTMLDivElement>(null);
+  const { data: order, isLoading } = useSWR(
+    !authLoading && user && id
+      ? `/api/seller/orders/${id}`
+      : null,
+    fetcher
+  );
+
+  /* ================= QR ================= */
+
+  const [qr, setQr] = useState<string>("");
+
+  useEffect(() => {
+    if (!order?.id) return;
+
+    QRCode.toDataURL(`order:${order.id}`)
+      .then(setQr)
+      .catch(() => {});
+  }, [order]);
 
   /* ================= TOTAL ================= */
 
@@ -87,64 +157,10 @@ export default function SellerOrderDetailPage() {
     );
   }, [order]);
 
-  /* ================= LOAD ORDER ================= */
-
-  useEffect(() => {
-    if (authLoading || !user || !id) return;
-
-    const load = async () => {
-      try {
-        const res = await apiAuthFetch(`/api/seller/orders/${id}`);
-
-        if (!res.ok) {
-          setOrder(null);
-          return;
-        }
-
-        const data = await res.json();
-
-        const items: OrderItem[] = (data.order_items || []).map((i: any) => ({
-          id: i.id,
-          product_id: i.product_id,
-          product_name: safeString(i.product_name),
-          quantity: safeNumber(i.quantity),
-          unit_price: safeNumber(i.unit_price),
-          total_price: safeNumber(i.total_price),
-        }));
-
-        setOrder({
-          id: safeString(data.id),
-          order_number: safeString(data.order_number),
-          created_at: safeString(data.created_at),
-          shipping_name: safeString(data.shipping_name),
-          shipping_phone: safeString(data.shipping_phone),
-          shipping_address: safeString(data.shipping_address),
-          shipping_country: data.shipping_country ?? null,
-          shipping_postal_code: data.shipping_postal_code ?? null,
-          total: safeNumber(data.total),
-          order_items: items,
-        });
-      } catch {
-        setOrder(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
-  }, [authLoading, user, id]);
-
-  /* ================= QR ================= */
-
-  useEffect(() => {
-    if (!order?.id) return;
-
-    QRCode.toDataURL(`order:${order.id}`)
-      .then(setQr)
-      .catch(() => {});
-  }, [order]);
-
   /* ================= PDF ================= */
+
+  const [generating, setGenerating] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const handleOpenPDF = async () => {
     try {
@@ -166,26 +182,29 @@ export default function SellerOrderDetailPage() {
       const blob = pdf.output("blob");
       const url = URL.createObjectURL(blob);
 
-      // 🔥 FIX CHUẨN MOBILE
       window.location.href = url;
-
-    } catch (err) {
-      console.error("PDF ERROR", err);
+    } catch {
       alert("Không thể tạo PDF");
     } finally {
       setGenerating(false);
     }
   };
 
-  /* ================= UI ================= */
+  /* ================= LOADING ================= */
 
-  if (loading) {
+  if (isLoading || authLoading) {
     return <p className="text-center mt-10">Loading...</p>;
   }
 
   if (!order) {
-    return <p className="text-center mt-10 text-red-500">Order not found</p>;
+    return (
+      <p className="text-center mt-10 text-red-500">
+        Order not found
+      </p>
+    );
   }
+
+  /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 p-4">
@@ -231,6 +250,7 @@ export default function SellerOrderDetailPage() {
           <p><b>Postal:</b> {order.shipping_postal_code}</p>
           <p><b>Created:</b> {formatDate(order.created_at)}</p>
         </div>
+
         <table className="w-full border text-sm">
           <thead className="bg-gray-100">
             <tr>
@@ -240,12 +260,17 @@ export default function SellerOrderDetailPage() {
               <th className="border px-2 py-1 text-right">π</th>
             </tr>
           </thead>
+
           <tbody>
             {order.order_items.map((item, i) => (
               <tr key={item.id}>
                 <td className="border px-2 py-1">{i + 1}</td>
-                <td className="border px-2 py-1">{item.product_name}</td>
-                <td className="border px-2 py-1 text-center">{item.quantity}</td>
+                <td className="border px-2 py-1">
+                  {item.product_name}
+                </td>
+                <td className="border px-2 py-1 text-center">
+                  {item.quantity}
+                </td>
                 <td className="border px-2 py-1 text-right">
                   π{formatPi(item.total_price)}
                 </td>
@@ -253,6 +278,7 @@ export default function SellerOrderDetailPage() {
             ))}
           </tbody>
         </table>
+
         <div className="mt-4 text-right font-semibold">
           Total: π{formatPi(total)}
         </div>
