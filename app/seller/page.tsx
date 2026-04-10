@@ -26,32 +26,39 @@ import {
 export default function SellerPage() {
   const { t } = useTranslation();
   const { user, loading, piReady } = useAuth();
-const { data, isLoading } = useSWR(
-  isSeller && piReady ? "/api/seller/orders/count" : null,
-  fetcher,
-  {
-    revalidateOnFocus: false,
-    dedupingInterval: 5000,
-    keepPreviousData: true
-  }
-);
-  const stats = useMemo(
-  () => ({
-    pending: data?.pending ?? 0,
-    confirmed: data?.confirmed ?? 0,
-    shipping: data?.shipping ?? 0,
-    completed: data?.completed ?? 0,
-    returned: data?.returned ?? 0,
-    cancelled: data?.cancelled ?? 0,
-    total: data?.total ?? 0,
-  }),
-  [data]
-);
 
-const isSeller = user?.role === "seller";
-const fetcher = (url: string) =>
-  apiAuthFetch(url, { cache: "no-store" }).then((res) =>
-    res.ok ? res.json() : null
+  // ✅ 1. khai báo trước
+  const isSeller = user?.role === "seller";
+
+  // ✅ 2. fetcher trước
+  const fetcher = (url: string) =>
+    apiAuthFetch(url, { cache: "no-store" }).then((res) =>
+      res.ok ? res.json() : null
+    );
+
+  // ✅ 3. SWR sau
+  const { data, isLoading } = useSWR(
+    isSeller && piReady ? "/api/seller/orders/count" : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+      keepPreviousData: true,
+    }
+  );
+
+  // ✅ 4. stats sau cùng
+  const stats = useMemo(
+    () => ({
+      pending: data?.pending ?? 0,
+      confirmed: data?.confirmed ?? 0,
+      shipping: data?.shipping ?? 0,
+      completed: data?.completed ?? 0,
+      returned: data?.returned ?? 0,
+      cancelled: data?.cancelled ?? 0,
+      total: data?.total ?? 0,
+    }),
+    [data]
   );
   
 
