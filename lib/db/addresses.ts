@@ -113,3 +113,55 @@ export async function deleteAddress(
     [addressId, userId]
   );
 }
+
+
+/* =========================
+   UPDATE ADDRESS
+========================= */
+
+interface UpdateAddressPayload {
+  full_name: string;
+  phone: string;
+  country: string;
+  province: string;
+  address_line: string;
+  postal_code?: string | null;
+  label?: "home" | "office" | "other";
+}
+
+export async function updateAddress(
+  userId: string,
+  id: string,
+  data: UpdateAddressPayload
+) {
+  const res = await query(
+    `
+    UPDATE addresses
+    SET
+      full_name = $1,
+      phone = $2,
+      country = $3,
+      province = $4,
+      address_line = $5,
+      postal_code = $6,
+      label = $7,
+      updated_at = NOW()
+    WHERE id = $8
+      AND user_id = $9
+    RETURNING *
+    `,
+    [
+      data.full_name,
+      data.phone,
+      data.country,
+      data.province,
+      data.address_line,
+      data.postal_code ?? null,
+      data.label ?? "home",
+      id,
+      userId,
+    ]
+  );
+
+  return res.rows[0] ?? null;
+}
