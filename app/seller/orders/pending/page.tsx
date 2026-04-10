@@ -141,68 +141,96 @@ const { user, loading: authLoading } = useAuth();
   /* ================= CONFIRM ================= */
 
   async function handleConfirm(orderId: string): Promise<void> {
-    if (!sellerMessage.trim()) return;
+  if (!sellerMessage.trim()) return;
 
-    try {
-      setProcessingId(orderId);
+  try {
+    setProcessingId(orderId);
 
-      const res = await apiAuthFetch(
-        `/api/seller/orders/${orderId}/confirm`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            seller_message: sellerMessage,
-          }),
-        }
-      );
+    const previous = orders;
 
-      if (!res.ok) return;
+    // 🚀 optimistic: xoá ngay khỏi UI
+    await mutate(
+      orders.filter((o) => o.id !== orderId),
+      false
+    );
 
-      setShowConfirmFor(null);
-      setSellerMessage("");
-      await mutate();
-    } catch {
-    } finally {
-      setProcessingId(null);
+    const res = await apiAuthFetch(
+      `/api/seller/orders/${orderId}/confirm`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seller_message: sellerMessage,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      // 🔴 rollback nếu fail
+      await mutate(previous, false);
+      return;
     }
+
+    setShowConfirmFor(null);
+    setSellerMessage("");
+
+    mutate(); // sync lại server
+  } catch {
+    mutate(); // fallback
+  } finally {
+    setProcessingId(null);
   }
+}
 
   /* ================= CANCEL ================= */
 
   async function handleCancel(orderId: string): Promise<void> {
-    const finalReason =
-      selectedReason === (t.cancel_reason_other ?? "Other")
-        ? customReason
-        : selectedReason;
+  const finalReason =
+    selectedReason === (t.cancel_reason_other ?? "Other")
+      ? customReason
+      : selectedReason;
 
-    if (!finalReason.trim()) return;
+  if (!finalReason.trim()) return;
 
-    try {
-      setProcessingId(orderId);
+  try {
+    setProcessingId(orderId);
 
-      const res = await apiAuthFetch(
-        `/api/seller/orders/${orderId}/cancel`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cancel_reason: finalReason,
-          }),
-        }
-      );
+    const previous = orders;
 
-      if (!res.ok) return;
+    // 🚀 optimistic remove
+    await mutate(
+      orders.filter((o) => o.id !== orderId),
+      false
+    );
 
-      setShowCancelFor(null);
-      setSelectedReason("");
-      setCustomReason("");
-      await mutate();
-    } catch {
-    } finally {
-      setProcessingId(null);
+    const res = await apiAuthFetch(
+      `/api/seller/orders/${orderId}/cancel`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cancel_reason: finalReason,
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      // 🔴 rollback
+      await mutate(previous, false);
+      return;
     }
+
+    setShowCancelFor(null);
+    setSelectedReason("");
+    setCustomReason("");
+
+    mutate();
+  } catch {
+    mutate();
+  } finally {
+    setProcessingId(null);
   }
+}
 
   /* ================= LOADING ================= */
 
