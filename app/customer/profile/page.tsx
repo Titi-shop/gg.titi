@@ -183,14 +183,15 @@ export default function ProfilePage() {
 
       const data = await res.json();
 
-      // ✅ update UI ngay
-      mutate(
-        (prev: ProfileData) => ({
-          ...prev,
-          avatar_url: data.avatar,
-        }),
-        false
-      );
+      const avatarUrl = data.avatar || data.url;
+
+     mutate(
+     (prev: ProfileData) => ({
+    ...prev,
+    avatar_url: avatarUrl,
+     }),
+     false
+    );
 
       setPreview(null);
       setSuccess(t.profile_avatar_updated);
