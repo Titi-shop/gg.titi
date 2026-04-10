@@ -109,26 +109,6 @@ const { user, loading: authLoading } = useAuth();
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [customReason, setCustomReason] = useState<string>("");
 
-  /* ================= LOAD ================= */
-      if (!res.ok) {
-        setOrders([]);
-        return;
-      }
-
-      const data: unknown = await res.json();
-
-      if (Array.isArray(data)) {
-        setOrders(data as Order[]);
-      } else {
-        setOrders([]);
-      }
-    } catch {
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const totalPi = useMemo(
   () =>
     orders.reduce(
