@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import useSWR from "swr";
 import { countries } from "@/data/countries";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Upload, Edit3, Save, X } from "lucide-react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
