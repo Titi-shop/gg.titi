@@ -271,21 +271,24 @@ setAvatarCache(avatarUrl);
 
         {/* AVATAR */}
         <div className="relative w-28 h-28 mx-auto mb-4">
-          const avatar =
-  preview ||
-  avatarCache ||
-  profile.avatar_url ||
-  null;
-            <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
-              {user?.username?.charAt(0).toUpperCase()}
-            </div>
-          )}
+  {avatar ? (
+    <Image
+      src={avatar}
+      alt="Avatar"
+      fill
+      className="rounded-full object-cover border-4 border-orange-500"
+    />
+  ) : (
+    <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
+      {user?.username?.charAt(0).toUpperCase()}
+    </div>
+  )}
 
-          <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
-            <Upload size={16} className="text-white" />
-            <input type="file" hidden onChange={handleAvatarChange} />
-          </label>
-        </div>
+  <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
+    <Upload size={16} className="text-white" />
+    <input type="file" hidden onChange={handleAvatarChange} />
+  </label>
+</div>
 
         <h2 className="text-center font-semibold mb-4">
           @{user?.username}
