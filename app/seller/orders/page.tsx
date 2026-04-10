@@ -17,14 +17,6 @@ const fetcher = (url: string) =>
     res.ok ? res.json() : []
   );
 
-const { data: orders = [], isLoading } = useSWR(
-  user ? "/api/seller/orders" : null,
-  fetcher,
-  {
-    revalidateOnFocus: false,
-    dedupingInterval: 5000,
-  }
-);
 /* ================= TYPES ================= */
 
 type OrderStatus =
@@ -87,48 +79,18 @@ export default function SellerOrdersPage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<OrderTab>("all");
+  const { data: orders = [], isLoading } = useSWR(
+  user ? "/api/seller/orders" : null,
+  fetcher,
+  {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000,
+  }
+);
 
   /* ================= LOAD ================= */
 
-  const loadOrders = useCallback(async () => {
-    try {
-      const res = await apiAuthFetch(
-        "/api/seller/orders",
-        { cache: "no-store" }
-      );
-
-      if (!res.ok) {
-        setOrders([]);
-        return;
-      }
-
-      const data: unknown = await res.json();
-
-      if (Array.isArray(data)) {
-        setOrders(data as Order[]);
-      } else {
-        setOrders([]);
-      }
-
-    } catch {
-
-      setOrders([]);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  }, []);
-
-  useEffect(() => {
-
-    if (authLoading) return;
-
-    void loadOrders();
-
-  }, [authLoading, loadOrders]);
+  
 
   /* ================= FILTER ================= */
 
@@ -146,16 +108,7 @@ export default function SellerOrdersPage() {
 
   /* ================= COUNT ================= */
 
-    if (status === "all") return orders.length;
-
-    return orders.filter((o) =>
-      o.order_items?.some(
-        (i) => i.status === status
-      )
-    ).length;
-
-  };
-
+    
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
@@ -260,7 +213,7 @@ const goDetail = useCallback(
 
       <section className="px-4 mt-4 space-y-4">
 
-        {isLoading ? (
+{isLoading ? (
   Array.from({ length: 5 }).map((_, i) => (
     <div
       key={i}
@@ -277,120 +230,70 @@ const goDetail = useCallback(
   </p>
 ) : (
   filteredOrders.map((o) => (
+    <div
+      key={o.id}
+      onClick={() => goDetail(o.id)}
+      className="bg-white rounded-xl shadow-sm border overflow-hidden"
+    >
+      {/* HEADER */}
+      <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
+        <div>
+          <p className="font-semibold text-sm">
+            #{o.order_number}
+          </p>
+          <p className="text-xs text-gray-500">
+            {formatDate(o.created_at)}
+          </p>
+        </div>
+      </div>
 
-              {/* HEADER */}
+      {/* BUYER */}
+      {(o.shipping_name || o.shipping_phone || o.shipping_address) && (
+        <div className="px-4 py-3 text-sm border-b space-y-1">
+          <p>
+            <span className="text-gray-500">
+              {t.customer ?? "Customer"}:
+            </span>{" "}
+            {o.shipping_name ?? "—"}
+          </p>
+        </div>
+      )}
 
-              <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
-
-                <div>
-                  <p className="font-semibold text-sm">
-                    #{o.order_number}
-                  </p>
-
-                  <p className="text-xs text-gray-500">
-                    {formatDate(o.created_at)}
-                  </p>
-                </div>
-
-              </div>
-
-              {/* BUYER */}
-
-              {(o.shipping_name ||
-                o.shipping_phone ||
-                o.shipping_address) && (
-
-                <div className="px-4 py-3 text-sm border-b space-y-1">
-
-                  <p>
-                    <span className="text-gray-500">
-                      {t.customer ?? "Customer"}:
-                    </span>{" "}
-                    {o.shipping_name ?? "—"}
-                  </p>
-
-                  <p>
-                    <span className="text-gray-500">
-                      {t.phone ?? "Phone"}:
-                    </span>{" "}
-                    {o.shipping_phone ?? "—"}
-                  </p>
-
-                  <p className="text-xs text-gray-600">
-                    {o.shipping_address ?? "—"}
-                  </p>
-
-                </div>
-
-              )}
-
-              {/* PRODUCTS */}
-
-              <div className="divide-y">
-
-                {o.order_items?.map((item) => (
-
-                  <div
-                    key={item.id}
-                    className="flex gap-3 p-4"
-                  >
-
-                    <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden">
-
-                      {item.thumbnail ? (
-                        <Image
-  src={item.thumbnail}
-  alt={item.product_name}
-  width={56}
-  height={56}
-  className="object-cover"
-  loading="lazy"
-/>
-                      ) : (
-                        <div className="w-full h-full bg-gray-200" />
-                      )}
-
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-
-                      <p className="text-sm font-medium line-clamp-1">
-                        {item.product_name}
-                      </p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-                        x{item.quantity} · π
-                        {formatPi(item.unit_price)}
-                      </p>
-
-                      <p className="text-xs text-gray-400 capitalize">
-                        {t[`order_status_${item.status}`] ?? item.status}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-              {/* FOOTER */}
-
-              <div className="px-4 py-3 border-t bg-gray-50 text-sm">
-
-                <span className="font-semibold">
-                  {t.total ?? "Total"}: π
-                  {formatPi(Number(o.total ?? 0))}
-                </span>
-
-              </div>
-
+      {/* PRODUCTS */}
+      <div className="divide-y">
+        {o.order_items?.map((item) => (
+          <div key={item.id} className="flex gap-3 p-4">
+            <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden">
+              <Image
+                src={item.thumbnail || "/placeholder.png"}
+                alt={item.product_name}
+                width={56}
+                height={56}
+                className="object-cover"
+              />
             </div>
 
-          ))
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium line-clamp-1">
+                {item.product_name}
+              </p>
+              <p className="text-xs text-gray-500">
+                x{item.quantity} · π{formatPi(item.unit_price)}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
 
-        )}
+      {/* FOOTER */}
+      <div className="px-4 py-3 border-t bg-gray-50 text-sm">
+        <span className="font-semibold">
+          {t.total ?? "Total"}: π{formatPi(Number(o.total ?? 0))}
+        </span>
+      </div>
+    </div>
+  ))
+)}
 
       </section>
 
