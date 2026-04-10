@@ -37,11 +37,13 @@ export default function SellerPostPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const { user, loading } = useAuth();
+  const isSeller = user?.role === "seller";
   const { data: categories = [], isLoading } = useSWR(
   "/api/categories",
   fetcher,
   {
     revalidateOnFocus: false,
+    revalidateIfStale: false,
     dedupingInterval: 10000,
   }
 );
@@ -63,6 +65,14 @@ export default function SellerPostPage() {
     setSubmitting(false);
   }
 };
+
+if (loading) {
+  return (
+    <div className="p-8 text-center text-gray-400">
+      {t.loading ?? "Loading..."}
+    </div>
+  );
+}
 
 if (!user || !isSeller) {
   return (
