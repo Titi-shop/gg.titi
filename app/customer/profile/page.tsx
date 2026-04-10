@@ -1,7 +1,6 @@
-
 "use client";
 export const dynamic = "force-dynamic";
-import useSWR from "swr";
+
 import { countries } from "@/data/countries";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -37,13 +36,16 @@ const defaultProfile: ProfileData = {
   email: null,
   phone: null,
   bio: null,
+
   country: "",
   province: null,
   district: null,
   ward: null,
   address_line: null,
   postal_code: null,
+
   avatar_url: null,
+
   shop_name: null,
   shop_slug: null,
   shop_description: null,
@@ -78,169 +80,227 @@ const editableFields: EditableKey[] = [
   "address_line",
   "postal_code",
 ];
-const fetchProfile = async (): Promise<ProfileData> => {
-  const token = await getPiAccessToken();
-  if (!token) return defaultProfile;
-
-  let res = await fetch("/api/profile", {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-
-  if (res.status === 401) {
-    clearPiToken();
-    const newToken = await getPiAccessToken();
-    if (!newToken) return defaultProfile;
-
-    res = await fetch("/api/profile", {
-      headers: { Authorization: `Bearer ${newToken}` },
-    });
-  }
-
-  if (!res.ok) return defaultProfile;
-
-  const raw = await res.json();
-  const p = raw?.profile ?? {};
-
-  return {
-    full_name: p.full_name ?? null,
-    email: p.email ?? null,
-    phone: p.phone ?? null,
-    bio: p.bio ?? null,
-
-    country: p.country ?? "",
-    province: p.province ?? null,
-    district: p.district ?? null,
-    ward: p.ward ?? null,
-    address_line: p.address_line ?? null,
-    postal_code: p.postal_code ?? null,
-
-    avatar_url: p.avatar_url ?? null,
-
-    shop_name: p.shop_name ?? null,
-    shop_slug: p.shop_slug ?? null,
-    shop_description: p.shop_description ?? null,
-    shop_banner: p.shop_banner ?? null,
-  };
-};
 
 /* ================= COMPONENT ================= */
 
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
+
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
   const [form, setForm] = useState<ProfileData>(defaultProfile);
 
   const [editMode, setEditMode] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-  if (!editMode) {
-    setForm(profile);
-  }
-}, [profile, editMode]);
 
-  const {
-  data: profile = defaultProfile,
-  isLoading,
-  mutate,
-} = useSWR(user ? "/api/profile" : null, fetchProfile);
+  /* ================= LOAD PROFILE ================= */
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
+
+    const loadProfile = async () => {
+      try {
+        const token = await getPiAccessToken();
+        if (!token) return;
+
+        let res = await fetch("/api/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.status === 401) {
+          clearPiToken();
+          const newToken = await getPiAccessToken();
+          if (!newToken) return;
+
+          res = await fetch("/api/profile", {
+            headers: { Authorization: `Bearer ${newToken}` },
+          });
+        }
+
+        if (!res.ok) throw new Error();
+
+        const raw = await res.json();
+
+        const profileData =
+          raw?.profile && typeof raw.profile === "object"
+            ? raw.profile
+            : null;
+
+        const safeProfile: ProfileData = {
+          full_name: profileData?.full_name ?? null,
+          email: profileData?.email ?? null,
+          phone: profileData?.phone ?? null,
+          bio: profileData?.bio ?? null,
+
+          country: profileData?.country ?? "VN",
+          province: profileData?.province ?? null,
+          district: profileData?.district ?? null,
+          ward: profileData?.ward ?? null,
+          address_line: profileData?.address_line ?? null,
+          postal_code: profileData?.postal_code ?? null,
+
+          avatar_url: profileData?.avatar_url ?? null,
+
+          shop_name: profileData?.shop_name ?? null,
+          shop_slug: profileData?.shop_slug ?? null,
+          shop_description: profileData?.shop_description ?? null,
+          shop_banner: profileData?.shop_banner ?? null,
+        };
+
+        setProfile(safeProfile);
+        setForm(safeProfile);
+      } catch {
+        setError(t.profile_error_loading);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [authLoading, user, t]);
+
   /* ================= AVATAR ================= */
 
   const handleAvatarChange = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  if (authLoading || !user) return;
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (authLoading || !user) return;
 
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const objectUrl = URL.createObjectURL(file);
-  setPreview(objectUrl);
-  setUploading(true);
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+    setUploading(true);
+    setError(null);
 
-  try {
-    const token = await getPiAccessToken();
-    if (!token) return;
+    try {
+      const token = await getPiAccessToken();
+      if (!token) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const res = await fetch("/api/uploadAvatar", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
+      const res = await fetch("/api/uploadAvatar", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-    if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error();
 
-    const data = await res.json();
+      const data = await res.json();
 
-    mutate(
-      (prev: ProfileData) => ({
+      setProfile((prev) => ({
         ...prev,
         avatar_url: data.avatar,
-      }),
-      false
-    );
+      }));
 
-    setPreview(null);
-  } catch {
-    setError(t.upload_failed);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-    setUploading(false);
-  }
-};
+      setForm((prev) => ({
+        ...prev,
+        avatar_url: data.avatar,
+      }));
+
+      setPreview(null);
+      setSuccess(t.profile_avatar_updated);
+      setTimeout(() => setSuccess(null), 2000);
+    } catch {
+      setError(t.upload_failed);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+      setUploading(false);
+    }
+  };
 
   /* ================= SHOP BANNER ================= */
 
   const handleBannerUpload = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  if (authLoading || !user) return;
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (authLoading || !user) return;
 
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  try {
-    const token = await getPiAccessToken();
-    if (!token) return;
+    try {
+      const token = await getPiAccessToken();
+      if (!token) return;
 
-    const formData = new FormData();
-    formData.append("file", file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const res = await fetch("/api/uploadShopBanner", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+      const res = await fetch("/api/uploadShopBanner", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-    if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error();
 
-    const data = await res.json();
+      const data = await res.json();
 
-    mutate(
-      (prev: ProfileData) => ({
+      setProfile((prev) => ({
         ...prev,
         shop_banner: data.banner,
-      }),
-      false
-    );
-  } catch {
-    setError("Upload failed");
-  }
-};
+      }));
+
+      setForm((prev) => ({
+        ...prev,
+        shop_banner: data.banner,
+      }));
+    } catch {
+      setError("Upload failed");
+    }
+  };
+
+  /* ================= SAVE ================= */
+
+  const handleSave = async () => {
+    if (authLoading || !user) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const token = await getPiAccessToken();
+      if (!token) return;
+
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+
+      if (!res.ok) throw new Error();
+
+      setProfile(form);
+      setEditMode(false);
+
+      setSuccess(t.saved_successfully);
+      setTimeout(() => setSuccess(null), 2000);
+    } catch {
+      setError(t.save_failed);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   /* ================= RENDER ================= */
 
-  if (isLoading || authLoading) {
+  if (loading || authLoading) {
     return <p className="p-4 text-center">{t.loading_profile}</p>;
   }
 
@@ -249,32 +309,28 @@ export default function ProfilePage() {
 
   const formDialCode =
     countries.find((c) => c.code === form.country)?.dialCode ?? "";
-const avatar = preview || profile.avatar_url || null;
+
   return (
     <main className="min-h-screen bg-gray-100 pb-28">
       <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow p-6">
 
         {/* AVATAR */}
+        <div className="relative w-28 h-28 mx-auto mb-4">
+          {preview ? (
+            <Image src={preview} alt="Preview" fill className="rounded-full object-cover border-4 border-orange-500" />
+          ) : profile.avatar_url ? (
+            <Image src={profile.avatar_url} alt="Avatar" fill className="rounded-full object-cover border-4 border-orange-500" />
+          ) : (
+            <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
+              {user?.username?.charAt(0).toUpperCase()}
+            </div>
+          )}
 
-<div className="relative w-28 h-28 mx-auto mb-4">
-  {avatar ? (
-    <Image
-      src={avatar}
-      alt="Avatar"
-      fill
-      className="rounded-full object-cover border-4 border-orange-500"
-    />
-  ) : (
-    <div className="w-28 h-28 rounded-full bg-orange-200 flex items-center justify-center text-4xl font-bold">
-      {user?.username?.charAt(0).toUpperCase()}
-    </div>
-  )}
-
-  <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
-    <Upload size={16} className="text-white" />
-    <input type="file" hidden onChange={handleAvatarChange} />
-  </label>
-</div>
+          <label className="absolute bottom-0 right-0 bg-orange-500 p-2 rounded-full cursor-pointer">
+            <Upload size={16} className="text-white" />
+            <input type="file" accept="image/*" hidden onChange={handleAvatarChange} />
+          </label>
+        </div>
 
         <h2 className="text-center font-semibold mb-4">
           @{user?.username}
