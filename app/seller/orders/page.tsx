@@ -10,6 +10,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
 import useSWR from "swr";
+import Image from "next/image";
 
 const fetcher = (url: string) =>
   apiAuthFetch(url, { cache: "no-store" }).then((res) =>
@@ -245,7 +246,7 @@ export default function SellerOrdersPage() {
 
             <div
               key={o.id}
-              onClick={() => router.push(`/seller/orders/${o.id}`)}
+              onClick={() => goDetail(o.id)}
               className="bg-white rounded-xl shadow-sm border overflow-hidden"
             >
 
@@ -309,11 +310,14 @@ export default function SellerOrdersPage() {
                     <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden">
 
                       {item.thumbnail ? (
-                        <img
-                          src={item.thumbnail}
-                          alt={item.product_name}
-                          className="w-full h-full object-cover"
-                        />
+                        <Image
+  src={item.thumbnail}
+  alt={item.product_name}
+  width={56}
+  height={56}
+  className="object-cover"
+  loading="lazy"
+/>
                       ) : (
                         <div className="w-full h-full bg-gray-200" />
                       )}
