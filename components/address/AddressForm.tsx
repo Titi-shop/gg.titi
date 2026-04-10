@@ -12,23 +12,11 @@ export interface AddressFormData {
   phone: string;
   country: string;
   province: string;
-  district: string;
-  ward: string;
   address_line: string;
   postal_code: string;
 }
 
 interface Province {
-  code: number;
-  name: string;
-}
-
-interface District {
-  code: number;
-  name: string;
-}
-
-interface Ward {
   code: number;
   name: string;
 }
@@ -42,7 +30,7 @@ interface Props {
 
 /* ================= FETCHER ================= */
 
-const fetcher = (url: string) =>
+const fetcher = (url: string): Promise<Province[]> =>
   fetch(url).then((r) => r.json());
 
 /* ================= COMPONENT ================= */
@@ -57,24 +45,10 @@ export default function AddressForm({
 
   const isVN = form.country === "VN";
 
-  /* ================= SWR CASCADE ================= */
+  /* ================= SWR ================= */
 
   const { data: provinces } = useSWR<Province[]>(
     isVN ? "https://provinces.open-api.vn/api/p/" : null,
-    fetcher
-  );
-
-  const { data: districts } = useSWR<District[]>(
-    isVN && form.province
-      ? `https://provinces.open-api.vn/api/p/${form.province}?depth=2`
-      : null,
-    fetcher
-  );
-
-  const { data: wards } = useSWR<Ward[]>(
-    isVN && form.district
-      ? `https://provinces.open-api.vn/api/d/${form.district}?depth=2`
-      : null,
     fetcher
   );
 
@@ -91,8 +65,6 @@ export default function AddressForm({
       ...form,
       country: e.target.value,
       province: "",
-      district: "",
-      ward: "",
     });
   };
 
@@ -100,16 +72,6 @@ export default function AddressForm({
     setForm({
       ...form,
       province: e.target.value,
-      district: "",
-      ward: "",
-    });
-  };
-
-  const handleDistrictChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setForm({
-      ...form,
-      district: e.target.value,
-      ward: "",
     });
   };
 
@@ -120,14 +82,32 @@ export default function AddressForm({
     form.phone &&
     form.country &&
     form.address_line &&
-    (!isVN || (form.province && form.district && form.ward));
+    (!isVN || form.province);
 
   /* ================= UI ================= */
 
   return (
-    <>
-      <div className="px-4 overflow-y-auto h-full pb-40 pt-2 space-y-3">
+    <div className="flex flex-col h-full">
 
+      {/* ================= HEADER ================= */}
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-white sticky top-0 z-10">
+        <h2 className="font-semibold">
+          {t.add_address}
+        </h2>
+
+        <button
+          onClick={onSubmit}
+          disabled={!isValid || saving}
+          className="text-orange-500 font-semibold disabled:opacity-50"
+        >
+          {saving ? t.saving : t.save}
+        </button>
+      </div>
+
+      {/* ================= FORM ================= */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+
+        {/* NAME */}
         <input
           className="w-full border p-2 rounded"
           placeholder={t.full_name}
@@ -135,6 +115,7 @@ export default function AddressForm({
           onChange={handleChange("full_name")}
         />
 
+        {/* PHONE */}
         <input
           className="w-full border p-2 rounded"
           placeholder={t.phone_number}
@@ -142,6 +123,7 @@ export default function AddressForm({
           onChange={handleChange("phone")}
         />
 
+        {/* COUNTRY */}
         <select
           className="w-full border p-2 rounded"
           value={form.country}
@@ -156,61 +138,29 @@ export default function AddressForm({
         </select>
 
         {/* ================= VN MODE ================= */}
-
         {isVN ? (
-          <>
-            <select
-              className="w-full border p-2 rounded"
-              value={form.province}
-              onChange={handleProvinceChange}
-            >
-              <option value="">Tỉnh / Thành</option>
-              {provinces?.map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="w-full border p-2 rounded"
-              value={form.district}
-              onChange={handleDistrictChange}
-            >
-              <option value="">Quận / Huyện</option>
-              {districts?.districts?.map((d: any) => (
-                <option key={d.code} value={d.code}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="w-full border p-2 rounded"
-              value={form.ward}
-              onChange={(e) =>
-                setForm({ ...form, ward: e.target.value })
-              }
-            >
-              <option value="">Phường / Xã</option>
-              {wards?.wards?.map((w: any) => (
-                <option key={w.code} value={w.code}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          </>
+          <select
+            className="w-full border p-2 rounded"
+            value={form.province}
+            onChange={handleProvinceChange}
+          >
+            <option value="">Tỉnh / Thành</option>
+            {provinces?.map((p) => (
+              <option key={p.code} value={p.name}>
+                {p.name}
+              </option>
+            ))}
+          </select>
         ) : (
-          <>
-            <input
-              className="w-full border p-2 rounded"
-              placeholder={t.province_city}
-              value={form.province}
-              onChange={handleChange("province")}
-            />
-          </>
+          <input
+            className="w-full border p-2 rounded"
+            placeholder={t.province_city}
+            value={form.province}
+            onChange={handleChange("province")}
+          />
         )}
 
+        {/* ADDRESS FULL (gộp huyện + xã luôn) */}
         <textarea
           className="w-full border p-2 rounded"
           placeholder={t.address}
@@ -218,23 +168,15 @@ export default function AddressForm({
           onChange={handleChange("address_line")}
         />
 
+        {/* POSTAL */}
         <input
           className="w-full border p-2 rounded"
           placeholder={t.postal_code_optional}
           value={form.postal_code}
           onChange={handleChange("postal_code")}
         />
-      </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t p-4 pb-[env(safe-area-inset-bottom)]">
-        <button
-          onClick={onSubmit}
-          disabled={!isValid || saving}
-          className="w-full py-3 bg-orange-500 text-white rounded disabled:opacity-50"
-        >
-          {saving ? t.saving : t.save_address}
-        </button>
       </div>
-    </>
+    </div>
   );
 }
