@@ -91,9 +91,7 @@ export default function SellerOrdersPage() {
   /* ================= LOAD ================= */
 
   const loadOrders = useCallback(async () => {
-
     try {
-
       const res = await apiAuthFetch(
         "/api/seller/orders",
         { cache: "no-store" }
@@ -148,8 +146,6 @@ export default function SellerOrdersPage() {
 
   /* ================= COUNT ================= */
 
-  const countByStatus = (status: OrderTab): number => {
-
     if (status === "all") return orders.length;
 
     return orders.filter((o) =>
@@ -170,6 +166,36 @@ export default function SellerOrdersPage() {
       ),
     [filteredOrders]
   );
+  const counts = useMemo(() => {
+  const map: Record<OrderTab, number> = {
+    all: orders.length,
+    pending: 0,
+    confirmed: 0,
+    shipping: 0,
+    completed: 0,
+    returned: 0,
+    cancelled: 0,
+  };
+
+  for (const o of orders) {
+    const seen = new Set<OrderStatus>();
+
+    for (const i of o.order_items ?? []) {
+      if (!seen.has(i.status)) {
+        map[i.status]++;
+        seen.add(i.status);
+      }
+    }
+  }
+
+  return map;
+}, [orders]);
+const goDetail = useCallback(
+  (id: string) => {
+    router.push(`/seller/orders/${id}`);
+  },
+  [router]
+);
   /* ================= UI ================= */
 
   return (
@@ -223,7 +249,7 @@ export default function SellerOrdersPage() {
               {label}
 
               <div className="text-xs mt-1 text-center">
-                {countByStatus(key)}
+                {counts[key]}
               </div>
             </button>
           ))}
@@ -234,21 +260,23 @@ export default function SellerOrdersPage() {
 
       <section className="px-4 mt-4 space-y-4">
 
-        {filteredOrders.length === 0 ? (
-
-          <p className="text-center text-gray-400">
-            {t.no_orders ?? "No orders"}
-          </p>
-
-        ) : (
-
-          filteredOrders.map((o) => (
-
-            <div
-              key={o.id}
-              onClick={() => goDetail(o.id)}
-              className="bg-white rounded-xl shadow-sm border overflow-hidden"
-            >
+        {isLoading ? (
+  Array.from({ length: 5 }).map((_, i) => (
+    <div
+      key={i}
+      className="bg-white rounded-xl p-4 animate-pulse space-y-3"
+    >
+      <div className="h-4 bg-gray-200 w-1/3 rounded" />
+      <div className="h-3 bg-gray-200 w-1/2 rounded" />
+      <div className="h-14 bg-gray-200 rounded" />
+    </div>
+  ))
+) : filteredOrders.length === 0 ? (
+  <p className="text-center text-gray-400">
+    {t.no_orders ?? "No orders"}
+  </p>
+) : (
+  filteredOrders.map((o) => (
 
               {/* HEADER */}
 
