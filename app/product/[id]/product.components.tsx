@@ -1,15 +1,14 @@
 "use client";
 
 import { formatPi } from "@/lib/pi";
+import { ShoppingCart, Star } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
-import { ShoppingCart } from "lucide-react";
 
 import {
   formatShortDescription,
   formatDetail,
   calcSalePercent,
-  getDistance,
 } from "./product.helpers";
 
 import "swiper/css";
@@ -21,29 +20,15 @@ export function ProductView({
   router,
   add,
   buy,
-  zoomImage,
-  setZoomImage,
-  scale,
-  setScale,
-  position,
-  setPosition,
-  dragging,
-  setDragging,
-  start,
-  setStart,
-  initialDistance,
-  setInitialDistance,
-  initialScale,
-  setInitialScale,
-  handleDoubleTap,
   selectedVariant,
   setSelectedVariant,
   availableVariants,
+  hasVariants,
   canBuy,
   selectedStock,
-  hasVariants,
   relatedProducts,
 }: any) {
+
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
     ...product.images.filter((img: string) => img && img !== product.thumbnail),
@@ -54,10 +39,11 @@ export function ProductView({
 
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
-      {/* GALLERY */}
+
+      {/* ===== IMAGE ===== */}
       <div className="mt-14 relative bg-white">
         {product.isSale && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded">
+          <div className="absolute top-3 right-3 bg-red-500 text-white text-xs px-2 py-1 rounded">
             -{calcSalePercent(product.price, product.finalPrice)}%
           </div>
         )}
@@ -67,11 +53,6 @@ export function ProductView({
             <SwiperSlide key={i}>
               <img
                 src={img}
-                onClick={() => {
-                  setZoomImage(img);
-                  setScale(1);
-                  setPosition({ x: 0, y: 0 });
-                }}
                 className="w-full aspect-square object-cover"
               />
             </SwiperSlide>
@@ -79,97 +60,144 @@ export function ProductView({
         </Swiper>
       </div>
 
-      {/* ZOOM */}
-      {zoomImage && (
-        <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center"
-          onClick={() => setZoomImage(null)}
-        >
-          <img
-            src={zoomImage}
-            onClick={(e) => e.stopPropagation()}
-            onTouchEnd={handleDoubleTap}
-            onTouchStart={(e) => {
-              if (e.touches.length === 2) {
-                const d = getDistance(e.touches);
-                setInitialDistance(d);
-                setInitialScale(scale);
-              }
-            }}
-            onTouchMove={(e) => {
-              if (e.touches.length === 2) {
-                const d = getDistance(e.touches);
-                let newScale = initialScale * (d / initialDistance);
-                newScale = Math.max(1, Math.min(newScale, 6));
-                setScale(newScale);
-              }
-            }}
-            style={{
-              transform: `scale(${scale})`,
-            }}
-            className="max-w-full max-h-full"
-          />
-        </div>
-      )}
-
-      {/* INFO */}
+      {/* ===== INFO ===== */}
       <div className="bg-white p-4 flex justify-between">
-        <h2>{product.name}</h2>
-        <div>
-          <p className="text-orange-600">
+        <h2 className="text-lg">{product.name}</h2>
+
+        <div className="text-right">
+          <p className="text-xl font-bold text-orange-600">
             π {formatPi(product.finalPrice)}
           </p>
+
+          {product.isSale && (
+            <p className="text-sm text-gray-400 line-through">
+              π {formatPi(product.price)}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* VARIANTS */}
-      {hasVariants && (
-        <div className="p-4 bg-white">
-          <div className="flex gap-2 flex-wrap">
-            {availableVariants.map((v: any) => (
-              <button
-                key={v.id}
-                onClick={() => setSelectedVariant(v)}
-                className="border px-3 py-1"
-              >
-                {v.optionValue}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ===== META ===== */}
+      <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
+        <span>👁 {product.views} {t.views}</span>
 
-      {/* DESCRIPTION */}
+        <span className="flex items-center gap-1">
+          <ShoppingCart className="w-4 h-4" />
+          {product.sold} {t.orders}
+        </span>
+
+        <span className="flex items-center gap-1">
+          ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}
+          <span className="text-gray-400">
+            ({product.ratingCount ?? 0})
+          </span>
+        </span>
+      </div>
+
+      {/* ===== STOCK + VARIANT ===== */}
+      <div className="bg-white px-4 pb-4 text-sm">
+        {hasVariants ? (
+          <>
+            <div className="mb-2">
+              {canBuy ? (
+                <span className="text-green-600">
+                  ✅ {t.in_stock} {selectedStock}
+                </span>
+              ) : (
+                <span className="text-red-500">
+                  ❌ {t.out_of_stock}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {availableVariants.map((v: any) => {
+                const isSelected = selectedVariant?.id === v.id;
+                const isDisabled = v.stock <= 0;
+
+                return (
+                  <button
+                    key={v.id}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (!isDisabled) setSelectedVariant(v);
+                    }}
+                    className={`px-3 py-2 border rounded ${
+                      isDisabled
+                        ? "bg-gray-100 text-gray-400"
+                        : isSelected
+                        ? "border-orange-500 bg-orange-50 text-orange-600"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    <div>{v.optionValue}</div>
+                    <div className="text-xs">
+                      {v.stock > 0
+                        ? `${t.in_stock} ${v.stock}`
+                        : t.out_of_stock_short}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <span className="text-green-600">
+            ✅ {t.in_stock} {product.stock}
+          </span>
+        )}
+      </div>
+
+      {/* ===== DESCRIPTION ===== */}
       <div className="bg-white p-4">
-        {formatShortDescription(product.description).map((l, i) => (
-          <p key={i}>• {l}</p>
+        {formatShortDescription(product.description).map((line, i) => (
+          <p key={i}>• {line}</p>
         ))}
       </div>
 
-      {/* DETAIL */}
+      {/* ===== DETAIL ===== */}
       <div
-        className="p-4 bg-white"
+        className="bg-white p-4"
         dangerouslySetInnerHTML={{
           __html: formatDetail(product.detail || ""),
         }}
       />
 
-      {/* RELATED */}
-      <div className="p-4">
-        {relatedProducts.map((p: any) => (
-          <div key={p.id} onClick={() => router.push(`/product/${p.id}`)}>
-            {p.name}
-          </div>
-        ))}
-      </div>
+      {/* ===== RELATED ===== */}
+      {relatedProducts.length > 0 && (
+        <div className="bg-white p-4">
+          <h3 className="mb-2">🔗 Related</h3>
 
-      {/* ACTION */}
+          <div className="flex gap-3 overflow-x-auto">
+            {relatedProducts.map((p: any) => (
+              <div
+                key={p.id}
+                onClick={() => router.push(`/product/${p.id}`)}
+                className="min-w-[140px]"
+              >
+                <img src={p.thumbnail} className="h-24 w-full object-cover" />
+                <p className="text-xs">{p.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== ACTION ===== */}
       <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2">
-        <button onClick={add} className="flex-1 bg-yellow-500 text-white">
+        <button
+          onClick={add}
+          disabled={!canBuy}
+          className="flex-1 bg-yellow-500 text-white py-2"
+        >
           {t.add_to_cart}
         </button>
 
-        <button onClick={buy} className="flex-1 bg-red-500 text-white">
+        <button
+          onClick={buy}
+          disabled={!canBuy}
+          className="flex-1 bg-red-500 text-white py-2"
+        >
           {t.buy_now}
         </button>
       </div>
