@@ -193,12 +193,17 @@ useEffect(() => {
 
     await fetch("/api/cart", {
   method: "POST",
-  cache: "no-store",
+  cache: "no-store", // ✅ đúng vị trí
   headers: {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
   },
-})
+  body: JSON.stringify({
+    product_id: item.product_id!, // ✅ fix luôn
+    variant_id: item.variant_id ?? null,
+    quantity: safeQty,
+  }),
+});
       body: JSON.stringify({
         product_id: item.product_id!,
         variant_id: item.variant_id ?? null,
