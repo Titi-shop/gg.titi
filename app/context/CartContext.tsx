@@ -143,7 +143,7 @@ useEffect(() => {
   /* ================= ADD ================= */
 
   const addToCart = async (item: CartItem) => {
-  // ✅ VALIDATE NGAY TỪ ĐẦU
+  // ✅ VALIDATE
   if (!item.product_id || typeof item.product_id !== "string") {
     console.error("[CART][CLIENT] INVALID product_id", item);
     return;
@@ -164,6 +164,7 @@ useEffect(() => {
   const maxStock = item.variant?.stock ?? item.stock ?? 99;
   const safeQty = Math.min(maxStock, item.quantity ?? 1);
 
+  // ✅ update local UI trước (optimistic)
   setCart((prev) => {
     const found = prev.find((p) => p.id === uniqueId);
 
@@ -194,12 +195,15 @@ useEffect(() => {
   // 👉 API
   try {
     if (!user) {
-  console.warn("[CART] user not ready → skip API, save local only");
-  return;
-}
+      console.warn("[CART] user not ready → save local only");
+      return;
+    }
 
     const token = await getPiAccessToken();
-    if (!token) return;
+    if (!token) {
+      console.warn("[CART] no token");
+      return;
+    }
 
     console.log("[CART][POST_SEND]", {
       product_id: item.product_id,
@@ -208,36 +212,47 @@ useEffect(() => {
     });
 
     const res = await fetch("/api/cart", {
-  method: "POST",
-  cache: "no-store",
-  headers: {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    product_id: item.product_id,
-    variant_id: item.variant_id ?? null,
-    quantity: safeQty,
-  }),
-});
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        product_id: item.product_id,
+        variant_id: item.variant_id ?? null,
+        quantity: safeQty,
+      }),
+    });
 
-// ❌ nếu API lỗi
-if (!res.ok) {
-  console.error("[CART] POST failed", await res.text());
-  return;
-}
+    // ❌ API lỗi
+    if (!res.ok) {
+      console.error("[CART] POST failed", await res.text());
+      return;
+    }
 
-// ✅ load lại cart từ server
-const cartRes = await fetch("/api/cart", {
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-});
+    // ✅ reload cart từ server
+    const cartRes = await fetch("/api/cart", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-if (!cartRes.ok) return;
+    if (!cartRes.ok) {
+      console.warn("[CART] GET cart failed");
+      return;
+    }
 
-const serverCart = await cartRes.json();
-setCart(serverCart);
+    const serverCart = await cartRes.json();
+
+    console.log("[CART][SYNC]", serverCart);
+
+    setCart(serverCart);
+
+  } catch (err) {
+    console.error("[CART][CLIENT_POST_FAILED]", err);
+  }
+};
   /* ================= REMOVE ================= */
 
   const removeFromCart = async (id: string) => {
