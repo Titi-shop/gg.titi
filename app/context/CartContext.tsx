@@ -248,26 +248,34 @@ console.log("[DEBUG][USER]", user);
     }
 
     // ✅ reload cart từ server
-    const cartRes = await fetch("/api/cart", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    try {
+  const res = await fetch("/api/cart", {
+    method: "POST",
+    ...
+  });
 
-    if (!cartRes.ok) {
-      console.warn("[CART] GET cart failed");
-      return;
-    }
-
-    const serverCart = await cartRes.json();
-
-    console.log("[CART][SYNC]", serverCart);
-
-    setCart(serverCart);
-
-  } catch (err) {
-    console.error("[CART][CLIENT_POST_FAILED]", err);
+  if (!res.ok) {
+    console.error("[CART] POST failed", await res.text());
+    return;
   }
+
+  const cartRes = await fetch("/api/cart", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!cartRes.ok) return;
+
+  const serverCart = await cartRes.json();
+
+  console.log("[CART][SYNC]", serverCart);
+
+  setCart(serverCart);
+
+} catch (err) {
+  console.error("[CART][CLIENT_POST_FAILED]", err);
+}
 };
   /* ================= REMOVE ================= */
 
