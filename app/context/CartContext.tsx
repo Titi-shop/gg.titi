@@ -248,17 +248,7 @@ console.log("[DEBUG][USER]", user);
     }
 
     // ✅ reload cart từ server
-    try {
-  const res = await fetch("/api/cart", {
-    method: "POST",
-    ...
-  });
-
-  if (!res.ok) {
-    console.error("[CART] POST failed", await res.text());
-    return;
-  }
-
+try {
   const cartRes = await fetch("/api/cart", {
     headers: {
       Authorization: `Bearer ${token}`,
