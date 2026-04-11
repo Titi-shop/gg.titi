@@ -88,22 +88,24 @@ const newItems = localCart.filter(i => !i.synced);
     const serverCart = await res.json();
 
     // 👉 set tất cả là synced
-    const finalCart = serverCart.map((item: CartItem) => ({
+    const map = new Map();
+
+for (const item of serverCart) {
+  const key = `${item.product_id}_${item.variant_id ?? "null"}`;
+  map.set(key, item);
+}
+
+const finalCart = Array.from(map.values()).map((item: CartItem) => ({
   ...item,
-
   id:
-  item.variant_id && item.variant_id !== null
-    ? `${item.product_id}_${item.variant_id}`
-    : `${item.product_id}_default`,
-
-  // ✅ đảm bảo có quantity
+    item.variant_id && item.variant_id !== null
+      ? `${item.product_id}_${item.variant_id}`
+      : `${item.product_id}_default`,
   quantity: item.quantity ?? 1,
-
   synced: true,
 }));
 
-    if (finalCart.length > 0) {
-  setCart(finalCart);
+setCart(finalCart);
   const updatedLocal = localCart.map(item => ({
   ...item,
   synced: true,
