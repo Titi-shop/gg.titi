@@ -105,58 +105,60 @@ export async function upsertCartItems(
 
   /* ================= NORMALIZE ================= */
 
-const map = new Map<string, CartItemInput>();
+  const map = new Map<string, CartItemInput>();
 
-for (const item of items) {
-  if (!item || typeof item !== "object") continue;
-  if (!isUUID(item.product_id)) continue;
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    if (!isUUID(item.product_id)) continue;
 
-  const variantId = isUUID(item.variant_id)
-    ? item.variant_id
-    : null;
-
-  let quantity =
-    typeof item.quantity === "number" && !Number.isNaN(item.quantity)
-      ? item.quantity
-      : 1;
-
-  if (quantity <= 0) quantity = 1;
-  if (quantity > 10) quantity = 10;
-
-  const key = `${item.product_id}_${variantId ?? "null"}`;
-
-  if (map.has(key)) {
-    map.get(key)!.quantity! += quantity;
-  } else {
-    map.set(key, {
-      product_id: item.product_id,
-      variant_id: variantId,
-      quantity,
-    });
-  }
-}
-
-const finalItems = Array.from(map.values());
-
-if (!finalItems.length) return;
-
-/* ================= PREPARE ================= */
-
-const productIds: string[] = [];
-const variantIds: (string | null)[] = [];
-const quantities: number[] = [];
-
-for (const item of finalItems) {
-  productIds.push(item.product_id);
-
-  variantIds.push(
-    item.variant_id && isUUID(item.variant_id)
+    const variantId = isUUID(item.variant_id)
       ? item.variant_id
-      : null
-  );
+      : null;
 
-  quantities.push(item.quantity ?? 1);
-}
+    let quantity =
+      typeof item.quantity === "number" && !Number.isNaN(item.quantity)
+        ? item.quantity
+        : 1;
+
+    if (quantity <= 0) quantity = 1;
+    if (quantity > 10) quantity = 10;
+
+    const key = `${item.product_id}_${variantId ?? "null"}`;
+
+    if (map.has(key)) {
+      map.get(key)!.quantity! += quantity;
+    } else {
+      map.set(key, {
+        product_id: item.product_id,
+        variant_id: variantId,
+        quantity,
+      });
+    }
+  }
+
+  const finalItems = Array.from(map.values());
+
+  if (finalItems.length === 0) return;
+
+  /* ================= PREPARE ================= */
+
+  const productIds: string[] = [];
+  const variantIds: (string | null)[] = [];
+  const quantities: number[] = [];
+
+  for (const item of finalItems) {
+    productIds.push(item.product_id);
+
+    variantIds.push(
+      item.variant_id && isUUID(item.variant_id)
+        ? item.variant_id
+        : null
+    );
+
+    quantities.push(item.quantity ?? 1);
+  }
+
+  /* ================= UPSERT ================= */
 
   await query(
     `
@@ -181,12 +183,17 @@ for (const item of finalItems) {
       AS x(product_id, variant_id, quantity)
     JOIN products p ON p.id = x.product_id
 
-    ON CONFLICT ON CONSTRAINT cart_items_unique
+    ON CONFLICT (
+      user_id,
+      product_id,
+      COALESCE(variant_id, '00000000-0000-0000-0000-000000000000')
+    )
     DO UPDATE SET
       quantity = EXCLUDED.quantity,
       unit_price = EXCLUDED.unit_price,
       final_price = EXCLUDED.final_price,
       updated_at = NOW()
+    WHERE cart_items.deleted_at IS NULL
     `,
     [userId, productIds, variantIds, quantities]
   );
