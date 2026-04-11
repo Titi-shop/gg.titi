@@ -35,11 +35,9 @@ interface Product {
   price: number;
   finalPrice: number;
   thumbnail?: string;
-
   isActive?: boolean;
   stock?: number;
   variants?: ProductVariant[];
-
   categoryId: string | null;
   sold: number;
 }
@@ -208,6 +206,7 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 
   addToCart({
     id: product.id,
+    product_id: product.id,
     name: product.name,
     price: product.price,
     sale_price: product.finalPrice,
