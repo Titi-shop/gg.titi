@@ -1,7 +1,5 @@
 import { query } from "@/lib/db";
 
-
-
 /* =========================================================
    TYPES
 ========================================================= */
@@ -13,16 +11,34 @@ type CartItemInput = {
 };
 
 /* =========================================================
+   INTERNAL: UUID VALIDATION (NO EXTERNAL LIB)
+========================================================= */
+
+const isUUID = (value: unknown): value is string => {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      value
+    )
+  );
+};
+
+/* =========================================================
    GET CART
 ========================================================= */
 
 export async function getCart(userId: string) {
+  if (!isUUID(userId)) {
+    throw new Error("INVALID_USER_ID");
+  }
+
   const { rows } = await query(
     `
     SELECT 
       c.product_id,
       c.variant_id,
       c.quantity,
+      c.unit_price,
       c.final_price,
       c.is_price_changed,
       c.is_out_of_stock,
@@ -47,11 +63,21 @@ export async function getCart(userId: string) {
   return rows;
 }
 
+/* =========================================================
+   DELETE ITEM
+========================================================= */
+
 export async function deleteCartItem(
   userId: string,
   productId: string,
   variantId?: string | null
 ) {
+  if (!isUUID(userId) || !isUUID(productId)) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  const normalizedVariantId = isUUID(variantId) ? variantId : null;
+
   await query(
     `
     DELETE FROM cart_items
@@ -59,14 +85,21 @@ export async function deleteCartItem(
     AND product_id = $2
     AND variant_id IS NOT DISTINCT FROM $3
     `,
-    [userId, productId, variantId ?? null]
+    [userId, productId, normalizedVariantId]
   );
 }
+
+/* =========================================================
+   UPSERT CART (CORE LOGIC)
+========================================================= */
+
 export async function upsertCartItems(
   userId: string,
   items: CartItemInput[]
 ): Promise<void> {
-  if (!userId) throw new Error("INVALID_USER");
+  if (!isUUID(userId)) {
+    throw new Error("INVALID_USER_ID");
+  }
 
   if (!Array.isArray(items) || items.length === 0) return;
 
@@ -84,10 +117,12 @@ export async function upsertCartItems(
       : null;
 
     let quantity =
-      typeof item.quantity === "number" ? item.quantity : 1;
+      typeof item.quantity === "number" && !Number.isNaN(item.quantity)
+        ? item.quantity
+        : 1;
 
     if (quantity <= 0) quantity = 1;
-    if (quantity > 10) quantity = 10; // 🔥 chống spam
+    if (quantity > 10) quantity = 10; // anti spam
 
     const key = `${item.product_id}_${variantId ?? "null"}`;
 
@@ -103,10 +138,9 @@ export async function upsertCartItems(
   }
 
   const finalItems = Array.from(map.values());
-
   if (finalItems.length === 0) return;
 
-  /* ================= PREPARE ARRAYS ================= */
+  /* ================= PREPARE ================= */
 
   const productIds: string[] = [];
   const variantIds: (string | null)[] = [];
@@ -143,21 +177,22 @@ export async function upsertCartItems(
       AS x(product_id, variant_id, quantity)
     JOIN products p ON p.id = x.product_id
 
-    ON CONFLICT (
-      user_id,
-      product_id,
-      COALESCE(variant_id, '00000000-0000-0000-0000-000000000000')
-    )
+    ON CONFLICT ON CONSTRAINT idx_cart_items_unique
     DO UPDATE SET
       quantity = cart_items.quantity + EXCLUDED.quantity,
-      final_price = EXCLUDED.final_price,
       unit_price = EXCLUDED.unit_price,
+      final_price = EXCLUDED.final_price,
       is_price_changed = cart_items.final_price <> EXCLUDED.final_price,
       updated_at = NOW()
+    WHERE cart_items.deleted_at IS NULL
     `,
     [userId, productIds, variantIds, quantities]
   );
 }
+
+/* =========================================================
+   UPDATE QUANTITY
+========================================================= */
 
 export async function updateCartItemQuantity(
   userId: string,
@@ -165,9 +200,17 @@ export async function updateCartItemQuantity(
   variantId: string | null,
   quantity: number
 ) {
-  if (quantity <= 0) {
-    return deleteCartItem(userId, productId, variantId);
+  if (!isUUID(userId) || !isUUID(productId)) {
+    throw new Error("INVALID_INPUT");
   }
+
+  const normalizedVariantId = isUUID(variantId) ? variantId : null;
+
+  if (quantity <= 0) {
+    return deleteCartItem(userId, productId, normalizedVariantId);
+  }
+
+  if (quantity > 99) quantity = 99;
 
   await query(
     `
@@ -178,6 +221,6 @@ export async function updateCartItemQuantity(
     AND product_id = $2
     AND variant_id IS NOT DISTINCT FROM $3
     `,
-    [userId, productId, variantId, quantity]
+    [userId, productId, normalizedVariantId, quantity]
   );
 }
