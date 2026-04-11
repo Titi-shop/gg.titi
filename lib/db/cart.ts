@@ -103,13 +103,10 @@ export async function upsertCartItems(
 
   if (!Array.isArray(items) || items.length === 0) return;
 
-  /* ================= NORMALIZE ================= */
-
   const map = new Map<string, CartItemInput>();
 
   for (const item of items) {
     if (!item || typeof item !== "object") continue;
-
     if (!isUUID(item.product_id)) continue;
 
     const variantId = isUUID(item.variant_id)
@@ -122,22 +119,20 @@ export async function upsertCartItems(
         : 1;
 
     if (quantity <= 0) quantity = 1;
-    if (quantity > 10) quantity = 10; // anti spam
+    if (quantity > 10) quantity = 10;
 
     const key = `${item.product_id}_${variantId ?? "null"}`;
 
+    // ✅ FIX: không cộng dồn nữa
     map.set(key, {
-  product_id: item.product_id,
-  variant_id: variantId,
-  quantity,
-});
-    }
+      product_id: item.product_id,
+      variant_id: variantId,
+      quantity,
+    });
   }
 
   const finalItems = Array.from(map.values());
   if (finalItems.length === 0) return;
-
-  /* ================= PREPARE ================= */
 
   const productIds: string[] = [];
   const variantIds: (string | null)[] = [];
@@ -145,50 +140,48 @@ export async function upsertCartItems(
 
   for (const item of finalItems) {
     productIds.push(item.product_id);
+
     variantIds.push(
-  item.variant_id && isUUID(item.variant_id)
-    ? item.variant_id
-    : null
-);
+      item.variant_id && isUUID(item.variant_id)
+        ? item.variant_id
+        : null
+    );
+
     quantities.push(item.quantity ?? 1);
   }
 
-  /* ================= UPSERT ================= */
-
   await query(
-  `
-  INSERT INTO cart_items (
-    user_id,
-    product_id,
-    variant_id,
-    seller_id,
-    unit_price,
-    final_price,
-    quantity
-  )
-  SELECT 
-    $1,
-    x.product_id,
-    x.variant_id,
-    p.seller_id,
-    p.price,
-    COALESCE(p.sale_price, p.price),
-    x.quantity
-  FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
-    AS x(product_id, variant_id, quantity)
-  JOIN products p ON p.id = x.product_id
+    `
+    INSERT INTO cart_items (
+      user_id,
+      product_id,
+      variant_id,
+      seller_id,
+      unit_price,
+      final_price,
+      quantity
+    )
+    SELECT 
+      $1,
+      x.product_id,
+      x.variant_id,
+      p.seller_id,
+      p.price,
+      COALESCE(p.sale_price, p.price),
+      x.quantity
+    FROM UNNEST($2::uuid[], $3::uuid[], $4::int[]) 
+      AS x(product_id, variant_id, quantity)
+    JOIN products p ON p.id = x.product_id
 
-  ON CONFLICT ON CONSTRAINT cart_items_unique
-  DO UPDATE SET
-    quantity = EXCLUDED.quantity,
-    unit_price = EXCLUDED.unit_price,
-    final_price = EXCLUDED.final_price,
-    is_price_changed = cart_items.final_price <> EXCLUDED.final_price,
-    updated_at = NOW()
-  WHERE cart_items.deleted_at IS NULL
-  `,
-  [userId, productIds, variantIds, quantities]
-);
+    ON CONFLICT ON CONSTRAINT cart_items_unique
+    DO UPDATE SET
+      quantity = EXCLUDED.quantity,
+      unit_price = EXCLUDED.unit_price,
+      final_price = EXCLUDED.final_price,
+      updated_at = NOW()
+    `,
+    [userId, productIds, variantIds, quantities]
+  );
 }
 
 /* =========================================================
