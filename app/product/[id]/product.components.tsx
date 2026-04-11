@@ -1,7 +1,6 @@
 "use client";
 
 import { formatPi } from "@/lib/pi";
-import { ShoppingCart, Star } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 
@@ -23,12 +22,11 @@ export function ProductView({
   selectedVariant,
   setSelectedVariant,
   availableVariants,
-  hasVariants,
   canBuy,
   selectedStock,
+  hasVariants,
   relatedProducts,
 }: any) {
-
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
     ...product.images.filter((img: string) => img && img !== product.thumbnail),
@@ -40,10 +38,12 @@ export function ProductView({
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
 
-      {/* ===== IMAGE ===== */}
+      {/* ===== GALLERY ===== */}
       <div className="mt-14 relative bg-white">
+
+        {/* SALE BADGE */}
         {product.isSale && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white text-xs px-2 py-1 rounded">
+          <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
             -{calcSalePercent(product.price, product.finalPrice)}%
           </div>
         )}
@@ -61,8 +61,10 @@ export function ProductView({
       </div>
 
       {/* ===== INFO ===== */}
-      <div className="bg-white p-4 flex justify-between">
-        <h2 className="text-lg">{product.name}</h2>
+      <div className="bg-white p-4 flex justify-between items-start">
+        <h2 className="text-lg font-medium">
+          {product.name}
+        </h2>
 
         <div className="text-right">
           <p className="text-xl font-bold text-orange-600">
@@ -77,87 +79,70 @@ export function ProductView({
         </div>
       </div>
 
-      {/* ===== META ===== */}
-      <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
-        <span>👁 {product.views} {t.views}</span>
-
-        <span className="flex items-center gap-1">
-          <ShoppingCart className="w-4 h-4" />
-          {product.sold} {t.orders}
-        </span>
-
-        <span className="flex items-center gap-1">
-          ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}
-          <span className="text-gray-400">
-            ({product.ratingCount ?? 0})
-          </span>
-        </span>
-      </div>
-
-      {/* ===== STOCK + VARIANT ===== */}
-      <div className="bg-white px-4 pb-4 text-sm">
-        {hasVariants ? (
-          <>
-            <div className="mb-2">
-              {canBuy ? (
-                <span className="text-green-600">
-                  ✅ {t.in_stock} {selectedStock}
-                </span>
-              ) : (
-                <span className="text-red-500">
-                  ❌ {t.out_of_stock}
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {availableVariants.map((v: any) => {
-                const isSelected = selectedVariant?.id === v.id;
-                const isDisabled = v.stock <= 0;
-
-                return (
-                  <button
-                    key={v.id}
-                    disabled={isDisabled}
-                    onClick={() => {
-                      if (!isDisabled) setSelectedVariant(v);
-                    }}
-                    className={`px-3 py-2 border rounded ${
-                      isDisabled
-                        ? "bg-gray-100 text-gray-400"
-                        : isSelected
-                        ? "border-orange-500 bg-orange-50 text-orange-600"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    <div>{v.optionValue}</div>
-                    <div className="text-xs">
-                      {v.stock > 0
-                        ? `${t.in_stock} ${v.stock}`
-                        : t.out_of_stock_short}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        ) : (
+      {/* ===== STOCK ===== */}
+      <div className="bg-white px-4 pb-2 text-sm">
+        {canBuy ? (
           <span className="text-green-600">
-            ✅ {t.in_stock} {product.stock}
+            ✅ {t.in_stock} {selectedStock}
+          </span>
+        ) : (
+          <span className="text-red-500">
+            ❌ {t.out_of_stock}
           </span>
         )}
       </div>
 
+      {/* ===== VARIANTS ===== */}
+      {hasVariants && (
+        <div className="bg-white px-4 pb-4">
+          <div className="grid grid-cols-5 gap-2">
+            {availableVariants.map((v: any) => {
+              const isSelected = selectedVariant?.id === v.id;
+              const isDisabled = v.stock <= 0;
+
+              return (
+                <button
+                  key={v.id}
+                  disabled={isDisabled}
+                  onClick={() => {
+                    if (!isDisabled) setSelectedVariant(v);
+                  }}
+                  className={`rounded border px-2 py-2 text-sm transition
+                    ${
+                      isDisabled
+                        ? "bg-gray-100 text-gray-400"
+                        : isSelected
+                        ? "border-orange-500 bg-orange-50 text-orange-600"
+                        : "border-gray-300 bg-white"
+                    }
+                  `}
+                >
+                  <div className="font-medium">
+                    {v.optionValue}
+                  </div>
+
+                  <div className="text-[11px]">
+                    {v.stock > 0
+                      ? `${v.stock}`
+                      : "0"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ===== DESCRIPTION ===== */}
       <div className="bg-white p-4">
-        {formatShortDescription(product.description).map((line, i) => (
-          <p key={i}>• {line}</p>
+        {formatShortDescription(product.description).map((l, i) => (
+          <p key={i}>• {l}</p>
         ))}
       </div>
 
       {/* ===== DETAIL ===== */}
       <div
-        className="bg-white p-4"
+        className="bg-white mt-2 p-4 text-sm"
         dangerouslySetInnerHTML={{
           __html: formatDetail(product.detail || ""),
         }}
@@ -165,18 +150,36 @@ export function ProductView({
 
       {/* ===== RELATED ===== */}
       {relatedProducts.length > 0 && (
-        <div className="bg-white p-4">
-          <h3 className="mb-2">🔗 Related</h3>
+        <div className="bg-white mt-2 p-4">
+          <h3 className="text-sm font-semibold mb-3">
+            🔗 {t.product_related_products}
+          </h3>
 
           <div className="flex gap-3 overflow-x-auto">
             {relatedProducts.map((p: any) => (
               <div
                 key={p.id}
                 onClick={() => router.push(`/product/${p.id}`)}
-                className="min-w-[140px]"
+                className="min-w-[140px] cursor-pointer"
               >
-                <img src={p.thumbnail} className="h-24 w-full object-cover" />
-                <p className="text-xs">{p.name}</p>
+                <img
+                  src={p.thumbnail || "/placeholder.png"}
+                  className="w-full h-24 object-cover rounded"
+                />
+
+                <p className="text-xs mt-2 line-clamp-2">
+                  {p.name}
+                </p>
+
+                <p className="text-sm font-semibold text-orange-600">
+                  π {formatPi(p.finalPrice)}
+                </p>
+
+                {p.isSale && (
+                  <p className="text-xs text-gray-400 line-through">
+                    π {formatPi(p.price)}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -184,11 +187,14 @@ export function ProductView({
       )}
 
       {/* ===== ACTION ===== */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2">
+      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 shadow flex gap-2 z-50">
+
         <button
           onClick={add}
           disabled={!canBuy}
-          className="flex-1 bg-yellow-500 text-white py-2"
+          className={`flex-1 py-2 rounded-md text-white ${
+            !canBuy ? "bg-gray-400" : "bg-yellow-500"
+          }`}
         >
           {t.add_to_cart}
         </button>
@@ -196,7 +202,9 @@ export function ProductView({
         <button
           onClick={buy}
           disabled={!canBuy}
-          className="flex-1 bg-red-500 text-white py-2"
+          className={`flex-1 py-2 rounded-md text-white ${
+            !canBuy ? "bg-gray-400" : "bg-red-500"
+          }`}
         >
           {t.buy_now}
         </button>
