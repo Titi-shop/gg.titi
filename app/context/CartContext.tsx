@@ -199,7 +199,7 @@ useEffect(() => {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    product_id: item.product_id!, // ✅ fix luôn
+    product_id: item.product_id!, // ✅ không dùng item.id nữa
     variant_id: item.variant_id ?? null,
     quantity: safeQty,
   }),
