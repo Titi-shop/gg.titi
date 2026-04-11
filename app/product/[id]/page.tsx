@@ -1,195 +1,206 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { useCart } from "@/app/context/CartContext";
+import { formatPi } from "@/lib/pi";
+import { ShoppingCart, Star } from "lucide-react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
 
-import { useProduct } from "./product.logic";
-import { ProductView } from "./product.components";
-import CheckoutSheet from "./CheckoutSheet";
+import {
+  formatShortDescription,
+  formatDetail,
+  calcSalePercent,
+} from "./product.helpers";
 
-/* ================= PAGE ================= */
+import "swiper/css";
+import "swiper/css/pagination";
 
-export default function ProductDetail() {
-  const { t } = useTranslation();
-  const { addToCart } = useCart();
-  const router = useRouter();
+export function ProductView({
+  product,
+  t,
+  router,
+  add,
+  buy,
+  selectedVariant,
+  setSelectedVariant,
+  availableVariants,
+  hasVariants,
+  canBuy,
+  selectedStock,
+  relatedProducts,
+}: any) {
 
-  const params = useParams();
-  const id = String(params?.id ?? "");
+  const displayImages = [
+    ...(product.thumbnail ? [product.thumbnail] : []),
+    ...product.images.filter((img: string) => img && img !== product.thumbnail),
+  ];
 
-  const { product, isLoading } = useProduct(id);
-
-  /* ================= STATE ================= */
-
-  const [selectedVariant, setSelectedVariant] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
-  const [openCheckout, setOpenCheckout] = useState(false);
-
-  /* ================= DEFAULT VARIANT ================= */
-
-  useEffect(() => {
-    if (!product) return;
-
-    const first =
-      product.variants.find(
-        (v: any) => (v.isActive ?? true) && v.stock > 0
-      ) ?? null;
-
-    setSelectedVariant(first);
-  }, [product]);
-
-  /* ================= LOAD RELATED ================= */
-
-  useEffect(() => {
-    async function loadProducts() {
-      if (!product?.categoryId) return;
-
-      try {
-        const res = await fetch("/api/products");
-        const data = await res.json();
-
-        if (!Array.isArray(data)) return;
-
-        const normalized = data.map((p: any) => ({
-          ...p,
-          finalPrice:
-            typeof p.salePrice === "number" &&
-            p.salePrice < p.price
-              ? p.salePrice
-              : p.price,
-          isSale:
-            typeof p.salePrice === "number" &&
-            p.salePrice < p.price,
-        }));
-
-        setProducts(normalized);
-      } catch (err) {
-        console.error("Load related failed:", err);
-      }
-    }
-
-    loadProducts();
-  }, [product]);
-
-  /* ================= GUARD ================= */
-
-  if (isLoading) return <div>Loading...</div>;
-  if (!product) return <div>{t.no_products}</div>;
-
-  /* ================= LOGIC ================= */
-
-  const hasVariants = product.variants.length > 0;
-
-  const availableVariants = product.variants.filter(
-    (v: any) => (v.isActive ?? true) && v.optionValue
-  );
-
-  const selectedStock = hasVariants
-    ? selectedVariant?.stock ?? 0
-    : product.stock;
-
-  const canBuy = hasVariants
-    ? !!selectedVariant && selectedStock > 0
-    : !(product.isOutOfStock ?? false);
-
-  const relatedProducts = products.filter(
-    (p) =>
-      p.id !== product.id &&
-      p.categoryId &&
-      p.categoryId === product.categoryId
-  );
-
-  /* ================= ACTIONS ================= */
-
-  const add = () => {
-    if (hasVariants && !selectedVariant) {
-      alert("Vui lòng chọn size");
-      return;
-    }
-
-    if (!canBuy) return;
-
-    addToCart({
-      id: product.id,
-      product_id: product.id,
-      variant_id: selectedVariant?.id ?? null,
-      name:
-        hasVariants && selectedVariant
-          ? `${product.name} - ${selectedVariant.optionValue}`
-          : product.name,
-      price: product.price,
-      sale_price: product.finalPrice,
-      thumbnail: product.thumbnail,
-      quantity: 1,
-    });
-
-    router.push("/cart");
-  };
-
-  const buy = () => {
-    if (hasVariants && !selectedVariant) {
-      alert("Vui lòng chọn size");
-      return;
-    }
-
-    if (!canBuy) return;
-
-    addToCart({
-      id: product.id,
-      product_id: product.id,
-      variant_id: selectedVariant?.id ?? null,
-      name:
-        hasVariants && selectedVariant
-          ? `${product.name} - ${selectedVariant.optionValue}`
-          : product.name,
-      price: product.price,
-      sale_price: product.finalPrice,
-      thumbnail: product.thumbnail,
-      quantity: 1,
-    });
-
-    setOpenCheckout(true);
-  };
-
-  /* ================= RENDER ================= */
+  const gallery =
+    displayImages.length > 0 ? displayImages : ["/placeholder.png"];
 
   return (
-    <>
-      <ProductView
-        product={product}
-        t={t}
-        router={router}
-        add={add}
-        buy={buy}
-        selectedVariant={selectedVariant}
-        setSelectedVariant={setSelectedVariant}
-        availableVariants={availableVariants}
-        hasVariants={hasVariants}
-        canBuy={canBuy}
-        selectedStock={selectedStock}
-        relatedProducts={relatedProducts}
-      />
+    <div className="pb-32 bg-gray-50 min-h-screen">
 
-      {/* ===== CHECKOUT ===== */}
-      <CheckoutSheet
-        open={openCheckout}
-        onClose={() => setOpenCheckout(false)}
-        product={{
-          id: product.id,
-          variant_id: selectedVariant?.id ?? null,
-          name:
-            hasVariants && selectedVariant
-              ? `${product.name} - ${selectedVariant.optionValue}`
-              : product.name,
-          price: product.price,
-          finalPrice: product.finalPrice,
-          thumbnail: product.thumbnail,
-          stock: selectedStock,
-          shippingRates: product.shippingRates,
+      {/* ===== IMAGE ===== */}
+      <div className="mt-14 relative bg-white">
+        {product.isSale && (
+          <div className="absolute top-3 right-3 bg-red-500 text-white text-xs px-2 py-1 rounded">
+            -{calcSalePercent(product.price, product.finalPrice)}%
+          </div>
+        )}
+
+        <Swiper modules={[Pagination]} pagination={{ clickable: true }}>
+          {gallery.map((img: string, i: number) => (
+            <SwiperSlide key={i}>
+              <img
+                src={img}
+                className="w-full aspect-square object-cover"
+              />
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      </div>
+
+      {/* ===== INFO ===== */}
+      <div className="bg-white p-4 flex justify-between">
+        <h2 className="text-lg">{product.name}</h2>
+
+        <div className="text-right">
+          <p className="text-xl font-bold text-orange-600">
+            π {formatPi(product.finalPrice)}
+          </p>
+
+          {product.isSale && (
+            <p className="text-sm text-gray-400 line-through">
+              π {formatPi(product.price)}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* ===== META ===== */}
+      <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
+        <span>👁 {product.views} {t.views}</span>
+
+        <span className="flex items-center gap-1">
+          <ShoppingCart className="w-4 h-4" />
+          {product.sold} {t.orders}
+        </span>
+
+        <span className="flex items-center gap-1">
+          ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}
+          <span className="text-gray-400">
+            ({product.ratingCount ?? 0})
+          </span>
+        </span>
+      </div>
+
+      {/* ===== STOCK + VARIANT ===== */}
+      <div className="bg-white px-4 pb-4 text-sm">
+        {hasVariants ? (
+          <>
+            <div className="mb-2">
+              {canBuy ? (
+                <span className="text-green-600">
+                  ✅ {t.in_stock} {selectedStock}
+                </span>
+              ) : (
+                <span className="text-red-500">
+                  ❌ {t.out_of_stock}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {availableVariants.map((v: any) => {
+                const isSelected = selectedVariant?.id === v.id;
+                const isDisabled = v.stock <= 0;
+
+                return (
+                  <button
+                    key={v.id}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (!isDisabled) setSelectedVariant(v);
+                    }}
+                    className={`px-3 py-2 border rounded ${
+                      isDisabled
+                        ? "bg-gray-100 text-gray-400"
+                        : isSelected
+                        ? "border-orange-500 bg-orange-50 text-orange-600"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    <div>{v.optionValue}</div>
+                    <div className="text-xs">
+                      {v.stock > 0
+                        ? `${t.in_stock} ${v.stock}`
+                        : t.out_of_stock_short}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <span className="text-green-600">
+            ✅ {t.in_stock} {product.stock}
+          </span>
+        )}
+      </div>
+
+      {/* ===== DESCRIPTION ===== */}
+      <div className="bg-white p-4">
+        {formatShortDescription(product.description).map((line, i) => (
+          <p key={i}>• {line}</p>
+        ))}
+      </div>
+
+      {/* ===== DETAIL ===== */}
+      <div
+        className="bg-white p-4"
+        dangerouslySetInnerHTML={{
+          __html: formatDetail(product.detail || ""),
         }}
       />
-    </>
+
+      {/* ===== RELATED ===== */}
+      {relatedProducts.length > 0 && (
+        <div className="bg-white p-4">
+          <h3 className="mb-2">🔗 Related</h3>
+
+          <div className="flex gap-3 overflow-x-auto">
+            {relatedProducts.map((p: any) => (
+              <div
+                key={p.id}
+                onClick={() => router.push(`/product/${p.id}`)}
+                className="min-w-[140px]"
+              >
+                <img src={p.thumbnail} className="h-24 w-full object-cover" />
+                <p className="text-xs">{p.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== ACTION ===== */}
+      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2">
+        <button
+          onClick={add}
+          disabled={!canBuy}
+          className="flex-1 bg-yellow-500 text-white py-2"
+        >
+          {t.add_to_cart}
+        </button>
+
+        <button
+          onClick={buy}
+          disabled={!canBuy}
+          className="flex-1 bg-red-500 text-white py-2"
+        >
+          {t.buy_now}
+        </button>
+      </div>
+    </div>
   );
 }
