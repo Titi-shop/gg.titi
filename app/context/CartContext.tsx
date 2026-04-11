@@ -52,7 +52,12 @@ const mergeCartOnLogin = async () => {
 
     const localRaw = localStorage.getItem("cart");
     const localCart: CartItem[] = localRaw ? JSON.parse(localRaw) : [];
-    const newItems = localCart.filter((i) => !i.synced);
+    if (!localCart.length) {
+  console.log("[CART] no local cart → skip merge");
+  return;
+}
+
+const newItems = localCart;
 
     if (newItems.length > 0) {
       await fetch("/api/cart", {
@@ -142,6 +147,15 @@ const mergeCartOnLogin = async () => {
 
 useEffect(() => {
   if (!user) return;
+
+  const merged = sessionStorage.getItem("cart_merged");
+  if (merged) {
+    console.log("[CART] already merged → skip");
+    return;
+  }
+
+  sessionStorage.setItem("cart_merged", "1");
+ console.log("[CART][MERGE_TRIGGER]");
   void mergeCartOnLogin();
 }, [user]);
   /* ================= ADD ================= */
@@ -196,16 +210,8 @@ console.log("[DEBUG][USER]", user);
     ];
   });
 
-  // 👉 API
-  try {
-    if (!user) {
-  console.warn("[CART] user not ready → retry in 500ms");
-
   if (!user) {
-  console.warn("[CART] user not ready → skip API");
-  return;
-}
-
+  console.warn("[CART] user not ready → local only");
   return;
 }
 
