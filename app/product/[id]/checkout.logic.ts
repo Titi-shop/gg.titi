@@ -167,8 +167,14 @@ export function useCheckoutPay({
 if (!finalPreview) {
   try {
     console.log("🟡 FORCE PREVIEW BEFORE PAY");
-    finalPreview = await previewOrderDirect({
-      console.log("🟡 PREVIEW DIRECT DATA:", {
+    console.log("🟡 PREVIEW DIRECT DATA:", {
+  shipping,
+  zone,
+  item,
+  quantity,
+});
+
+finalPreview = await previewOrderDirect({
   shipping,
   zone,
   item,
