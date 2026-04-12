@@ -1,9 +1,9 @@
 "use client";
 
-import { useProductForm } from "./useProductForm";
-import ImageUpload from "./ImageUpload";
-import VariantEditor from "./VariantEditor";
-import ShippingRates from "./ShippingRates";
+import { useProductForm } from "./product/useProductForm";
+import ImageUpload from "./product/ImageUpload";
+import VariantEditor from "./product/VariantEditor";
+import ShippingRates from "./product/ShippingRates";
 import { useAuth } from "@/context/AuthContext";
 
 export default function ProductForm({ categories, initialData, onSubmit }: any) {
