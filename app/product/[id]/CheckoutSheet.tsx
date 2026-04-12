@@ -76,16 +76,23 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   /* ========================= */
 
   const previewKey =
-    open && shipping?.country && zone && item
-      ? [
-          "/api/orders/preview",
-          {
-            country: shipping.country.toUpperCase(),
-            zone,
-            items: [{ product_id: item.id, quantity }],
+  open && shipping?.country && zone && item
+    ? [
+        "/api/orders/preview",
+        {
+          country: shipping.country.toUpperCase(),
+          zone,
+
+          shipping: {
+            region: shipping.region,
+            district: shipping.district,
+            ward: shipping.ward,
           },
-        ]
-      : null;
+
+          items: [{ product_id: item.id, quantity }],
+        },
+      ]
+    : null;
 
   const { data: preview, error: previewError } = useSWR(
     previewKey,
@@ -113,13 +120,15 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       if (!def) return;
 
       setShipping({
-        name: def.full_name,
-        phone: def.phone,
-        address_line: def.address_line,
-        province: def.province,
-        country: def.country,
-        postal_code: def.postal_code ?? null,
-      });
+  name: def.full_name,
+  phone: def.phone,
+  address_line: def.address_line,
+  region: def.region,
+  district: def.district ?? "",
+  ward: def.ward ?? "",
+  country: def.country,
+  postal_code: def.postal_code ?? null,
+   });
     } catch (err) {
       console.error(err);
     }
@@ -203,9 +212,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
           {message.text}
         </div>
       )}
-
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl h-[65vh] flex flex-col">
 
         {/* SCROLL */}
@@ -222,7 +229,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
                 <p className="text-sm text-gray-600">{shipping.phone}</p>
                 <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
                 <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
-                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
+            {[shipping.ward, shipping.district, shipping.region]
+            .filter(Boolean)
+            .join(", ")}{" "}
+           – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
                 </p>
               </>
             ) : (
