@@ -33,7 +33,14 @@ type Body = {
   variant_id?: unknown;
   quantity?: unknown;
   shipping?: {
-    country?: string;
+  name?: string;
+  phone?: string;
+  address_line?: string;
+  ward?: string;
+  district?: string;
+  region?: string;
+  country?: string;
+  postal_code?: string | null;
   };
   zone?: unknown;
 };
@@ -83,6 +90,36 @@ export async function POST(req: Request) {
       typeof body.shipping?.country === "string"
         ? body.shipping.country.trim().toUpperCase()
         : "";
+    const shipping = body.shipping || {};
+
+const shippingName =
+  typeof shipping.name === "string" ? shipping.name.trim() : "";
+
+const shippingPhone =
+  typeof shipping.phone === "string" ? shipping.phone.trim() : "";
+
+const shippingAddressLine =
+  typeof shipping.address_line === "string"
+    ? shipping.address_line.trim()
+    : "";
+
+const shippingRegion =
+  typeof shipping.region === "string" ? shipping.region.trim() : "";
+
+const shippingDistrict =
+  typeof shipping.district === "string"
+    ? shipping.district.trim()
+    : null;
+
+const shippingWard =
+  typeof shipping.ward === "string"
+    ? shipping.ward.trim()
+    : null;
+
+const shippingPostalCode =
+  typeof shipping.postal_code === "string"
+    ? shipping.postal_code.trim()
+    : null;
 
     console.log("🟢 [PAYMENT][PARSED]", {
       paymentId,
@@ -93,6 +130,15 @@ export async function POST(req: Request) {
       zone,
       country,
     });
+    console.log("🟣 [PAYMENT][SHIPPING_FULL]", {
+  shippingName,
+  shippingPhone,
+  shippingAddressLine,
+  shippingRegion,
+  shippingDistrict,
+  shippingWard,
+  shippingPostalCode,
+});
 
     /* ================= VALIDATE ================= */
 
@@ -131,6 +177,14 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!shippingName || !shippingPhone || !shippingAddressLine) {
+  console.error("❌ [PAYMENT][INVALID_SHIPPING_INFO]");
+
+  return NextResponse.json(
+    { error: "INVALID_SHIPPING_INFO" },
+    { status: 400 }
+  );
+}
     /* ================= AUTH ================= */
 
     const auth = await getUserFromBearer();
@@ -168,6 +222,12 @@ export async function POST(req: Request) {
     console.log("🟡 [PAYMENT][AMOUNT_CHECK]", {
   amount: payment.amount,
 });
+    if (!payment.amount || payment.amount <= 0) {
+  return NextResponse.json(
+    { error: "INVALID_AMOUNT" },
+    { status: 400 }
+  );
+}
 
     console.log("🟢 [PAYMENT][PI_DATA]", {
       status: payment.status,
@@ -231,15 +291,26 @@ export async function POST(req: Request) {
     console.log("🟡 [PAYMENT][DB_PROCESS]");
 
     const result = await processPiPayment({
-      userId,
-      productId,
-      variantId,
-      quantity,
-      paymentId,
-      txid,
-      country,
-      zone,
-    });
+  userId,
+  productId,
+  variantId,
+  quantity,
+  paymentId,
+  txid,
+
+  country,
+  zone,
+
+  shipping: {
+    name: shippingName,
+    phone: shippingPhone,
+    address_line: shippingAddressLine,
+    ward: shippingWard,
+    district: shippingDistrict,
+    region: shippingRegion,
+    postal_code: shippingPostalCode,
+  },
+});
 
     console.log("🟢 [PAYMENT][SUCCESS]", result);
 
