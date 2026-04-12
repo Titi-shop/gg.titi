@@ -63,7 +63,7 @@ export function ProductView({
   return (
     <div className="pb-32 bg-gray-50 min-h-screen">
       {/* ===== GALLERY ===== */}
-      <div className="pt-[56px] bg-gray-50 min-h-screen">
+   <div className="relative bg-white">
         {product.isSale && (
           <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
             -{calcSalePercent(product.price, product.finalPrice)}%
