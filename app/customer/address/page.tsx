@@ -130,15 +130,15 @@ export default function CustomerAddressPage() {
       setEditingId(null);
 
       setForm({
-        full_name: "",
-        phone: "",
-        country: "",
-        province: "",
-        district: "",
-        ward: "",
-        address_line: "",
-        postal_code: "",
-      });
+  full_name: "",
+  phone: "",
+  country: "",
+  region: "",
+  district: "",
+  ward: "",
+  address_line: "",
+  postal_code: "",
+});
     } finally {
       setSaving(false);
     }
@@ -211,10 +211,10 @@ export default function CustomerAddressPage() {
               <p className="font-semibold">{a.full_name}</p>
               <p className="text-sm">{a.phone}</p>
 
-             <p className="text-xs text-orange-500 mt-1">
-  {a.         label === "home" && "🏠 Home"}
-  {a.        label === "office" && "🏢 Office"}
-  {a.        label === "other" && "📍 Other"}
+          <p className="text-xs text-orange-500 mt-1">
+  {a.label === "home" && "🏠 Home"}
+  {a.label === "office" && "🏢 Office"}
+  {a.label === "other" && "📍 Other"}
 </p>
 
               <div className="flex gap-4 mt-3 text-sm">
@@ -251,15 +251,15 @@ export default function CustomerAddressPage() {
           onClick={() => {
             setEditingId(null);
             setForm({
-              full_name: "",
-              phone: "",
-              region: "",
-              province: "",
-              district: "",
-              ward: "",
-              address_line: "",
-              postal_code: "",
-            });
+  full_name: "",
+  phone: "",
+  country: "",
+  region: "",
+  district: "",
+  ward: "",
+  address_line: "",
+  postal_code: "",
+});
             setShowForm(true);
           }}
           className="w-full py-3 border-dashed border-2 border-orange-400 text-orange-600 rounded-xl"
