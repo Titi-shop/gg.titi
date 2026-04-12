@@ -55,13 +55,15 @@ export async function fetchDefaultAddress(): Promise<ShippingInfo | null> {
     if (!def) return null;
 
     return {
-      name: def.full_name,
-      phone: def.phone,
-      address_line: def.address_line,
-      province: def.province,
-      country: def.country || "VN", // ✅ FIX QUAN TRỌNG
-      postal_code: def.postal_code ?? null,
-    };
+  name: def.full_name,
+  phone: def.phone,
+  address_line: def.address_line,
+  region: def.region,
+  district: def.district ?? "",
+  ward: def.ward ?? "",
+  country: def.country || "VN",
+  postal_code: def.postal_code ?? null,
+};
   } catch (err) {
     console.error("❌ LOAD ADDRESS ERROR:", err);
     return null;
