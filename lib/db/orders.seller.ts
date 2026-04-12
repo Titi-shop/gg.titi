@@ -1,0 +1,207 @@
+// lib/db/orders.seller.ts
+
+import { query, withTransaction } from "@/lib/db";
+
+/* =========================================================
+   SELLER — ORDER COUNTS
+========================================================= */
+export async function getSellerOrderCounts(sellerId: string) {
+  const { rows } = await query(
+    `
+    SELECT status, COUNT(*)::int AS total
+    FROM order_items
+    WHERE seller_id = $1
+    GROUP BY status
+    `,
+    [sellerId]
+  );
+
+  const result = {
+    pending: 0,
+    confirmed: 0,
+    shipping: 0,
+    completed: 0,
+    returned: 0,
+    cancelled: 0,
+  };
+
+  for (const r of rows) {
+    if (r.status in result) {
+      result[r.status as keyof typeof result] = r.total;
+    }
+  }
+
+  return result;
+}
+
+/* =========================================================
+   SELLER — ORDERS LIST
+========================================================= */
+export async function getSellerOrders(
+  sellerId: string,
+  status?: string,
+  page = 1,
+  limit = 20
+) {
+  const offset = (page - 1) * limit;
+
+  const params: unknown[] = [sellerId, limit, offset];
+  let statusFilter = "";
+
+  if (status) {
+    params.splice(1, 0, status);
+    statusFilter = `AND oi.status = $2`;
+  }
+
+  const { rows } = await query(
+    `
+    SELECT
+      o.id,
+      o.order_number,
+      o.created_at,
+
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address_line,
+
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'thumbnail', oi.thumbnail,
+            'quantity', oi.quantity,
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'
+      ) AS order_items,
+
+      SUM(oi.total_price)::float AS total
+
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+
+    WHERE oi.seller_id = $1
+    ${statusFilter}
+
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
+
+    LIMIT $${status ? 3 : 2}
+    OFFSET $${status ? 4 : 3}
+    `,
+    params
+  );
+
+  return rows;
+}
+
+/* =========================================================
+   SELLER — ORDER DETAIL
+========================================================= */
+export async function getSellerOrderById(
+  orderId: string,
+  sellerId: string
+) {
+  const { rows } = await query(
+    `
+    SELECT
+      o.id,
+      o.order_number,
+      o.created_at,
+
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'product_name', oi.product_name,
+            'thumbnail', oi.thumbnail,
+            'quantity', oi.quantity,
+            'unit_price', oi.unit_price,
+            'total_price', oi.total_price,
+            'status', oi.status
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'
+      ) AS order_items,
+
+      SUM(oi.total_price)::float AS total
+
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+
+    WHERE o.id = $1 AND oi.seller_id = $2
+
+    GROUP BY o.id
+    `,
+    [orderId, sellerId]
+  );
+
+  return rows[0] ?? null;
+}
+
+/* =========================================================
+   SELLER — ACTIONS
+========================================================= */
+
+export async function startShippingBySeller(
+  orderId: string,
+  sellerId: string
+) {
+  const res = await query(
+    `
+    UPDATE order_items
+    SET status='shipping', shipped_at=NOW()
+    WHERE order_id=$1 AND seller_id=$2 AND status='confirmed'
+    `,
+    [orderId, sellerId]
+  );
+
+  return res.rowCount > 0;
+}
+
+export async function cancelOrderBySeller(
+  orderId: string,
+  sellerId: string,
+  reason: string | null
+) {
+  const res = await query(
+    `
+    UPDATE order_items
+    SET status='cancelled', seller_cancel_reason=$3
+    WHERE order_id=$1 AND seller_id=$2
+    `,
+    [orderId, sellerId, reason]
+  );
+
+  return res.rowCount > 0;
+}
+
+export async function confirmOrderBySeller(
+  orderId: string,
+  sellerId: string,
+  message: string | null
+) {
+  return withTransaction(async (client) => {
+    await client.query(
+      `
+      UPDATE order_items
+      SET status='confirmed', seller_message=$3
+      WHERE order_id=$1 AND seller_id=$2
+      `,
+      [orderId, sellerId, message]
+    );
+
+    await client.query(
+      `UPDATE orders SET status='pickup' WHERE id=$1`,
+      [orderId]
+    );
+
+    return true;
+  });
+}
