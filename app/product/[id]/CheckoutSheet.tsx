@@ -239,8 +239,6 @@ console.log("🟣 SHIPPING STATE:", shipping);
               <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
           </div>
-
-          {/* REGION */}
                      {/* SHIPPING REGION */}
 <div className="border rounded-xl p-3 mb-4">
   <p className="text-sm font-medium mb-2">
