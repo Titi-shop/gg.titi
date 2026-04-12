@@ -144,10 +144,24 @@ const uploadDetailImages = async (files: File[]) => {
       />
 
       {/* IMAGE */}
-      <ImageUpload
-        images={form.images}
-        setImages={form.setImages}
-      />
+     <div className="h-28">
+  <input
+    type="file"
+    accept="image/*"
+    multiple
+    onChange={(e) => {
+      const files = Array.from(e.target.files || []);
+      console.log("📥 FILE CHANGED:", files);
+      alert("FILE CHANGED"); // test
+      handleUpload(files);
+    }}
+    className="w-full h-full opacity-0 absolute cursor-pointer"
+  />
+
+  <div className="flex items-center justify-center border-2 border-dashed rounded h-28">
+    ＋
+  </div>
+</div>
 
       {/* PRICE */}
       <input
