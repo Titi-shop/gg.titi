@@ -97,30 +97,38 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   useEffect(() => {
-    async function loadAddress() {
-      try {
-        const res = await fetch("/api/address");
-        if (!res.ok) return;
+  async function loadAddress() {
+    try {
+      const token = await getPiAccessToken();
 
-        const data = await res.json();
-        const def = data.items?.find((a: any) => a.is_default);
-        if (!def) return;
+      const res = await fetch("/api/address", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        setShipping({
-          name: def.full_name,
-          phone: def.phone,
-          address_line: def.address_line,
-          province: def.province,
-          country: def.country,
-          postal_code: def.postal_code ?? null,
-        });
-      } catch {
-        setShipping(null);
-      }
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      const def = data.items?.find((a: any) => a.is_default);
+      if (!def) return;
+
+      setShipping({
+        name: def.full_name,
+        phone: def.phone,
+        address_line: def.address_line,
+        province: def.province,
+        country: def.country,
+        postal_code: def.postal_code ?? null,
+      });
+    } catch (err) {
+      console.error(err);
     }
+  }
 
-    if (open && user) loadAddress();
-  }, [open, user]);
+  if (open && user) loadAddress();
+}, [open, user]);
 
   /* ========================= */
 
