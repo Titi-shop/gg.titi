@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/guard";
-import { getOrdersByBuyer } from "@/lib/db/orders";
+import { NextResponse } from "next/server";
+import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
+
+import {
+  getOrdersByBuyer,
+  getBuyerOrderCounts,
+} from "@/lib/db/orders.buyer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
