@@ -97,36 +97,37 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ========================= */
 
   useEffect(() => {
-    async function loadAddress() {
-      try {
-        const token = await getPiAccessToken();
+  async function loadAddress() {
+    try {
+      const token = await getPiAccessToken();
 
-        const res = await fetch("/api/address", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      const res = await fetch("/api/address", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        if (!res.ok) return;
+      if (!res.ok) return;
 
-        const data: AddressApiResponse = await res.json();
+      const data: AddressApiResponse = await res.json();
 
-        const def = data.items?.find((a) => a.is_default);
-        if (!def) return;
+      const def = data.items?.find((a) => a.is_default);
+      if (!def) return;
 
-        setShipping({
-          name: def.full_name,
-          phone: def.phone,
-          address_line: def.address_line,
-          province: def.province,
-          country: def.country,
-          postal_code: def.postal_code ?? null,
-        });
-      } catch (err) {
-        console.error(err);
-      }
+      setShipping({
+        name: def.full_name,
+        phone: def.phone,
+        address_line: def.address_line,
+        province: def.province,
+        country: def.country,
+        postal_code: def.postal_code ?? null,
+      });
+    } catch (err) {
+      console.error(err);
     }
+  }
 
-    if (open && user) loadAddress();
-  }, [open, user]);
+  if (!open || !user) return;
+  loadAddress();
+}, [open, user]);
 
   /* ========================= */
 
@@ -279,7 +280,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
           {/* PRODUCT */}
           <div className="flex items-center gap-3">
-            <img src={item.thumbnail} className="w-16 h-16 rounded" />
+            <img
+  src={item.thumbnail || "/placeholder.png"}
+     className="w-16 h-16 rounded object-cover"
+        />
 
             <div className="flex-1">
               <p>{item.name}</p>
@@ -331,14 +335,29 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     </div>
   </div>
 
-            <div>{formatPi(total)} π</div>
+            <div className="text-right">
+  <p className="font-semibold text-orange-600 text-lg">
+    {formatPi(total)} π
+  </p>
+
+  {!preview && (
+    <p className="text-xs text-gray-400">
+      Đang tính phí...
+    </p>
+  )}
+</div>
           </div>
         </div>
 
         {/* PAY BUTTON (FIX POSITION) */}
         <div className="border-t p-4">
           <button
-            onClick={handlePay}
+  onClick={handlePay}
+  disabled={processing}
+  className={`w-full py-3 text-white rounded ${
+    processing ? "bg-gray-400" : "bg-orange-600"
+  }`}
+>
             className="w-full py-3 bg-orange-600 text-white rounded"
           >
             {processing ? t.processing : t.pay_now}
