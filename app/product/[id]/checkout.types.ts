@@ -49,7 +49,7 @@ export interface ShippingInfo {
   phone: string;
   address_line: string;
   province: string;
-  country?: string;
+  country: string; 
   postal_code?: string | null;
 }
 
@@ -77,11 +77,13 @@ export interface PreviewItem {
   quantity: number;
 }
 
-export interface PreviewPayload {
-  country: string;
-  zone: Region;
-  items: PreviewItem[];
+export interface PreviewResponse {
+  shipping_fee: number;
+  total: number;
+  currency?: string;
 }
+
+
 
 export interface PreviewResponse {
   shipping_fee: number;
