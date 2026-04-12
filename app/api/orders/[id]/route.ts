@@ -10,8 +10,8 @@ function isValidId(v: unknown): v is string {
 }
 
 export async function GET(
-  _: Request,
-  { params }: { params: { id: string } }
+  req: Request,
+  context: { params: { id: string } }
 ) {
   try {
     /* ================= AUTH ================= */
@@ -20,9 +20,10 @@ export async function GET(
 
     const userId = auth.userId;
 
-    /* ================= VALIDATION ================= */
-    const orderId = params?.id;
+    /* ================= PARAMS ================= */
+    const orderId = context?.params?.id;
 
+    /* ================= VALIDATION ================= */
     if (!isValidId(orderId)) {
       return NextResponse.json(
         { error: "INVALID_ORDER_ID" },
@@ -43,8 +44,8 @@ export async function GET(
     /* ================= RESPONSE ================= */
     return NextResponse.json(order);
 
-  } catch {
-    console.error("[ORDER] GET_ORDER_BY_ID_ERROR");
+  } catch (err) {
+    console.error("[ORDER] GET_ORDER_BY_ID_ERROR", err);
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
