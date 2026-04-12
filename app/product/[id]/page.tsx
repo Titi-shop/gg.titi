@@ -99,7 +99,7 @@ export default function ProductDetail() {
 
   /* ================= GUARD ================= */
 
-  if (isLoading) return <div>Loading...</div>;
+  if (!product) return null;
   if (!product) return <div>{t.no_products}</div>;
 
   /* ================= LOGIC ================= */
