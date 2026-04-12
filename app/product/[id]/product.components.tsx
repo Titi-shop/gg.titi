@@ -51,14 +51,10 @@ export function ProductView({
     displayImages.length > 0 ? displayImages : ["/placeholder.png"];
 
   return (
-    <div className="pb-32 bg-gray-50 min-h-screen">
-
-      {/* ===== GALLERY ===== */}
+    <div className="pb-32 bg-gray-50 min-h- {/* GALLERY */}
       <div className="mt-14 relative bg-white">
-
-        {/* SALE BADGE */}
         {product.isSale && (
-          <div className="absolute top-3 right-3 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+          <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded">
             -{calcSalePercent(product.price, product.finalPrice)}%
           </div>
         )}
@@ -68,6 +64,11 @@ export function ProductView({
             <SwiperSlide key={i}>
               <img
                 src={img}
+                onClick={() => {
+                  setZoomImage(img);
+                  setScale(1);
+                  setPosition({ x: 0, y: 0 });
+                }}
                 className="w-full aspect-square object-cover"
               />
             </SwiperSlide>
@@ -75,6 +76,40 @@ export function ProductView({
         </Swiper>
       </div>
 
+      {/* ZOOM */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center"
+          onClick={() => setZoomImage(null)}
+        >
+          <img
+            src={zoomImage}
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={handleDoubleTap}
+            onTouchStart={(e) => {
+              if (e.touches.length === 2) {
+                const d = getDistance(e.touches);
+                setInitialDistance(d);
+                setInitialScale(scale);
+              }
+            }}
+            onTouchMove={(e) => {
+              if (e.touches.length === 2) {
+                const d = getDistance(e.touches);
+                let newScale = initialScale * (d / initialDistance);
+                newScale = Math.max(1, Math.min(newScale, 6));
+                setScale(newScale);
+              }
+            }}
+            style={{
+              transform: `scale(${scale})`,
+            }}
+            className="max-w-full max-h-full"
+          />
+        </div>
+      )}
+
+      
       {/* ===== INFO ===== */}
       <div className="bg-white p-4 flex justify-between items-start">
         <h2 className="text-lg font-medium">
