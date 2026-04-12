@@ -4,7 +4,7 @@ import { formatPi } from "@/lib/pi";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import { ShoppingCart } from "lucide-react";
-
+import { prefetchProduct } from "@/lib/prefetch";
 import {
   formatShortDescription,
   formatDetail,
