@@ -163,11 +163,15 @@ if (!finalPreview) {
       quantity,
     });
   } catch (err: any) {
-    showMessage(t[getErrorKey(err.message)]);
+    const key = getErrorKey(err.message);
+showMessage(t[key] || key);
     return;
   }
 }
-
+if (!finalPreview) {
+  showMessage(t.order_preview_error);
+  return;
+}
     if (processingRef.current) return;
 
     processingRef.current = true;
@@ -314,7 +318,6 @@ if (!finalPreview) {
     total,
     shipping,
     unitPrice,
-    processing,
     t,
     user,
     router,
