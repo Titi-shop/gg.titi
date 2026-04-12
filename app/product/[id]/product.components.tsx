@@ -45,7 +45,7 @@ export function ProductView({
   relatedProducts,
 }: any) {
   /* ================= SAFE DATA ================= */
-
+console.log("[UI] product render:", product);
   if (!product) return null;
 
   const displayImages = [
@@ -90,23 +90,43 @@ export function ProductView({
       {/* ===== ZOOM ===== */}
 {zoomImage && (
   <div
-    className="fixed inset-0 bg-black/90 flex items-center justify-center z-[999]"
+    className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center"
     onClick={() => setZoomImage(null)}
   >
     <img
       src={zoomImage}
       onClick={(e) => e.stopPropagation()}
 
-      onTouchEnd={handleDoubleTap}
+      /* ===== DOUBLE TAP ===== */
+      onTouchEnd={(e) => {
+        const now = Date.now();
+        if (!window.__lastTap) window.__lastTap = 0;
 
-      /* ===== START ===== */
+        if (now - window.__lastTap < 300) {
+          setScale((prev: number) => (prev === 1 ? 2 : 1));
+          setPosition({ x: 0, y: 0 });
+        }
+
+        window.__lastTap = now;
+      }}
+
+      /* ===== TOUCH START ===== */
       onTouchStart={(e) => {
         if (e.touches.length === 2) {
-          const d = getDistance(e.touches);
-          setInitialDistance(d);
+          const dx =
+            e.touches[0].clientX - e.touches[1].clientX;
+          const dy =
+            e.touches[0].clientY - e.touches[1].clientY;
+
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          setInitialDistance(distance);
           setInitialScale(scale);
-        } else if (e.touches.length === 1) {
+        }
+
+        if (e.touches.length === 1) {
           const touch = e.touches[0];
+
           setDragging(true);
           setStart({
             x: touch.clientX - position.x,
@@ -115,18 +135,29 @@ export function ProductView({
         }
       }}
 
-      /* ===== MOVE ===== */
+      /* ===== TOUCH MOVE ===== */
       onTouchMove={(e) => {
+        /* PINCH */
         if (e.touches.length === 2) {
-          const d = getDistance(e.touches);
-          let newScale = initialScale * (d / initialDistance);
+          const dx =
+            e.touches[0].clientX - e.touches[1].clientX;
+          const dy =
+            e.touches[0].clientY - e.touches[1].clientY;
+
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          let newScale =
+            initialScale * (distance / initialDistance);
 
           newScale = Math.max(1, Math.min(newScale, 6));
+
           setScale(newScale);
         }
 
-        if (e.touches.length === 1 && dragging) {
+        /* DRAG */
+        if (e.touches.length === 1 && dragging && scale > 1) {
           const touch = e.touches[0];
+
           setPosition({
             x: touch.clientX - start.x,
             y: touch.clientY - start.y,
@@ -137,8 +168,9 @@ export function ProductView({
       onTouchEnd={() => setDragging(false)}
 
       style={{
-        transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-        transition: "0.1s",
+        transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+        transformOrigin: "center center",
+        willChange: "transform",
       }}
 
       className="max-w-full max-h-full object-contain"
