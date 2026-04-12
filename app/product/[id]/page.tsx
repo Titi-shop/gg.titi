@@ -180,7 +180,57 @@ export default function ProductDetail() {
   /* ================= RENDER ================= */
 
   return (
-    <>
+  <>
+    <ProductView
+      product={product}
+      t={t}
+      router={router}
+      add={add}
+      buy={buy}
+      selectedVariant={selectedVariant}
+      setSelectedVariant={setSelectedVariant}
+      availableVariants={availableVariants}
+      hasVariants={hasVariants}
+      canBuy={canBuy}
+      selectedStock={selectedStock}
+      relatedProducts={relatedProducts}
+
+      zoomImage={zoomImage}
+      setZoomImage={setZoomImage}
+      scale={scale}
+      setScale={setScale}
+      position={position}
+      setPosition={setPosition}
+      dragging={dragging}
+      setDragging={setDragging}
+      start={start}
+      setStart={setStart}
+      initialDistance={initialDistance}
+      setInitialDistance={setInitialDistance}
+      initialScale={initialScale}
+      setInitialScale={setInitialScale}
+      handleDoubleTap={handleDoubleTap}
+    />
+
+    <CheckoutSheet
+      open={openCheckout}
+      onClose={() => setOpenCheckout(false)}
+      product={{
+        id: product.id,
+        variant_id: selectedVariant?.id ?? null,
+        name:
+          hasVariants && selectedVariant
+            ? `${product.name} - ${selectedVariant.optionValue}`
+            : product.name,
+        price: product.price,
+        finalPrice: product.finalPrice,
+        thumbnail: product.thumbnail,
+        stock: selectedStock,
+        shippingRates: product.shippingRates,
+      }}
+    />
+  </>
+);
 
       {/* ===== CHECKOUT ===== */}
       <CheckoutSheet
