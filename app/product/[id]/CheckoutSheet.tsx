@@ -211,21 +211,21 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
         <div className="flex-1 overflow-y-auto px-4 py-3">
 
           {/* ADDRESS */}
-          <div
-            className="border rounded-lg p-3 mb-4"
+            <div
+            className="border rounded-lg p-3 cursor-pointer mb-4"
             onClick={() => router.push("/customer/address")}
           >
             {shipping ? (
               <>
-                <p>{shipping.name}</p>
-                <p>{shipping.phone}</p>
-                <p>{shipping.address_line}</p>
-                <p>
-                  {shipping.province} – {getCountryDisplay(shipping.country)}
+                <p className="font-medium">{shipping.name}</p>
+                <p className="text-sm text-gray-600">{shipping.phone}</p>
+                <p className="text-sm text-gray-500 mt-1">{shipping.address_line}</p>
+                <p className="text-sm text-gray-500 mt-1 whitespace-nowrap">
+                  {shipping.province} – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
                 </p>
               </>
             ) : (
-              <p>➕ {t.add_shipping}</p>
+              <p className="text-gray-500">➕ {t.add_shipping}</p>
             )}
           </div>
 
