@@ -114,10 +114,60 @@ export function useCheckoutPay({
 
     if (!validate()) return;
 
-    if (!preview) {
-      showMessage(t.order_preview_error);
-      return;
-    }
+    let finalPreview = preview;
+
+if (!finalPreview) {
+  try {
+    console.log("🟡 FORCE PREVIEW BEFORE PAY");
+/* =========================
+   PREVIEW DIRECT (ADD HERE)
+========================= */
+
+async function previewOrderDirect({
+  shipping,
+  zone,
+  item,
+  quantity,
+}: any) {
+  const token = await getPiAccessToken();
+
+  const res = await fetch("/api/orders/preview", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      country: shipping?.country?.toUpperCase(),
+      zone,
+      items: [
+        {
+          product_id: item.id,
+          quantity,
+        },
+      ],
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data?.error || "PREVIEW_FAILED");
+  }
+
+  return data;
+}
+    finalPreview = await previewOrderDirect({
+      shipping,
+      zone,
+      item,
+      quantity,
+    });
+  } catch (err: any) {
+    showMessage(t[getErrorKey(err.message)]);
+    return;
+  }
+}
 
     if (processingRef.current) return;
 
