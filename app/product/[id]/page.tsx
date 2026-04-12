@@ -21,6 +21,30 @@ export default function ProductDetail() {
 
   const { product, isLoading } = useProduct(id);
 
+  /* ================= ZOOM STATE (🔥 QUAN TRỌNG) ================= */
+
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const [dragging, setDragging] = useState(false);
+  const [start, setStart] = useState({ x: 0, y: 0 });
+  const [initialDistance, setInitialDistance] = useState(0);
+  const [initialScale, setInitialScale] = useState(1);
+
+  let lastTap = 0;
+
+  const handleDoubleTap = () => {
+    const now = Date.now();
+
+    if (now - lastTap < 300) {
+      setScale((prev) => (prev === 1 ? 2 : 1));
+      setPosition({ x: 0, y: 0 });
+    }
+
+    lastTap = now;
+  };
+
   /* ================= STATE ================= */
 
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
@@ -170,6 +194,23 @@ export default function ProductDetail() {
         canBuy={canBuy}
         selectedStock={selectedStock}
         relatedProducts={relatedProducts}
+
+        {/* 🔥 ZOOM PROPS */}
+        zoomImage={zoomImage}
+        setZoomImage={setZoomImage}
+        scale={scale}
+        setScale={setScale}
+        position={position}
+        setPosition={setPosition}
+        dragging={dragging}
+        setDragging={setDragging}
+        start={start}
+        setStart={setStart}
+        initialDistance={initialDistance}
+        setInitialDistance={setInitialDistance}
+        initialScale={initialScale}
+        setInitialScale={setInitialScale}
+        handleDoubleTap={handleDoubleTap}
       />
 
       {/* ===== CHECKOUT ===== */}
