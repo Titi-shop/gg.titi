@@ -168,11 +168,12 @@ if (!finalPreview) {
   try {
     console.log("🟡 FORCE PREVIEW BEFORE PAY");
     finalPreview = await previewOrderDirect({
-      shipping,
-      zone,
-      item,
-      quantity,
-    });
+      console.log("🟡 PREVIEW DIRECT DATA:", {
+  shipping,
+  zone,
+  item,
+  quantity,
+});
   } catch (err: any) {
     const key = getErrorKey(err.message);
 showMessage(t[key] || key);
