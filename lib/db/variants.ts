@@ -20,25 +20,41 @@ export type ProductVariant = {
 };
 
 /* =========================
-   VALIDATE
+   VALIDATE (STRICT)
 ========================= */
 function validateVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
   return input.filter((v): v is ProductVariant => {
-    return (
-      typeof v === "object" &&
-      v !== null &&
-      typeof (v as ProductVariant).optionValue === "string" &&
-      (v as ProductVariant).optionValue.trim() !== ""
-    );
+    if (typeof v !== "object" || v === null) return false;
+
+    const value =
+      typeof (v as ProductVariant).optionValue === "string"
+        ? (v as ProductVariant).optionValue.trim()
+        : "";
+
+    if (!value || value.length > 100) {
+      console.warn("❌ [VARIANT][INVALID]:", v);
+      return false;
+    }
+
+    return true;
   });
 }
 
 /* =========================
-   NORMALIZE
+   NORMALIZE (SAFE)
 ========================= */
 function normalizeVariant(v: ProductVariant, index: number) {
+  const raw =
+    typeof v.optionValue === "string"
+      ? v.optionValue.trim()
+      : "";
+
+  if (!raw) {
+    throw new Error("INVALID_VARIANT_OPTION");
+  }
+
   const price =
     typeof v.price === "number" &&
     !Number.isNaN(v.price) &&
@@ -48,15 +64,16 @@ function normalizeVariant(v: ProductVariant, index: number) {
 
   const salePrice =
     typeof v.salePrice === "number" &&
+    !Number.isNaN(v.salePrice) &&
     v.salePrice >= 0 &&
-    v.salePrice < price
+    (price === 0 || v.salePrice < price)
       ? v.salePrice
       : null;
 
   const finalPrice = salePrice ?? price;
 
   return {
-    option_1: v.optionValue.trim(),
+    option_1: raw,
     option_label_1: v.optionName?.trim() || "option",
 
     price,
@@ -132,7 +149,7 @@ export async function getVariantsByProductId(productId: string) {
 }
 
 /* =========================
-   REPLACE (ATOMIC)
+   REPLACE (ATOMIC + SAFE)
 ========================= */
 export async function replaceVariantsByProductId(
   productId: string,
@@ -142,7 +159,11 @@ export async function replaceVariantsByProductId(
     throw new Error("INVALID_PRODUCT_ID");
   }
 
+  console.log("🧩 [VARIANT][REPLACE] START:", productId);
+
   const valid = validateVariants(input);
+
+  console.log("🧩 [VARIANT][VALID]:", valid.length);
 
   if (valid.length > 100) {
     throw new Error("TOO_MANY_VARIANTS");
@@ -155,9 +176,14 @@ export async function replaceVariantsByProductId(
       [productId]
     );
 
-    if (valid.length === 0) return;
+    if (valid.length === 0) {
+      console.log("🧩 [VARIANT] NO VARIANTS");
+      return;
+    }
 
     const normalized = valid.map(normalizeVariant);
+
+    console.log("🧩 [VARIANT][NORMALIZED]:", normalized);
 
     const values: unknown[] = [];
     const placeholders: string[] = [];
@@ -202,5 +228,7 @@ export async function replaceVariantsByProductId(
       `,
       values
     );
+
+    console.log("✅ [VARIANT][INSERT DONE]");
   });
 }
