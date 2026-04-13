@@ -37,60 +37,87 @@ export default function ProductForm({
   const { user, loading } = useAuth();
 
   const form = useProductForm(initialData);
+   /* =========================
+   UPLOAD PROGRESS HELPER
+========================= */
+const uploadWithProgress = (
+  url: string,
+  file: File,
+  index: number
+): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
 
-  /* =========================
+    xhr.open("PUT", url);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        console.log(`📊 [${index}] Progress: ${percent}%`);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        resolve();
+      } else {
+        console.error("❌ Upload failed:", xhr.status);
+        reject();
+      }
+    };
+
+    xhr.onerror = () => {
+      console.error("💥 Network error");
+      reject();
+    };
+
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.send(file);
+  });
+};
+ /* =========================
      UPLOAD IMAGE (SUPABASE DIRECT)
   ========================= */
   const handleUpload = async (files: File[]) => {
   if (!files.length) return;
 
-  console.log("🚀 SIGNED UPLOAD START");
+  console.log("🚀 PRO UPLOAD START");
 
   try {
-    const uploads = files.map(async (file) => {
-      console.log("📂 File:", file.name);
+    const uploads = files.map(async (file, index) => {
+      console.log(`📂 [${index}] Original:`, file.name);
 
-      /* ===== STEP 1: GET SIGNED URL ===== */
+      /* ================= COMPRESS ================= */
+      const compressed = await compressImage(file);
+
+      /* ================= GET SIGNED URL ================= */
       const res = await fetch("/api/upload-url", {
         method: "POST",
       });
 
       const { url, path } = await res.json();
 
-      console.log("🔑 SIGNED URL:", url);
+      console.log(`🔑 [${index}] Signed URL ready`);
 
-      /* ===== STEP 2: UPLOAD FILE ===== */
-      const uploadRes = await fetch(url, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
-      });
+      /* ================= UPLOAD WITH PROGRESS ================= */
+      await uploadWithProgress(url, compressed, index);
 
-      if (!uploadRes.ok) {
-        console.error("❌ Upload failed:", uploadRes.status);
-        throw new Error("UPLOAD_FAILED");
-      }
-
-      console.log("✅ Uploaded to storage");
-
-      /* ===== STEP 3: GET PUBLIC URL ===== */
+      /* ================= PUBLIC URL ================= */
       const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products/${path}`;
 
-      console.log("🌍 PUBLIC URL:", publicUrl);
+      console.log(`✅ [${index}] DONE:`, publicUrl);
 
       return publicUrl;
     });
 
     const urls = await Promise.all(uploads);
 
-    console.log("🔥 DONE:", urls);
+    console.log("🔥 ALL DONE:", urls);
 
     form.setImages((prev: string[]) => [...prev, ...urls]);
 
   } catch (err) {
-    console.error("💥 SIGNED UPLOAD ERROR:", err);
+    console.error("💥 PRO UPLOAD ERROR:", err);
     alert("Upload failed");
   }
 };
