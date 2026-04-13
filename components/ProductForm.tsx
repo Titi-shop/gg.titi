@@ -42,48 +42,48 @@ export default function ProductForm({
      UPLOAD IMAGE (SUPABASE DIRECT)
   ========================= */
   const handleUpload = async (files: File[]) => {
-    if (!files.length) return;
+  if (!files.length) return;
 
-    console.log("🚀 CLIENT UPLOAD START");
+  console.log("🚀 HANDLE UPLOAD START");
+  console.log("📥 FILES:", files);
 
-    try {
-      const uploads = files.map(async (file) => {
-        console.log("📂 Uploading:", file.name);
+  try {
+    const uploads = files.map(async (file) => {
+      console.log("📂 Uploading:", file.name, file.type, file.size);
 
-        const ext = file.name.split(".").pop();
-        const filePath = `products/${Date.now()}-${Math.random()}.${ext}`;
+      const formData = new FormData();
+      formData.append("file", file);
 
-        console.log("📁 Path:", filePath);
-
-        const { error } = await supabase.storage
-          .from("products")
-          .upload(filePath, file);
-
-        if (error) {
-          console.error("❌ Upload error:", error);
-          throw error;
-        }
-
-        const { data } = supabase.storage
-          .from("products")
-          .getPublicUrl(filePath);
-
-        console.log("🌍 URL:", data.publicUrl);
-
-        return data.publicUrl;
+      const res = await apiAuthFetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
 
-      const urls = await Promise.all(uploads);
+      console.log("📡 RESPONSE STATUS:", res.status);
 
-      console.log("🔥 FINAL URLS:", urls);
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("❌ Upload failed response:", text);
+        throw new Error("UPLOAD_FAILED");
+      }
 
-      form.setImages((prev: string[]) => [...prev, ...urls]);
+      const data = await res.json();
+      console.log("✅ Uploaded URL:", data.url);
 
-    } catch (err) {
-      console.error("💥 CLIENT UPLOAD ERROR:", err);
-      alert("Upload failed");
-    }
-  };
+      return data.url;
+    });
+
+    const urls = await Promise.all(uploads);
+
+    console.log("🔥 FINAL URLS:", urls);
+
+    form.setImages((prev: string[]) => [...prev, ...urls]);
+
+  } catch (err) {
+    console.error("❌ HANDLE UPLOAD ERROR:", err);
+    alert("Upload failed - check console");
+  }
+};
 
   /* =========================
      UPLOAD DETAIL IMAGE
