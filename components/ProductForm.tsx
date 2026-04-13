@@ -44,44 +44,42 @@ export default function ProductForm({
   const handleUpload = async (files: File[]) => {
   if (!files.length) return;
 
-  console.log("🚀 HANDLE UPLOAD START");
-  console.log("📥 FILES:", files);
+  console.log("🚀 CLIENT UPLOAD START");
 
   try {
     const uploads = files.map(async (file) => {
-      console.log("📂 Uploading:", file.name, file.type, file.size);
+      console.log("📂 File:", file.name);
 
-      const formData = new FormData();
-      formData.append("file", file);
+      const ext = file.name.split(".").pop();
+      const filePath = `${Date.now()}-${Math.random()}.${ext}`; // ✅ FIX
 
-      const res = await apiAuthFetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const { data, error } = await supabase.storage
+        .from("products")
+        .upload(filePath, file);
 
-      console.log("📡 RESPONSE STATUS:", res.status);
+      console.log("📦 RESULT:", { data, error });
 
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("❌ Upload failed response:", text);
-        throw new Error("UPLOAD_FAILED");
+      if (error) {
+        console.error("❌ Upload error:", error);
+        throw error;
       }
 
-      const data = await res.json();
-      console.log("✅ Uploaded URL:", data.url);
+      const { data: publicUrl } = supabase.storage
+        .from("products")
+        .getPublicUrl(filePath);
 
-      return data.url;
+      return publicUrl.publicUrl;
     });
 
     const urls = await Promise.all(uploads);
 
-    console.log("🔥 FINAL URLS:", urls);
+    console.log("🔥 DONE:", urls);
 
     form.setImages((prev: string[]) => [...prev, ...urls]);
 
   } catch (err) {
-    console.error("❌ HANDLE UPLOAD ERROR:", err);
-    alert("Upload failed - check console");
+    console.error("💥 CLIENT UPLOAD FAILED:", err);
+    alert("Upload failed");
   }
 };
 
