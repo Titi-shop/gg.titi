@@ -44,31 +44,43 @@ export default function ProductForm({
   const handleUpload = async (files: File[]) => {
   if (!files.length) return;
 
-  console.log("🚀 CLIENT UPLOAD START");
+  console.log("🚀 SIGNED UPLOAD START");
 
   try {
     const uploads = files.map(async (file) => {
       console.log("📂 File:", file.name);
 
-      const ext = file.name.split(".").pop();
-      const filePath = `${Date.now()}-${Math.random()}.${ext}`; // ✅ FIX
+      /* ===== STEP 1: GET SIGNED URL ===== */
+      const res = await fetch("/api/upload-url", {
+        method: "POST",
+      });
 
-      const { data, error } = await supabase.storage
-        .from("products")
-        .upload(filePath, file);
+      const { url, path } = await res.json();
 
-      console.log("📦 RESULT:", { data, error });
+      console.log("🔑 SIGNED URL:", url);
 
-      if (error) {
-        console.error("❌ Upload error:", error);
-        throw error;
+      /* ===== STEP 2: UPLOAD FILE ===== */
+      const uploadRes = await fetch(url, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!uploadRes.ok) {
+        console.error("❌ Upload failed:", uploadRes.status);
+        throw new Error("UPLOAD_FAILED");
       }
 
-      const { data: publicUrl } = supabase.storage
-        .from("products")
-        .getPublicUrl(filePath);
+      console.log("✅ Uploaded to storage");
 
-      return publicUrl.publicUrl;
+      /* ===== STEP 3: GET PUBLIC URL ===== */
+      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products/${path}`;
+
+      console.log("🌍 PUBLIC URL:", publicUrl);
+
+      return publicUrl;
     });
 
     const urls = await Promise.all(uploads);
@@ -78,7 +90,7 @@ export default function ProductForm({
     form.setImages((prev: string[]) => [...prev, ...urls]);
 
   } catch (err) {
-    console.error("💥 CLIENT UPLOAD FAILED:", err);
+    console.error("💥 SIGNED UPLOAD ERROR:", err);
     alert("Upload failed");
   }
 };
