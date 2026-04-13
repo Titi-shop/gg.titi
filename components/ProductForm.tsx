@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { compressImage } from "@/lib/upload/imageUtils";
+import { getPiAccessToken } from "@/lib/piAuth";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
@@ -33,8 +34,10 @@ export default function ProductForm({
   const { user, loading } = useAuth();
   const form = useProductForm(initialData);
 
+  const [uploading, setUploading] = useState(false);
+
   /* =========================
-     UPLOAD WITH PROGRESS
+     UPLOAD PROGRESS
   ========================= */
   const uploadWithProgress = (
     url: string,
@@ -63,12 +66,16 @@ export default function ProductForm({
     });
 
   /* =========================
-     GET SIGNED URL
+     GET SIGNED URL (FIX 401)
   ========================= */
   const getSignedUrl = async () => {
+    const token = await getPiAccessToken();
+
     const res = await fetch("/api/upload-url", {
       method: "POST",
-      credentials: "include", // 🔥 FIX 401
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
     if (!res.ok) {
@@ -93,6 +100,8 @@ export default function ProductForm({
     console.log("🚀 UPLOAD START");
 
     try {
+      setUploading(true);
+
       const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       if (!baseUrl) throw new Error("ENV_ERROR");
 
@@ -119,18 +128,20 @@ export default function ProductForm({
     } catch (err) {
       console.error("💥 UPLOAD ERROR:", err);
       alert("Upload failed");
+    } finally {
+      setUploading(false);
     }
   };
 
   /* =========================
-     DETAIL IMAGE
+     DETAIL IMAGE (simple)
   ========================= */
   const uploadDetailImages = async (files: File[]) => {
     if (!files.length) return;
 
     try {
       const uploads = files.map(async (file) => {
-        const path = `products/detail-${Date.now()}-${Math.random()}.jpg`;
+        const path = `products/${user.id}/detail-${Date.now()}.jpg`;
 
         const { error } = await supabase.storage
           .from("products")
@@ -229,10 +240,15 @@ export default function ProductForm({
 
       {/* IMAGE */}
       <div className="space-y-2">
+
+        {/* PREVIEW */}
         <div className="grid grid-cols-3 gap-2">
           {form.images.map((img: string, i: number) => (
             <div key={img} className="relative group">
-              <img src={img} className="h-24 w-full object-cover rounded" />
+              <img
+                src={img}
+                className="h-24 w-full object-cover rounded-lg border"
+              />
               <button
                 type="button"
                 onClick={() =>
@@ -248,17 +264,20 @@ export default function ProductForm({
           ))}
         </div>
 
-        <label className="flex flex-col items-center justify-center border-2 border-dashed h-28 rounded cursor-pointer">
-          ＋ Upload
+        {/* UPLOAD BUTTON */}
+        <label className="flex flex-col items-center justify-center border-2 border-dashed h-28 rounded-xl cursor-pointer hover:bg-gray-50 transition">
+          {uploading ? "Uploading..." : "＋ Upload Image"}
           <input
             type="file"
             hidden
             multiple
+            accept="image/*"
             onChange={(e) =>
               handleUpload(Array.from(e.target.files || []))
             }
           />
         </label>
+
       </div>
 
       {/* PRICE */}
