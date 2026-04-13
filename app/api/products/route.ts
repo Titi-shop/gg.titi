@@ -287,6 +287,33 @@ export async function POST(req: Request) {
       !Number.isNaN(Number(body.categoryId))
         ? Number(body.categoryId)
         : null;
+    /* ================= STOCK VALIDATION ================= */
+
+const hasVariants = variants.length > 0;
+
+if (hasVariants) {
+  const variantTotal = variants.reduce((sum, v) => sum + v.stock, 0);
+
+  const productStock =
+    typeof body.stock === "number" ? body.stock : 0;
+
+  console.log("📦 STOCK CHECK:", {
+    productStock,
+    variantTotal,
+  });
+
+  if (variantTotal !== productStock) {
+    console.error("❌ STOCK MISMATCH");
+
+    return NextResponse.json(
+      {
+        error: "INVALID_STOCK",
+        detail: "Variant stock must equal product stock",
+      },
+      { status: 400 }
+    );
+  }
+}
 
     /* ================= CREATE PRODUCT ================= */
     let product;
