@@ -286,17 +286,17 @@ const price =
     }
 
     /* ================= VARIANTS ================= */
-    const variants = normalizeVariants(body.variants);
+const variants = normalizeVariants(body.variants);
 
-    console.log("🧩 VALID VARIANTS:", variants);
+console.log("🧩 VALID VARIANTS:", variants);
 
-    const hasVariants = variants.length > 0;
+const hasVariants = variants.length > 0; // ✅ CHỈ 1 LẦN
 
-    const finalStock = hasVariants
-      ? variants.reduce((s, v) => s + v.stock, 0)
-      : typeof body.stock === "number"
-      ? body.stock
-      : 0;
+const finalStock = hasVariants
+  ? variants.reduce((s, v) => s + v.stock, 0)
+  : typeof body.stock === "number"
+  ? body.stock
+  : 0;
 
     /* ================= STOCK VALIDATION ================= */
     if (hasVariants) {
