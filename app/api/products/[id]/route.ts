@@ -226,16 +226,26 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  console.log("🚀 [PRODUCT][PATCH] START");
+
+  /* ================= AUTH ================= */
   const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+
+  if (!auth.ok) {
+    console.error("❌ [PATCH][AUTH FAILED]");
+    return auth.response;
+  }
 
   const userId = auth.userId;
 
   try {
     const id = params.id;
 
+    console.log("📌 [PATCH] PARAM ID:", id);
+
     /* ================= VALIDATE ID ================= */
     if (!id || typeof id !== "string") {
+      console.error("❌ INVALID PRODUCT ID");
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
         { status: 400 }
@@ -244,12 +254,24 @@ export async function PATCH(
 
     const body = await req.json();
 
+    console.log("📦 [PATCH] BODY:", body);
+
     if (!body || typeof body !== "object") {
+      console.error("❌ INVALID BODY");
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
       );
     }
+
+    /* ================= VARIANTS ================= */
+    const normalizedVariants = normalizeVariants(body.variants);
+
+    console.log("🧩 [PATCH] VARIANTS:", normalizedVariants);
+
+    const hasVariants = normalizedVariants.length > 0;
+
+    console.log("🧠 [PATCH] HAS VARIANTS:", hasVariants);
 
     /* ================= VALIDATE PRICE ================= */
     const price =
@@ -262,18 +284,50 @@ export async function PATCH(
         ? body.salePrice
         : null;
 
+    console.log("💰 [PATCH] PRICE:", { price, salePrice });
+
     if (
       price !== undefined &&
       salePrice !== null &&
       salePrice >= price
     ) {
+      console.error("❌ INVALID SALE PRICE");
       return NextResponse.json(
         { error: "INVALID_SALE_PRICE" },
         { status: 400 }
       );
     }
 
-    /* ================= NORMALIZE DATE ================= */
+    /* ================= BLOCK PRODUCT FIELDS WHEN VARIANTS ================= */
+    if (hasVariants) {
+      console.warn("⚠️ USING VARIANTS MODE");
+
+      if (body.stock !== undefined) {
+        console.error("❌ STOCK NOT ALLOWED WITH VARIANTS");
+        return NextResponse.json(
+          { error: "DO_NOT_USE_PRODUCT_STOCK_WITH_VARIANTS" },
+          { status: 400 }
+        );
+      }
+
+      if (body.price !== undefined) {
+        console.error("❌ PRICE NOT ALLOWED WITH VARIANTS");
+        return NextResponse.json(
+          { error: "DO_NOT_USE_PRODUCT_PRICE_WITH_VARIANTS" },
+          { status: 400 }
+        );
+      }
+
+      if (body.salePrice !== undefined) {
+        console.error("❌ SALE PRICE NOT ALLOWED WITH VARIANTS");
+        return NextResponse.json(
+          { error: "DO_NOT_USE_PRODUCT_SALE_WITH_VARIANTS" },
+          { status: 400 }
+        );
+      }
+    }
+
+    /* ================= DATE ================= */
     const saleStart =
       typeof body.saleStart === "string" && body.saleStart
         ? body.saleStart
@@ -284,33 +338,8 @@ export async function PATCH(
         ? body.saleEnd
         : null;
 
-    /* ================= VARIANTS ================= */
-    const normalizedVariants = normalizeVariants(body.variants);
-    const hasVariants = normalizedVariants.length > 0;
+    console.log("📅 [PATCH] SALE TIME:", { saleStart, saleEnd });
 
-
-    if (hasVariants) {
-  if (body.stock !== undefined) {
-    return NextResponse.json(
-      { error: "DO_NOT_USE_PRODUCT_STOCK_WITH_VARIANTS" },
-      { status: 400 }
-    );
-  }
-
-  if (body.price !== undefined) {
-    return NextResponse.json(
-      { error: "DO_NOT_USE_PRODUCT_PRICE_WITH_VARIANTS" },
-      { status: 400 }
-    );
-  }
-
-  if (body.salePrice !== undefined) {
-    return NextResponse.json(
-      { error: "DO_NOT_USE_PRODUCT_SALE_WITH_VARIANTS" },
-      { status: 400 }
-    );
-  }
-}
     /* ================= CATEGORY ================= */
     const categoryId =
       typeof body.categoryId === "string"
@@ -319,7 +348,11 @@ export async function PATCH(
         ? body.categoryId
         : null;
 
+    console.log("📂 [PATCH] CATEGORY:", categoryId);
+
     /* ================= UPDATE ================= */
+    console.log("🛠️ [PATCH] UPDATE START");
+
     const updated = await updateProductBySeller(userId, id, {
       name:
         typeof body.name === "string"
@@ -337,7 +370,9 @@ export async function PATCH(
           : undefined,
 
       images: Array.isArray(body.images)
-        ? body.images.filter((i: unknown): i is string => typeof i === "string")
+        ? body.images.filter(
+            (i: unknown): i is string => typeof i === "string"
+          )
         : undefined,
 
       thumbnail:
@@ -349,13 +384,14 @@ export async function PATCH(
 
       category_id: categoryId,
 
-      price: hasVariants ? 0 : price,
-sale_price: hasVariants ? null : salePrice,
-stock: hasVariants ? 0 : (
-  typeof body.stock === "number" && body.stock >= 0
-    ? body.stock
-    : undefined
-),
+      /* 🔥 FIX QUAN TRỌNG */
+      price: hasVariants ? undefined : price,
+      sale_price: hasVariants ? undefined : salePrice,
+      stock: hasVariants
+        ? undefined
+        : typeof body.stock === "number" && body.stock >= 0
+        ? body.stock
+        : undefined,
 
       sale_start: saleStart,
       sale_end: saleEnd,
@@ -366,14 +402,19 @@ stock: hasVariants ? 0 : (
           : undefined,
     });
 
+    console.log("🧾 [PATCH] UPDATED RESULT:", updated);
+
     if (!updated) {
+      console.error("❌ PRODUCT NOT FOUND OR FORBIDDEN");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
       );
     }
 
-    /* ================= PARALLEL ================= */
+    /* ================= SHIPPING + VARIANTS ================= */
+    console.log("🚚 [PATCH] UPSERT SHIPPING & VARIANTS");
+
     await Promise.all([
       Array.isArray(body.shippingRates)
         ? upsertShippingRates({
@@ -382,47 +423,36 @@ stock: hasVariants ? 0 : (
           })
         : Promise.resolve(),
 
-      Array.isArray(body.variants)
+      hasVariants
         ? replaceVariantsByProductId(id, normalizedVariants)
         : Promise.resolve(),
     ]);
 
-    /* ================= FINAL PRICE ================= */
-    const now = Date.now();
+    console.log("✅ [PATCH] RELATIONS UPDATED");
 
-    const start = saleStart
-      ? new Date(saleStart).getTime()
-      : null;
-
-    const end = saleEnd
-      ? new Date(saleEnd).getTime()
-      : null;
-
-    const isSale =
-      typeof salePrice === "number" &&
-      start !== null &&
-      end !== null &&
-      now >= start &&
-      now <= end;
-
+    /* ================= FINAL STOCK ================= */
     const totalStock = hasVariants
-  ? normalizedVariants.reduce((s, v) => s + (v.stock || 0), 0)
-  : updated.stock ?? 0;
+      ? normalizedVariants.reduce((s, v) => s + (v.stock || 0), 0)
+      : updated.stock ?? 0;
+
+    console.log("📦 [PATCH] FINAL STOCK:", totalStock);
 
     /* ================= RESPONSE ================= */
+    console.log("🎉 [PATCH] SUCCESS");
+
     return NextResponse.json({
-  success: true,
-  data: {
-    id,
-    name: updated.name,
-    price: hasVariants ? null : updated.price,
-    salePrice: hasVariants ? null : updated.sale_price,
-    stock: totalStock,
-  },
-});
+      success: true,
+      data: {
+        id,
+        name: updated.name,
+        price: hasVariants ? null : updated.price,
+        salePrice: hasVariants ? null : updated.sale_price,
+        stock: totalStock,
+      },
+    });
 
   } catch (err) {
-    console.error("[PRODUCT][PATCH] ERROR:", err);
+    console.error("💥 [PRODUCT][PATCH ERROR FULL]:", err);
 
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
