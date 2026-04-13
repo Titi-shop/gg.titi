@@ -266,7 +266,6 @@ export async function POST(req: Request) {
     }
 
     /* ================= PRICE ================= */
-    const hasVariants = variants.length > 0;
 
 const price =
   !hasVariants &&
