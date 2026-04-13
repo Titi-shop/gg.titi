@@ -189,23 +189,29 @@ export default function ProductForm({
     }
 
     const payload = {
-      name: form.name,
-      price: Number(form.price),
-      categoryId: form.categoryId,
-      description: form.description,
-      detail: form.detail,
-      images: form.images,
-      thumbnail: form.images[0],
-      stock: Number(form.stock || 0),
-      isActive: form.isActive,
-      variants: form.variants,
-      shippingRates: Object.entries(form.shippingRates).map(
-        ([zone, price]) => ({
-          zone,
-          price: Number(price),
-        })
-      ),
-    };
+  name: form.name,
+  price: Number(form.price),
+  categoryId: form.categoryId,
+  description: form.description,
+  detail: form.detail,
+  images: form.images,
+  thumbnail: form.images[0],
+  stock: Number(form.stock || 0),
+  isActive: form.isActive, // ✅ đã có
+
+  /* 🔥 THÊM */
+  salePrice: form.salePrice || null,
+  saleStart: form.saleStart || null,
+  saleEnd: form.saleEnd || null,
+
+  variants: form.variants,
+  shippingRates: Object.entries(form.shippingRates).map(
+    ([zone, price]) => ({
+      zone,
+      price: Number(price),
+    })
+  ),
+};
 
     console.log("📦 SUBMIT:", payload);
 
@@ -289,12 +295,49 @@ export default function ProductForm({
         }
         className="w-full border p-2 rounded"
       />
+       {/* SALE PRICE */}
+<input
+  type="number"
+  value={form.salePrice || ""}
+  onChange={(e) =>
+    form.setSalePrice(e.target.value ? Number(e.target.value) : "")
+  }
+  placeholder="Sale price"
+  className="w-full border p-2 rounded"
+/>
+
+{/* SALE DATE RANGE */}
+<div className="grid grid-cols-2 gap-2">
+  <input
+    type="datetime-local"
+    value={form.saleStart || ""}
+    onChange={(e) => form.setSaleStart(e.target.value)}
+    className="w-full border p-2 rounded"
+  />
+
+  <input
+    type="datetime-local"
+    value={form.saleEnd || ""}
+    onChange={(e) => form.setSaleEnd(e.target.value)}
+    className="w-full border p-2 rounded"
+  />
+</div>
 
       {/* SHIPPING */}
       <ShippingRates
         shippingRates={form.shippingRates}
         setShippingRates={form.setShippingRates}
       />
+       {/* ACTIVE TOGGLE */}
+<label className="flex items-center justify-between border p-3 rounded">
+  <span className="text-sm font-medium">Active</span>
+
+  <input
+    type="checkbox"
+    checked={form.isActive}
+    onChange={(e) => form.setIsActive(e.target.checked)}
+  />
+</label>
 
       {/* VARIANT */}
       <VariantEditor
