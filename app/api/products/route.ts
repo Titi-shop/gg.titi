@@ -28,62 +28,69 @@ export const dynamic = "force-dynamic";
     function normalizeVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
-  return input
-    .map((item, index) => {
-      if (typeof item !== "object" || item === null) return null;
+  const result: ProductVariant[] = [];
 
-      const row = item as Record<string, unknown>;
+  input.forEach((item, index) => {
+    if (typeof item !== "object" || item === null) return;
 
-      const optionValue =
-        typeof row.optionValue === "string"
-          ? row.optionValue.trim()
-          : "";
+    const row = item as Record<string, unknown>;
 
-      if (!optionValue) return null;
+    const raw = typeof row.optionValue === "string"
+      ? row.optionValue.trim()
+      : "";
 
-      return {
-        id: typeof row.id === "string" ? row.id : undefined,
+    /* 🔥 HARD VALIDATION */
+    if (!raw || raw.length === 0) {
+      console.warn("⚠️ INVALID VARIANT SKIPPED:", row);
+      return;
+    }
 
-        optionName:
-          typeof row.optionName === "string" && row.optionName.trim()
-            ? row.optionName.trim()
-            : "option",
+    result.push({
+      id: typeof row.id === "string" ? row.id : undefined,
 
-        optionValue,
+      optionName:
+        typeof row.optionName === "string" && row.optionName.trim()
+          ? row.optionName.trim()
+          : "option",
 
-        price:
-          typeof row.price === "number" &&
-          !Number.isNaN(row.price)
-            ? row.price
-            : 0,
+      optionValue: raw, // ✅ ALWAYS VALID STRING
 
-        salePrice:
-          typeof row.salePrice === "number"
-            ? row.salePrice
-            : null,
+      price:
+        typeof row.price === "number" &&
+        !Number.isNaN(row.price)
+          ? row.price
+          : 0,
 
-        stock:
-          typeof row.stock === "number" && row.stock >= 0
-            ? row.stock
-            : 0,
+      salePrice:
+        typeof row.salePrice === "number"
+          ? row.salePrice
+          : null,
 
-        sku:
-          typeof row.sku === "string" && row.sku.trim()
-            ? row.sku.trim()
-            : null,
+      stock:
+        typeof row.stock === "number" && row.stock >= 0
+          ? row.stock
+          : 0,
 
-        sortOrder:
-          typeof row.sortOrder === "number"
-            ? row.sortOrder
-            : index,
+      sku:
+        typeof row.sku === "string" && row.sku.trim()
+          ? row.sku.trim()
+          : null,
 
-        isActive:
-          typeof row.isActive === "boolean"
-            ? row.isActive
-            : true,
-      };
-    })
-    .filter((i): i is ProductVariant => i !== null);
+      sortOrder:
+        typeof row.sortOrder === "number"
+          ? row.sortOrder
+          : index,
+
+      isActive:
+        typeof row.isActive === "boolean"
+          ? row.isActive
+          : true,
+    });
+  });
+
+  console.log("🧩 VALID VARIANTS:", result);
+
+  return result;
 }
 
 /* ================= GET ================= */
