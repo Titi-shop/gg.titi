@@ -1,25 +1,24 @@
-// lib/supabase/upload.ts
-
 import { supabase } from "./client";
 
 export async function uploadImage(file: File) {
-  console.log("📡 UPLOAD TO SUPABASE START");
+  console.log("🚀 UPLOAD START");
 
   const fileExt = file.name.split(".").pop();
   const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
 
-  console.log("📂 FILE NAME:", fileName);
+  console.log("📂 FILE:", fileName);
 
   const { data, error } = await supabase.storage
-    .from("products") // ⚠️ bucket name
+    .from("products")
     .upload(fileName, file);
 
   if (error) {
-    console.error("❌ SUPABASE ERROR:", error);
+    console.error("❌ SUPABASE ERROR:", error.message, error);
+    alert("UPLOAD ERROR: " + error.message);
     throw error;
   }
 
-  console.log("✅ STORAGE RESPONSE:", data);
+  console.log("✅ UPLOAD SUCCESS:", data);
 
   const { data: publicUrl } = supabase.storage
     .from("products")
