@@ -195,32 +195,36 @@ export default function ProductForm({
       }
        const hasVariants = form.variants.length > 0;
 
-     const finalStock = hasVariants
-  ? form.variants.reduce((s, v) => s + (v.stock || 0), 0)
-  : Number(form.stock || 0);
+const payload = {
+  name: form.name,
+  categoryId: form.categoryId,
+  description: form.description,
+  detail: form.detail,
+  images: form.images,
+  thumbnail: form.images[0],
 
-      const payload = {
-        name: form.name,
-        price: Number(form.price),
-        categoryId: form.categoryId,
-        description: form.description,
-        detail: form.detail,
-        images: form.images,
-        thumbnail: form.images[0],
-        isActive: form.isActive,
-        stock: finalStock,
-        salePrice: form.salePrice || null,
-        saleStart: form.saleStart || null,
-        saleEnd: form.saleEnd || null,
+  isActive: form.isActive,
 
-        variants: form.variants,
-        shippingRates: Object.entries(form.shippingRates).map(
-          ([zone, price]) => ({
-            zone,
-            price: Number(price),
-          })
-        ),
+  // ✅ chỉ gửi khi KHÔNG có variant
+  price: hasVariants ? undefined : Number(form.price),
+  stock: hasVariants ? undefined : Number(form.stock || 0),
+  salePrice: hasVariants ? undefined : (form.salePrice || null),
 
+  saleStart: form.saleStart || null,
+  saleEnd: form.saleEnd || null,
+
+  variants: form.variants,
+
+  shippingRates: Object.entries(form.shippingRates).map(
+    ([zone, price]) => ({
+      zone,
+      price: Number(price),
+    })
+  ),
+
+  // ✅ CHỈ ĐỂ 1 LẦN Ở ĐÂY
+  idempotencyKey: generateKey(),
+};
         /* 🔥 ANTI-SPAM */
         idempotencyKey: generateKey(),
       };
