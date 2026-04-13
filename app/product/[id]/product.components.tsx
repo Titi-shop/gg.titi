@@ -184,44 +184,41 @@ console.log("[UI] product render:", product);
 
   <div className="text-right">
     {/* ================= PRICE LOGIC ================= */}
-    {hasVariants ? (
-      selectedVariant ? (
-        /* ✅ ĐÃ CHỌN VARIANT */
-        <>
-          <p className="text-xl font-bold text-orange-600">
-            π {formatPi(selectedVariant.finalPrice ?? selectedVariant.price)}
-          </p>
-
-          {selectedVariant.salePrice && (
-            <p className="text-sm text-gray-400 line-through">
-              π {formatPi(selectedVariant.price)}
-            </p>
-          )}
-        </>
-      ) : (
-        /* ✅ CHƯA CHỌN VARIANT */
-        <>
-          <p className="text-xl font-bold text-orange-600">
-            {product.minPrice === product.maxPrice
-              ? `π ${formatPi(product.minPrice)}`
-              : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
-          </p>
-        </>
-      )
-    ) : (
-      /* ✅ PRODUCT KHÔNG CÓ VARIANT */
-      <>
-        <p className="text-xl font-bold text-orange-600">
-          π {formatPi(product.finalPrice)}
-        </p>
-
-        {product.isSale && (
-          <p className="text-sm text-gray-400 line-through">
-            π {formatPi(product.price)}
-          </p>
+{hasVariants ? (
+  selectedVariant ? (
+    <>
+      <p className="text-xl font-bold text-orange-600">
+        π {formatPi(
+          selectedVariant.salePrice ?? selectedVariant.price
         )}
-      </>
+      </p>
+
+      {selectedVariant.salePrice && (
+        <p className="text-sm text-gray-400 line-through">
+          π {formatPi(selectedVariant.price)}
+        </p>
+      )}
+    </>
+  ) : (
+    <p className="text-xl font-bold text-orange-600">
+      {product.minPrice === product.maxPrice
+        ? `π ${formatPi(product.minPrice)}`
+        : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
+    </p>
+  )
+) : (
+  <>
+    <p className="text-xl font-bold text-orange-600">
+      π {formatPi(product.finalPrice)}
+    </p>
+
+    {product.isSale && (
+      <p className="text-sm text-gray-400 line-through">
+        π {formatPi(product.price)}
+      </p>
     )}
+  </>
+)}
   </div>
 </div>
 
