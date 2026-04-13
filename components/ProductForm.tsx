@@ -1,10 +1,10 @@
 
 "use client";
-import { compressImage } from "@/lib/upload/imageUtils";
-import { FormEvent } from "react";
+
+import { useState, FormEvent } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase/client";
+import { compressImage } from "@/lib/upload/imageUtils";
 
 import { useProductForm } from "./product/useProductForm";
 import ShippingRates from "./product/ShippingRates";
@@ -16,13 +16,6 @@ import VariantEditor from "./product/VariantEditor";
 interface Category {
   id: string;
   key: string;
-  icon?: string;
-}
-
-interface ProductFormProps {
-  categories: Category[];
-  initialData?: any;
-  onSubmit: (payload: any) => Promise<void>;
 }
 
 /* =========================
@@ -32,160 +25,123 @@ export default function ProductForm({
   categories,
   initialData,
   onSubmit,
-}: ProductFormProps) {
+}: any) {
   const { t } = useTranslation();
   const { user, loading } = useAuth();
 
   const form = useProductForm(initialData);
-   /* =========================
-   UPLOAD PROGRESS HELPER
-========================= */
-const uploadWithProgress = (
-  url: string,
-  file: File,
-  index: number
-): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
 
-    xhr.open("PUT", url);
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100);
-        console.log(`📊 [${index}] Progress: ${percent}%`);
-      }
-    };
-
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        resolve();
-      } else {
-        console.error("❌ Upload failed:", xhr.status);
-        reject();
-      }
-    };
-
-    xhr.onerror = () => {
-      console.error("💥 Network error");
-      reject();
-    };
-
-    xhr.setRequestHeader("Content-Type", file.type);
-    xhr.send(file);
-  });
-};
- /* =========================
-     UPLOAD IMAGE (SUPABASE DIRECT)
-  ========================= */
-  const handleUpload = async (files: File[]) => {
-  if (!files.length) return;
-
-  console.log("🚀 PRO UPLOAD START");
-
-  try {
-    const uploads = files.map(async (file, index) => {
-      console.log(`📂 [${index}] Original:`, file.name);
-
-      /* ================= COMPRESS ================= */
-      const compressed = await compressImage(file);
-      /* ================= GET SIGNED URL ================= */
-const res = await fetch("/api/upload-url", {
-  method: "POST",
-});
-
-if (!res.ok) {
-  const text = await res.text();
-  console.error("❌ GET SIGNED URL FAILED:", res.status, text);
-  throw new Error("SIGNED_URL_FAILED");
-}
-
-const { url, path } = await res.json();
-
-if (!url) {
-  console.error("❌ NO URL RETURNED");
-  throw new Error("NO_URL");
-}
-
-      console.log(`🔑 [${index}] Signed URL ready`);
-
-      /* ================= UPLOAD WITH PROGRESS ================= */
-      await uploadWithProgress(url, compressed, index);
-
-      /* ================= PUBLIC URL ================= */
-      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-if (!baseUrl) {
-  console.error("❌ ENV URL MISSING");
-  throw new Error("ENV_ERROR");
-}
-
-const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
-
-      console.log(`✅ [${index}] DONE:`, publicUrl);
-
-      return publicUrl;
-    });
-
-    const urls = await Promise.all(uploads);
-
-    console.log("🔥 ALL DONE:", urls);
-
-    form.setImages((prev: string[]) => [...prev, ...urls]);
-
-  } catch (err) {
-    console.error("💥 PRO UPLOAD ERROR:", err);
-    alert("Upload failed");
-  }
-};
+  const [uploading, setUploading] = useState(false);
 
   /* =========================
-     UPLOAD DETAIL IMAGE
+     HELPER: UPLOAD PROGRESS
   ========================= */
-  const uploadDetailImages = async (files: File[]) => {
+  const uploadWithProgress = (
+    url: string,
+    file: File
+  ): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.open("PUT", url);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          console.log("📊 Upload:", percent + "%");
+        }
+      };
+
+      xhr.onload = () => (xhr.status === 200 ? resolve() : reject());
+      xhr.onerror = () => reject();
+
+      xhr.setRequestHeader("Content-Type", file.type);
+      xhr.send(file);
+    });
+
+  /* =========================
+     MAIN UPLOAD
+  ========================= */
+  const handleUpload = async (files: File[]) => {
     if (!files.length) return;
 
-    console.log("🖼️ DETAIL UPLOAD START");
+    setUploading(true);
+    console.log("🚀 START UPLOAD");
 
     try {
       const uploads = files.map(async (file) => {
-        console.log("📂 Detail uploading:", file.name);
+        console.log("📂 File:", file.name);
 
-        const ext = file.name.split(".").pop();
-        const filePath = `products/detail-${Date.now()}-${Math.random()}.${ext}`;
+        const compressed = await compressImage(file);
 
-        const { error } = await supabase.storage
-          .from("products")
-          .upload(filePath, file);
+        /* GET SIGNED URL */
+        const res = await fetch("/api/upload-url", {
+          method: "POST",
+        });
 
-        if (error) {
-          console.error("❌ Detail upload error:", error);
-          throw error;
+        if (!res.ok) {
+          console.error("❌ SIGNED URL FAIL");
+          throw new Error();
         }
 
-        const { data } = supabase.storage
-          .from("products")
-          .getPublicUrl(filePath);
+        const { url, path } = await res.json();
 
-        return data.publicUrl;
+        /* UPLOAD */
+        await uploadWithProgress(url, compressed);
+
+        /* PUBLIC URL */
+        const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products/${path}`;
+
+        return publicUrl;
       });
 
       const urls = await Promise.all(uploads);
 
-      console.log("🔥 DETAIL URLS:", urls);
+      form.setImages((prev: string[]) => [...prev, ...urls]);
 
-      form.setDetail((prev: string) => {
-        const html = urls.map((url) => `<img src="${url}" />`).join("\n");
-        return prev + "\n" + html;
+      console.log("✅ DONE:", urls);
+    } catch (err) {
+      console.error("💥 UPLOAD ERROR:", err);
+      alert("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  /* =========================
+     DETAIL IMAGE
+  ========================= */
+  const uploadDetailImages = async (files: File[]) => {
+    if (!files.length) return;
+
+    try {
+      const uploads = files.map(async (file) => {
+        const compressed = await compressImage(file);
+
+        const res = await fetch("/api/upload-url", {
+          method: "POST",
+        });
+
+        const { url, path } = await res.json();
+
+        await uploadWithProgress(url, compressed);
+
+        return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products/${path}`;
       });
 
+      const urls = await Promise.all(uploads);
+
+      form.setDetail((prev: string) => {
+        const html = urls.map((u) => `<img src="${u}" />`).join("\n");
+        return prev + "\n" + html;
+      });
     } catch (err) {
-      console.error("💥 DETAIL UPLOAD ERROR:", err);
+      console.error("DETAIL ERROR:", err);
     }
   };
 
   if (loading || !user) {
-    return <div className="text-center p-8">{t.loading}</div>;
+    return <div className="p-8 text-center">Loading...</div>;
   }
 
   /* =========================
@@ -194,46 +150,15 @@ const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    console.log("📤 SUBMIT START");
-
-    if (!form.name || Number(form.price) <= 0 || !form.categoryId) {
-      alert("Invalid input");
+    if (!form.name || !form.images.length) {
+      alert("Thiếu dữ liệu");
       return;
     }
 
-    if (!form.images.length) {
-      alert("Need image");
-      return;
-    }
-
-    const shipping_rates_array = Object.entries(form.shippingRates)
-      .filter(([_, price]) => price !== "")
-      .map(([zone, price]) => ({
-        zone,
-        price: Number(price),
-      }));
-
-    const payload = {
-      id: initialData?.id,
-      name: form.name,
-      price: Number(form.price),
-      categoryId: form.categoryId,
-      description: form.description,
-      detail: form.detail,
-      images: form.images,
-      thumbnail: form.images[0] ?? null,
-      stock: Number(form.stock || 0),
-      isActive: form.isActive,
-      salePrice: form.salePrice || null,
-      saleStart: form.saleStart || null,
-      saleEnd: form.saleEnd || null,
-      variants: form.variants,
-      shippingRates: shipping_rates_array,
-    };
-
-    console.log("📦 PAYLOAD:", payload);
-
-    await onSubmit(payload);
+    await onSubmit({
+      ...form,
+      thumbnail: form.images[0],
+    });
   };
 
   /* =========================
@@ -247,10 +172,9 @@ const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
         value={form.categoryId}
         onChange={(e) => form.setCategoryId(e.target.value)}
         className="w-full border p-2 rounded"
-        required
       >
-        <option value="">Select category</option>
-        {categories.map((c) => (
+        <option value="">Category</option>
+        {categories.map((c: Category) => (
           <option key={c.id} value={c.id}>
             {c.key}
           </option>
@@ -263,82 +187,57 @@ const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
         onChange={(e) => form.setName(e.target.value)}
         placeholder="Product name"
         className="w-full border p-2 rounded"
-        required
       />
 
-      {/* IMAGE UPLOAD */}
-<div className="space-y-3">
+      {/* IMAGE */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-2">
+          {form.images.map((img: string, i: number) => (
+            <div key={img} className="relative group">
+              <img src={img} className="h-24 w-full rounded object-cover" />
 
-  {/* PREVIEW */}
-  {form.images.length > 0 && (
-    <div className="grid grid-cols-3 gap-2">
-      {form.images.map((img: string, i: number) => (
-        <div key={img} className="relative group">
-          <img
-            src={img}
-            className="h-24 w-full object-cover rounded-lg border"
-          />
-
-          {/* REMOVE */}
-          <button
-            type="button"
-            onClick={() =>
-              form.setImages((prev: string[]) =>
-                prev.filter((_, index) => index !== i)
-              )
-            }
-            className="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition"
-          >
-            ✕
-          </button>
+              <button
+                type="button"
+                onClick={() =>
+                  form.setImages((p: string[]) =>
+                    p.filter((_, index) => index !== i)
+                  )
+                }
+                className="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 rounded opacity-0 group-hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
-  )}
 
-  {/* UPLOAD BUTTON */}
-  <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed rounded-xl h-28 cursor-pointer hover:bg-gray-50 transition">
+        <label
+          className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl h-28 cursor-pointer ${
+            uploading ? "opacity-50" : "hover:bg-gray-50"
+          }`}
+        >
+          <span className="text-2xl">＋</span>
+          <span className="text-sm text-gray-500">
+            {uploading ? "Uploading..." : "Upload image"}
+          </span>
 
-    <span className="text-2xl">＋</span>
-    <span className="text-sm text-gray-500">
-      Upload image
-    </span>
-
-    <input
-      type="file"
-      accept="image/*"
-      multiple
-      hidden
-      onChange={(e) => {
-        const files = Array.from(e.target.files || []);
-        console.log("📥 FILE CHANGED:", files);
-        handleUpload(files);
-      }}
-    />
-  </label>
-
-</div>
+          <input
+            type="file"
+            hidden
+            multiple
+            onChange={(e) =>
+              handleUpload(Array.from(e.target.files || []))
+            }
+          />
+        </label>
+      </div>
 
       {/* PRICE */}
       <input
         type="number"
         value={form.price}
-        onChange={(e) =>
-          form.setPrice(e.target.value ? Number(e.target.value) : "")
-        }
-        placeholder="Price (Pi)"
-        className="w-full border p-2 rounded"
-        required
-      />
-
-      {/* STOCK */}
-      <input
-        type="number"
-        value={form.stock}
-        onChange={(e) =>
-          form.setStock(e.target.value ? Number(e.target.value) : "")
-        }
-        placeholder="Stock"
+        onChange={(e) => form.setPrice(Number(e.target.value))}
+        placeholder="Price"
         className="w-full border p-2 rounded"
       />
 
@@ -346,27 +245,6 @@ const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
       <ShippingRates
         shippingRates={form.shippingRates}
         setShippingRates={form.setShippingRates}
-      />
-
-      {/* ACTIVE */}
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={form.isActive}
-          onChange={(e) => form.setIsActive(e.target.checked)}
-        />
-        <span>Active</span>
-      </label>
-
-      {/* SALE */}
-      <input
-        type="number"
-        value={form.salePrice}
-        onChange={(e) =>
-          form.setSalePrice(e.target.value ? Number(e.target.value) : "")
-        }
-        placeholder="Sale Price"
-        className="w-full border p-2 rounded"
       />
 
       {/* VARIANTS */}
@@ -379,7 +257,6 @@ const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
       <textarea
         value={form.description}
         onChange={(e) => form.setDescription(e.target.value)}
-        placeholder="Description"
         className="w-full border p-2 rounded"
       />
 
@@ -387,16 +264,14 @@ const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
       <textarea
         value={form.detail}
         onChange={(e) => form.setDetail(e.target.value)}
-        placeholder="Detail"
         className="w-full border p-2 rounded"
       />
 
       {/* DETAIL IMAGE */}
-      <label className="flex items-center justify-center border-2 border-dashed rounded cursor-pointer h-20">
+      <label className="flex items-center justify-center border-2 border-dashed rounded h-20 cursor-pointer">
         + Thêm ảnh mô tả
         <input
           type="file"
-          accept="image/*"
           hidden
           multiple
           onChange={(e) =>
