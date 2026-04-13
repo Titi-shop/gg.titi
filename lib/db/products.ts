@@ -513,3 +513,58 @@ export async function getProductsBySeller(
 
   return rows;
 }
+
+export async function deleteProductById(
+  productId: string,
+  userId: string
+): Promise<{
+  ok: boolean;
+  paths: string[];
+  error?: string;
+}> {
+  try {
+    const res = await query(
+      `
+      SELECT images, seller_id
+      FROM products
+      WHERE id = $1
+      `,
+      [productId]
+    );
+
+    if (res.rowCount === 0) {
+      return { ok: false, paths: [], error: "NOT_FOUND" };
+    }
+
+    const product = res.rows[0];
+
+    if (product.seller_id !== userId) {
+      return { ok: false, paths: [], error: "FORBIDDEN" };
+    }
+
+    /* ================= EXTRACT PATH ================= */
+    const paths: string[] = [];
+
+    if (Array.isArray(product.images)) {
+      for (const url of product.images) {
+        if (typeof url !== "string") continue;
+
+        const match = url.split("/storage/v1/object/public/products/")[1];
+        if (match) paths.push(match);
+      }
+    }
+
+    /* ================= DELETE ================= */
+    await query(
+      `DELETE FROM products WHERE id = $1`,
+      [productId]
+    );
+
+    return { ok: true, paths };
+
+  } catch (err) {
+    console.error("[DB][DELETE PRODUCT]:", err);
+
+    return { ok: false, paths: [], error: "DB_ERROR" };
+  }
+}
