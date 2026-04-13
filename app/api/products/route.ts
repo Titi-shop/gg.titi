@@ -135,46 +135,69 @@ export async function GET(req: Request) {
     const now = Date.now();
 
     const enriched = await Promise.all(
-      products.map(async (p) => {
-        const variants = await getVariantsByProductId(p.id);
+  products.map(async (p) => {
+    const variants = await getVariantsByProductId(p.id);
 
-        const start = p.sale_start
-          ? new Date(p.sale_start).getTime()
-          : null;
+    const start = p.sale_start
+      ? new Date(p.sale_start).getTime()
+      : null;
 
-        const end = p.sale_end
-          ? new Date(p.sale_end).getTime()
-          : null;
+    const end = p.sale_end
+      ? new Date(p.sale_end).getTime()
+      : null;
 
-        const isSale =
-          typeof p.sale_price === "number" &&
-          start !== null &&
-          end !== null &&
-          now >= start &&
-          now <= end;
+    const isSale =
+      typeof p.sale_price === "number" &&
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
 
-        const finalStock =
-          variants.length > 0
-            ? variants.reduce((s, v) => s + (v.stock || 0), 0)
-            : p.stock ?? 0;
+    /* 🔥 FIX: CALC VARIANT PRICE */
+    const enrichedVariants = variants.map((v) => {
+      const basePrice =
+        typeof v.price === "number" && v.price > 0
+          ? v.price
+          : p.price;
 
-        return {
-          id: p.id,
-          sellerId: p.seller_id,
-          name: p.name,
-          price: p.price ?? 0,
-          salePrice: p.sale_price ?? null,
-          finalPrice: isSale ? p.sale_price ?? p.price : p.price,
-          stock: finalStock,
-          thumbnail: p.thumbnail ?? "",
-          images: p.images ?? [],
-          categoryId: p.category_id ?? null,
-          variants,
-          shippingRates: shippingMap.get(p.id) ?? [],
-        };
-      })
-    );
+      const finalPrice = isSale
+        ? v.salePrice ?? basePrice
+        : basePrice;
 
+      return {
+        ...v,
+        finalPrice,
+      };
+    });
+
+    const finalStock =
+      enrichedVariants.length > 0
+        ? enrichedVariants.reduce((s, v) => s + (v.stock || 0), 0)
+        : p.stock ?? 0;
+
+    return {
+      id: p.id,
+      sellerId: p.seller_id,
+      name: p.name,
+
+      price: p.price ?? 0,
+      salePrice: p.sale_price ?? null,
+
+      /* 🔥 PRODUCT FINAL PRICE */
+      finalPrice: isSale ? p.sale_price ?? p.price : p.price,
+
+      stock: finalStock,
+      thumbnail: p.thumbnail ?? "",
+      images: p.images ?? [],
+      categoryId: p.category_id ?? null,
+
+      /* 🔥 RETURN FIXED VARIANTS */
+      variants: enrichedVariants,
+
+      shippingRates: shippingMap.get(p.id) ?? [],
+    };
+  })
+);
     return NextResponse.json(enriched);
   } catch {
     return NextResponse.json(
