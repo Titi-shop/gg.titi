@@ -354,16 +354,24 @@ export async function PATCH(
     if (hasVariants) {
       console.log("🧠 [PATCH] CALCULATE FROM VARIANTS");
 
-      const prices = normalizedVariants.map((v) => v.price ?? 0);
+      const prices = normalizedVariants
+  .map((v) => v.price)
+  .filter(
+    (p): p is number =>
+      typeof p === "number" && !Number.isNaN(p) && p > 0
+  );
 
-      const salePrices = normalizedVariants
-        .map((v) => v.salePrice)
-        .filter((p): p is number => typeof p === "number");
+const salePrices = normalizedVariants
+  .map((v) => v.salePrice)
+  .filter(
+    (p): p is number =>
+      typeof p === "number" && !Number.isNaN(p) && p > 0
+  );
 
-      finalPrice = prices.length ? Math.min(...prices) : 1;
+finalPrice = prices.length > 0 ? Math.min(...prices) : 1;
 
-      finalSalePrice =
-        salePrices.length > 0 ? Math.min(...salePrices) : null;
+finalSalePrice =
+  salePrices.length > 0 ? Math.min(...salePrices) : null;
 
       finalStock = normalizedVariants.reduce(
         (s, v) => s + (v.stock || 0),
