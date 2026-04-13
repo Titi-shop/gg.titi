@@ -1,10 +1,14 @@
 "use client";
 
+"use client";
+
 import { FormEvent } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch"; // ✅ ĐẶT Ở ĐÂY
 
 import { useProductForm } from "./product/useProductForm";
+import ImageUpload from "./product/ImageUpload";
 import ShippingRates from "./product/ShippingRates";
 import VariantEditor from "./product/VariantEditor";
 
@@ -40,46 +44,44 @@ export default function ProductForm({
      UPLOAD IMAGE (MAIN)
   ========================= */
   const handleUpload = async (files: File[]) => {
-    if (!files.length) return;
+  if (!files.length) return;
 
-    console.log("🚀 HANDLE UPLOAD START");
+  console.log("🚀 HANDLE UPLOAD START");
 
-    try {
-      const uploads = files.map(async (file) => {
-        console.log("📂 Uploading:", file.name);
+  try {
+    const uploads = files.map(async (file) => {
+      console.log("📂 Uploading:", file.name);
 
-        const formData = new FormData();
-        formData.append("file", file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-        import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-
-await apiAuthFetch("/api/upload", {
-  method: "POST",
-  body: formData,
-});
-
-        if (!res.ok) {
-          console.error("❌ Upload failed:", res.status);
-          throw new Error("UPLOAD_FAILED");
-        }
-
-        const data = await res.json();
-        console.log("✅ Uploaded:", data);
-
-        return data.url;
+      const res = await apiAuthFetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
 
-      const urls = await Promise.all(uploads);
+      if (!res.ok) {
+        console.error("❌ Upload failed:", res.status);
+        throw new Error("UPLOAD_FAILED");
+      }
 
-      console.log("🔥 FINAL URLS:", urls);
+      const data = await res.json();
+      console.log("✅ Uploaded:", data);
 
-      form.setImages((prev: string[]) => [...prev, ...urls]);
+      return data.url;
+    });
 
-    } catch (err) {
-      console.error("❌ HANDLE UPLOAD ERROR:", err);
-      alert("Upload failed");
-    }
-  };
+    const urls = await Promise.all(uploads);
+
+    console.log("🔥 FINAL URLS:", urls);
+
+    form.setImages((prev: string[]) => [...prev, ...urls]);
+
+  } catch (err) {
+    console.error("❌ HANDLE UPLOAD ERROR:", err);
+    alert("Upload failed");
+  }
+};
 
   /* =========================
      UPLOAD DETAIL IMAGE
