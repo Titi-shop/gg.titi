@@ -84,132 +84,177 @@ function getTotalVariantStock(variants: ProductVariant[]) {
    GET
 ========================================================= */
 
-export async function GET(
+
+    export async function GET(
   req: NextRequest,
   context: { params: { id: string } }
 ): Promise<NextResponse> {
   try {
     const id = context?.params?.id;
 
-    console.log("[PRODUCT][GET] start", { id });
+    console.log("🚀 [PRODUCT][GET] START", { id });
 
+    /* ================= VALIDATE ================= */
     if (!id) {
-      console.warn("[PRODUCT][GET] missing id");
+      console.warn("❌ MISSING PRODUCT ID");
       return NextResponse.json(
         { error: "MISSING_PRODUCT_ID" },
         { status: 400 }
       );
     }
 
+    /* ================= PRODUCT ================= */
     const p = await getProductById(id);
 
     if (!p) {
-      console.log("[PRODUCT][GET] not found");
+      console.warn("❌ PRODUCT NOT FOUND");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    console.log("[PRODUCT][GET] product found");
+    console.log("✅ PRODUCT FOUND");
+
+    /* ================= SALE LOGIC ================= */
+    const now = Date.now();
+
+    const start = p.sale_start
+      ? new Date(p.sale_start).getTime()
+      : null;
+
+    const end = p.sale_end
+      ? new Date(p.sale_end).getTime()
+      : null;
+
+    const isSale =
+      typeof p.sale_price === "number" &&
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
+
+    console.log("🔥 SALE STATUS:", { isSale, start, end });
+
+    /* ================= VARIANTS ================= */
     const rawVariants = await getVariantsByProductId(id);
 
-const variants = rawVariants.map((v) => {
-  const finalPrice =
-    isSale
-      ? (v.salePrice ?? v.price)
-      : v.price;
+    const variants = rawVariants.map((v) => {
+      const finalPrice = isSale
+        ? (v.salePrice ?? v.price)
+        : v.price;
 
-  return {
-    ...v,
-    finalPrice,
-  };
-});
+      return {
+        ...v,
+        finalPrice,
+      };
+    });
 
-console.log("[PRODUCT][GET] variants:", variants.length);
+    console.log("🧩 VARIANTS:", variants.length);
 
+    const hasVariants = variants.length > 0;
+
+    /* ================= STOCK ================= */
+    const totalStock = hasVariants
+      ? variants.reduce((s, v) => s + (v.stock || 0), 0)
+      : p.stock ?? 0;
+
+    console.log("📦 TOTAL STOCK:", totalStock);
+
+    /* ================= PRICE RANGE ================= */
+    let minPrice: number | null = null;
+    let maxPrice: number | null = null;
+
+    if (hasVariants) {
+      const prices = variants.map((v) =>
+        typeof v.finalPrice === "number" ? v.finalPrice : 0
+      );
+
+      minPrice = prices.length ? Math.min(...prices) : null;
+      maxPrice = prices.length ? Math.max(...prices) : null;
+    }
+
+    console.log("💰 PRICE RANGE:", { minPrice, maxPrice });
+
+    /* ================= SHIPPING ================= */
     let shippingRates: { zone: string; price: number }[] = [];
 
     try {
       shippingRates = await getShippingRatesByProduct(p.id);
-      console.log("[PRODUCT][GET] shipping:", shippingRates.length);
-    } catch {
-      console.warn("[PRODUCT][GET] shipping failed");
-      shippingRates = [];
+      console.log("🚚 SHIPPING:", shippingRates.length);
+    } catch (err) {
+      console.warn("⚠️ SHIPPING LOAD FAILED");
     }
 
-    console.log("[PRODUCT][GET] done");
-    const now = Date.now();
+    /* ================= FINAL PRICE ================= */
+    const finalPrice = isSale
+      ? (p.sale_price ?? p.price)
+      : p.price;
 
-const start = p.sale_start
-  ? new Date(p.sale_start).getTime()
-  : null;
+    console.log("💵 FINAL PRODUCT PRICE:", finalPrice);
 
-const end = p.sale_end
-  ? new Date(p.sale_end).getTime()
-  : null;
+    /* ================= RESPONSE ================= */
+    console.log("🎉 [PRODUCT][GET] SUCCESS");
 
-const isSale =
-  typeof p.sale_price === "number" &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end;
-console.log("[API] product:", p);
-    const hasVariants = variants.length > 0;
-  const totalStock = hasVariants
-  ? variants.reduce((s, v) => s + (v.stock || 0), 0)
-  : p.stock ?? 0;
-    const variantPrices = variants.map((v) =>
-  typeof v.price === "number" ? v.price : 0
-);
-
-const minPrice =
-  variantPrices.length > 0 ? Math.min(...variantPrices) : null;
-
-const maxPrice =
-  variantPrices.length > 0 ? Math.max(...variantPrices) : null;
     return NextResponse.json({
-  id: p.id,
-  sellerId: p.seller_id,
-  name: p.name,
-  slug: p.slug ?? "",
-  shortDescription: p.short_description ?? "",
-  description: p.description ?? "",
-  detail: p.detail ?? "",
-  thumbnail: p.thumbnail ?? "",
-  images: p.images ?? [],
-  detailImages: p.detail_images ?? [],
-  videoUrl: p.video_url ?? "",
-  price: hasVariants ? null : p.price ?? 0,
-  salePrice: hasVariants ? null : p.sale_price ?? null,
-  stock: totalStock,
-  minPrice: hasVariants ? minPrice : null,
-  maxPrice: hasVariants ? maxPrice : null,
-  currency: p.currency ?? "PI",
-  isUnlimited: p.is_unlimited ?? false,
-  sold: p.sold ?? 0,
-  views: p.views ?? 0,
-  ratingAvg: p.rating_avg ?? 0,
-  ratingCount: p.rating_count ?? 0,
-  isActive: p.is_active ?? true,
-  isFeatured: p.is_featured ?? false,
-  isDigital: p.is_digital ?? false,
-  status: p.status ?? "active",
-  categoryId: p.category_id ?? null,
-  saleStart: p.sale_start ?? null,
-  saleEnd: p.sale_end ?? null,
-  metaTitle: p.meta_title ?? "",
-  metaDescription: p.meta_description ?? "",
-  createdAt: p.created_at,
-  updatedAt: p.updated_at,
-  deletedAt: p.deleted_at ?? null,
+      id: p.id,
+      sellerId: p.seller_id,
 
-  variants,
-  shippingRates,
-});
+      name: p.name,
+      slug: p.slug ?? "",
+
+      shortDescription: p.short_description ?? "",
+      description: p.description ?? "",
+      detail: p.detail ?? "",
+
+      thumbnail: p.thumbnail ?? "",
+      images: p.images ?? [],
+      detailImages: p.detail_images ?? [],
+      videoUrl: p.video_url ?? "",
+
+      /* 🔥 CORE LOGIC */
+      price: hasVariants ? null : p.price ?? 0,
+      salePrice: hasVariants ? null : p.sale_price ?? null,
+      finalPrice: hasVariants ? null : finalPrice,
+
+      minPrice,
+      maxPrice,
+
+      stock: totalStock,
+
+      currency: p.currency ?? "PI",
+      isUnlimited: p.is_unlimited ?? false,
+
+      sold: p.sold ?? 0,
+      views: p.views ?? 0,
+
+      ratingAvg: p.rating_avg ?? 0,
+      ratingCount: p.rating_count ?? 0,
+
+      isActive: p.is_active ?? true,
+      isFeatured: p.is_featured ?? false,
+      isDigital: p.is_digital ?? false,
+
+      status: p.status ?? "active",
+
+      categoryId: p.category_id ?? null,
+
+      saleStart: p.sale_start ?? null,
+      saleEnd: p.sale_end ?? null,
+
+      metaTitle: p.meta_title ?? "",
+      metaDescription: p.meta_description ?? "",
+
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+      deletedAt: p.deleted_at ?? null,
+
+      variants,
+      shippingRates,
+    });
+
   } catch (err) {
-  console.error("[PRODUCT][GET] ERROR:", err);
+    console.error("💥 [PRODUCT][GET ERROR FULL]:", err);
 
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCT" },
