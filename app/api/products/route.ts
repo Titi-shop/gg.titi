@@ -184,8 +184,6 @@ export async function POST(req: Request) {
 
   const auth = await requireSeller();
 
-  console.log("🔐 [AUTH RESULT]:", auth);
-
   if (!auth.ok) {
     console.error("❌ [AUTH FAILED]");
     return auth.response;
@@ -196,7 +194,36 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    console.log("📦 [BODY]:", JSON.stringify(body, null, 2));
+    console.log("📦 BODY:", body);
+
+    /* ================= IDEMPOTENCY ================= */
+    const key =
+      typeof body.idempotencyKey === "string"
+        ? body.idempotencyKey
+        : null;
+
+    if (!key) {
+      console.warn("⚠️ MISSING IDEMPOTENCY KEY");
+      return NextResponse.json(
+        { error: "MISSING_IDEMPOTENCY_KEY" },
+        { status: 400 }
+      );
+    }
+
+    /* 🔥 cache đơn giản (production nên dùng Redis) */
+    globalThis.__PRODUCT_KEYS__ =
+      globalThis.__PRODUCT_KEYS__ || new Map();
+
+    if (globalThis.__PRODUCT_KEYS__.has(key)) {
+      console.warn("⚠️ DUPLICATE REQUEST BLOCKED");
+
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+      });
+    }
+
+    globalThis.__PRODUCT_KEYS__.set(key, true);
 
     /* ================= PRICE ================= */
     const price =
@@ -208,7 +235,6 @@ export async function POST(req: Request) {
       typeof body.salePrice === "number" ? body.salePrice : null;
 
     if (salePrice !== null && salePrice >= price) {
-      console.warn("⚠️ INVALID SALE PRICE");
       return NextResponse.json(
         { error: "INVALID_SALE_PRICE" },
         { status: 400 }
@@ -218,8 +244,6 @@ export async function POST(req: Request) {
     /* ================= VARIANTS ================= */
     const variants = normalizeVariants(body.variants);
 
-    console.log("🧩 VARIANTS:", variants);
-
     const finalStock =
       variants.length > 0
         ? variants.reduce((s, v) => s + v.stock, 0)
@@ -227,59 +251,87 @@ export async function POST(req: Request) {
         ? body.stock
         : 0;
 
-    /* ================= CATEGORY FIX ================= */
+    /* ================= CATEGORY ================= */
     const categoryId =
       typeof body.categoryId === "string" &&
       !Number.isNaN(Number(body.categoryId))
         ? Number(body.categoryId)
         : null;
 
-    console.log("📂 CATEGORY:", categoryId);
-
     /* ================= CREATE PRODUCT ================= */
-    const product = await createProduct(userId, {
-      name: String(body.name || "").trim(),
-      price,
-      description: body.description ?? "",
-      detail: body.detail ?? "",
-      images: Array.isArray(body.images)
-        ? body.images.filter((i: unknown): i is string => typeof i === "string")
-        : [],
-      thumbnail:
-        typeof body.thumbnail === "string" ? body.thumbnail : null,
-      category_id: categoryId,
-      sale_price: salePrice,
-      sale_start: body.saleStart || null,
-      sale_end: body.saleEnd || null,
-      stock: finalStock,
-      is_active:
-        typeof body.isActive === "boolean" ? body.isActive : true,
-      views: 0,
-      sold: 0,
-    });
+    let product;
+
+    try {
+      product = await createProduct(userId, {
+        name: String(body.name || "").trim(),
+        price,
+        description: body.description ?? "",
+        detail: body.detail ?? "",
+        images: Array.isArray(body.images)
+          ? body.images.filter((i: unknown): i is string => typeof i === "string")
+          : [],
+        thumbnail:
+          typeof body.thumbnail === "string" ? body.thumbnail : null,
+        category_id: categoryId,
+        sale_price: salePrice,
+        sale_start: body.saleStart || null,
+        sale_end: body.saleEnd || null,
+        stock: finalStock,
+        is_active:
+          typeof body.isActive === "boolean" ? body.isActive : true,
+        views: 0,
+        sold: 0,
+      });
+
+    } catch (err: any) {
+      console.error("💥 CREATE PRODUCT ERROR:", err);
+
+      /* 🔥 FIX DUPLICATE SLUG */
+      if (err?.code === "23505") {
+        console.warn("⚠️ DUPLICATE SLUG → RETRY");
+
+        product = await createProduct(userId, {
+          name: String(body.name || "").trim() + "-" + Date.now(),
+          price,
+          description: body.description ?? "",
+          detail: body.detail ?? "",
+          images: Array.isArray(body.images)
+            ? body.images.filter((i: unknown): i is string => typeof i === "string")
+            : [],
+          thumbnail:
+            typeof body.thumbnail === "string" ? body.thumbnail : null,
+          category_id: categoryId,
+          sale_price: salePrice,
+          sale_start: body.saleStart || null,
+          sale_end: body.saleEnd || null,
+          stock: finalStock,
+          is_active:
+            typeof body.isActive === "boolean" ? body.isActive : true,
+          views: 0,
+          sold: 0,
+        });
+
+      } else {
+        throw err;
+      }
+    }
 
     console.log("✅ PRODUCT CREATED:", product.id);
 
     /* ================= SHIPPING ================= */
     if (Array.isArray(body.shippingRates)) {
-      console.log("🚚 SHIPPING:", body.shippingRates);
-
       await upsertShippingRates({
         productId: product.id,
         rates: body.shippingRates,
       });
     }
 
-    /* ================= VARIANTS INSERT ================= */
+    /* ================= VARIANTS ================= */
     if (variants.length > 0) {
-      console.log("🧩 INSERT VARIANTS START");
-
       await replaceVariantsByProductId(product.id, variants);
-
-      console.log("🧩 INSERT VARIANTS DONE");
     }
 
-    console.log("🎉 [PRODUCT][POST] SUCCESS");
+    console.log("🎉 SUCCESS");
 
     return NextResponse.json({
       success: true,
