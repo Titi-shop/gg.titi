@@ -37,7 +37,46 @@ export default function ProductForm({
 
   const form = useProductForm(initialData);
 const uploadDetailImages = async (files: File[]) => {
+ const handleUpload = async (files: File[]) => {
   if (!files.length) return;
+
+  console.log("🚀 HANDLE UPLOAD START");
+
+  try {
+    const uploads = files.map(async (file) => {
+      console.log("📂 Uploading:", file.name);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        console.error("❌ Upload failed:", res.status);
+        throw new Error("UPLOAD_FAILED");
+      }
+
+      const data = await res.json();
+      console.log("✅ Uploaded:", data);
+
+      return data.url;
+    });
+
+    const urls = await Promise.all(uploads);
+
+    console.log("🔥 FINAL URLS:", urls);
+
+    form.setImages((prev: string[]) => [...prev, ...urls]);
+
+  } catch (err) {
+    console.error("❌ HANDLE UPLOAD ERROR:", err);
+    alert("Upload failed");
+  }
+};
+   if (!files.length) return;
 
   try {
     const uploads = files.map(async (file) => {
