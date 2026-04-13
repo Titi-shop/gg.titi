@@ -190,6 +190,7 @@ if (!hasVariants && Number(form.price) <= 0) {
       }
 
 const payload = {
+   id: form.id,
   name: form.name,
   categoryId: form.categoryId,
   description: form.description,
