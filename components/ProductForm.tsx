@@ -184,10 +184,15 @@ export default function ProductForm({
     setSubmitting(true);
 
     try {
-      if (!form.name || Number(form.price) <= 0) {
-        alert("Invalid input");
-        return;
-      }
+      if (!form.name) {
+  alert("Invalid name");
+  return;
+}
+
+if (!hasVariants && Number(form.price) <= 0) {
+  alert("Invalid price");
+  return;
+}
 
       if (!form.images.length) {
         alert("Need image");
