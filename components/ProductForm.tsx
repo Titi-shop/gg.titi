@@ -51,10 +51,12 @@ export default function ProductForm({
         const formData = new FormData();
         formData.append("file", file);
 
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+        import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
+await apiAuthFetch("/api/upload", {
+  method: "POST",
+  body: formData,
+});
 
         if (!res.ok) {
           console.error("❌ Upload failed:", res.status);
