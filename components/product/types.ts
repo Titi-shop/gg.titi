@@ -1,5 +1,3 @@
-// components/product/types.ts
-
 export interface Category {
   id: string;
   key: string;
@@ -12,22 +10,37 @@ export interface ProductVariant {
   sku?: string | null;
 }
 
+/* =========================
+   PRODUCT PAYLOAD (CLIENT)
+========================= */
 export interface ProductPayload {
   id?: string;
+
   name: string;
   price: number;
+
+  /* 🔥 SALE */
   salePrice?: number | null;
   saleStart?: string | null;
   saleEnd?: string | null;
+
   description: string;
   detail: string;
+
   images: string[];
   thumbnail: string | null;
+
   categoryId: string;
+
   stock: number;
-  is_active: boolean;
+
+  /* 🔥 FIX */
+  isActive: boolean;
+
   variants?: ProductVariant[];
-  shipping_rates?: {
+
+  /* 🔥 FIX naming */
+  shippingRates?: {
     zone: string;
     price: number;
   }[];
