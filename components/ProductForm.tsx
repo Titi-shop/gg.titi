@@ -1,6 +1,6 @@
 
 "use client";
-
+import { compressImage } from "@/lib/upload/imageUtils";
 import { FormEvent } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
@@ -89,13 +89,23 @@ const uploadWithProgress = (
 
       /* ================= COMPRESS ================= */
       const compressed = await compressImage(file);
-
       /* ================= GET SIGNED URL ================= */
-      const res = await fetch("/api/upload-url", {
-        method: "POST",
-      });
+const res = await fetch("/api/upload-url", {
+  method: "POST",
+});
 
-      const { url, path } = await res.json();
+if (!res.ok) {
+  const text = await res.text();
+  console.error("❌ GET SIGNED URL FAILED:", res.status, text);
+  throw new Error("SIGNED_URL_FAILED");
+}
+
+const { url, path } = await res.json();
+
+if (!url) {
+  console.error("❌ NO URL RETURNED");
+  throw new Error("NO_URL");
+}
 
       console.log(`🔑 [${index}] Signed URL ready`);
 
@@ -103,7 +113,14 @@ const uploadWithProgress = (
       await uploadWithProgress(url, compressed, index);
 
       /* ================= PUBLIC URL ================= */
-      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/products/${path}`;
+      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+if (!baseUrl) {
+  console.error("❌ ENV URL MISSING");
+  throw new Error("ENV_ERROR");
+}
+
+const publicUrl = `${baseUrl}/storage/v1/object/public/products/${path}`;
 
       console.log(`✅ [${index}] DONE:`, publicUrl);
 
@@ -250,29 +267,57 @@ const uploadWithProgress = (
       />
 
       {/* IMAGE UPLOAD */}
-      <div className="relative h-28">
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            console.log("📥 FILE CHANGED:", files);
-            handleUpload(files);
-          }}
-          className="absolute inset-0 opacity-0 cursor-pointer"
-        />
-        <div className="flex items-center justify-center border-2 border-dashed rounded h-28">
-          ＋
-        </div>
-      </div>
+<div className="space-y-3">
 
-      {/* PREVIEW */}
-      <div className="grid grid-cols-3 gap-2">
-        {form.images.map((img: string) => (
-          <img key={img} src={img} className="h-20 object-cover rounded" />
-        ))}
-      </div>
+  {/* PREVIEW */}
+  {form.images.length > 0 && (
+    <div className="grid grid-cols-3 gap-2">
+      {form.images.map((img: string, i: number) => (
+        <div key={img} className="relative group">
+          <img
+            src={img}
+            className="h-24 w-full object-cover rounded-lg border"
+          />
+
+          {/* REMOVE */}
+          <button
+            type="button"
+            onClick={() =>
+              form.setImages((prev: string[]) =>
+                prev.filter((_, index) => index !== i)
+              )
+            }
+            className="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {/* UPLOAD BUTTON */}
+  <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed rounded-xl h-28 cursor-pointer hover:bg-gray-50 transition">
+
+    <span className="text-2xl">＋</span>
+    <span className="text-sm text-gray-500">
+      Upload image
+    </span>
+
+    <input
+      type="file"
+      accept="image/*"
+      multiple
+      hidden
+      onChange={(e) => {
+        const files = Array.from(e.target.files || []);
+        console.log("📥 FILE CHANGED:", files);
+        handleUpload(files);
+      }}
+    />
+  </label>
+
+</div>
 
       {/* PRICE */}
       <input
