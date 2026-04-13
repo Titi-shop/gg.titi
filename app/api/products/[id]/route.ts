@@ -112,9 +112,21 @@ export async function GET(
     }
 
     console.log("[PRODUCT][GET] product found");
+    const rawVariants = await getVariantsByProductId(id);
 
-    const variants = await getVariantsByProductId(id);
-    console.log("[PRODUCT][GET] variants:", variants.length);
+const variants = rawVariants.map((v) => {
+  const finalPrice =
+    isSale
+      ? (v.salePrice ?? v.price)
+      : v.price;
+
+  return {
+    ...v,
+    finalPrice,
+  };
+});
+
+console.log("[PRODUCT][GET] variants:", variants.length);
 
     let shippingRates: { zone: string; price: number }[] = [];
 
@@ -145,9 +157,23 @@ const isSale =
   now <= end;
 console.log("[API] product:", p);
     const hasVariants = variants.length > 0;
+
+const totalStock = hasVariants
+  ? variants.reduce((s, v) => s + (v.stock || 0), 0)
+  : p.stock ?? 0;
+    const hasVariants = variants.length > 0;
   const totalStock = hasVariants
   ? variants.reduce((s, v) => s + (v.stock || 0), 0)
   : p.stock ?? 0;
+    const variantPrices = variants.map((v) =>
+  typeof v.price === "number" ? v.price : 0
+);
+
+const minPrice =
+  variantPrices.length > 0 ? Math.min(...variantPrices) : null;
+
+const maxPrice =
+  variantPrices.length > 0 ? Math.max(...variantPrices) : null;
     return NextResponse.json({
   id: p.id,
   sellerId: p.seller_id,
@@ -160,6 +186,11 @@ console.log("[API] product:", p);
   images: p.images ?? [],
   detailImages: p.detail_images ?? [],
   videoUrl: p.video_url ?? "",
+  price: hasVariants ? null : p.price ?? 0,
+  salePrice: hasVariants ? null : p.sale_price ?? null,
+  stock: totalStock,
+  minPrice: hasVariants ? minPrice : null,
+  maxPrice: hasVariants ? maxPrice : null,
   currency: p.currency ?? "PI",
   isUnlimited: p.is_unlimited ?? false,
   sold: p.sold ?? 0,
