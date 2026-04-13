@@ -265,32 +265,31 @@ export async function POST(req: Request) {
       );
     }
 
-    /* ================= PRICE ================= */
-
-const price =
-  !hasVariants &&
-  typeof body.price === "number" &&
-  !Number.isNaN(body.price)
-    ? body.price
-    : 1; // 🔥 fallback để pass DB constraint
-
-    const salePrice =
-      typeof body.salePrice === "number" ? body.salePrice : null;
-
-    if (salePrice !== null && salePrice >= price) {
-      return NextResponse.json(
-        { error: "INVALID_SALE_PRICE" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= VARIANTS ================= */
+   /* ================= VARIANTS ================= */
 const variants = normalizeVariants(body.variants);
 
 console.log("🧩 VALID VARIANTS:", variants);
 
-const hasVariants = variants.length > 0; // ✅ CHỈ 1 LẦN
+const hasVariants = variants.length > 0;
 
+/* ================= PRICE ================= */
+const price = hasVariants
+  ? 1 // hoặc 0 nếu DB cho phép
+  : typeof body.price === "number"
+  ? body.price
+  : 0;
+
+const salePrice =
+  typeof body.salePrice === "number" ? body.salePrice : null;
+
+if (salePrice !== null && salePrice >= price) {
+  return NextResponse.json(
+    { error: "INVALID_SALE_PRICE" },
+    { status: 400 }
+  );
+}
+
+/* ================= STOCK ================= */
 const finalStock = hasVariants
   ? variants.reduce((s, v) => s + v.stock, 0)
   : typeof body.stock === "number"
@@ -306,7 +305,7 @@ const finalStock = hasVariants
     );
   }
 
-  if (body.price) {
+  if (body.price !== undefined){
     return NextResponse.json(
       { error: "DO_NOT_USE_PRODUCT_PRICE_WITH_VARIANTS" },
       { status: 400 }
