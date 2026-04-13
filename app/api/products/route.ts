@@ -298,21 +298,27 @@ export async function POST(req: Request) {
 
     /* ================= STOCK VALIDATION ================= */
     if (hasVariants) {
-      const productStock =
-        typeof body.stock === "number" ? body.stock : 0;
+  if (body.stock) {
+    return NextResponse.json(
+      { error: "DO_NOT_USE_PRODUCT_STOCK_WITH_VARIANTS" },
+      { status: 400 }
+    );
+  }
 
-      console.log("📦 STOCK CHECK:", {
-        productStock,
-        variantTotal: finalStock,
-      });
+  if (body.price) {
+    return NextResponse.json(
+      { error: "DO_NOT_USE_PRODUCT_PRICE_WITH_VARIANTS" },
+      { status: 400 }
+    );
+  }
 
-      if (finalStock !== productStock) {
-        return NextResponse.json(
-          { error: "INVALID_STOCK" },
-          { status: 400 }
-        );
-      }
-    }
+  if (body.salePrice) {
+    return NextResponse.json(
+      { error: "DO_NOT_USE_PRODUCT_SALE_WITH_VARIANTS" },
+      { status: 400 }
+    );
+  }
+}
 
     /* ================= CATEGORY ================= */
     const categoryId =
@@ -362,8 +368,9 @@ export async function POST(req: Request) {
             Date.now() +
             "-" +
             Math.random().toString(36).slice(2, 6),
-          price,
+          
           description: body.description ?? "",
+          price: hasVariants ? 0 : price,
           detail: body.detail ?? "",
           images: body.images,
           thumbnail:
@@ -371,10 +378,11 @@ export async function POST(req: Request) {
               ? body.thumbnail
               : body.images[0],
           category_id: categoryId,
-          sale_price: salePrice,
+          sale_price: hasVariants ? null : salePrice,
+         stock: hasVariants ? 0 : finalStock,
           sale_start: body.saleStart || null,
           sale_end: body.saleEnd || null,
-          stock: finalStock,
+        
           is_active:
             typeof body.isActive === "boolean"
               ? body.isActive
@@ -469,7 +477,7 @@ export async function PUT(req: Request) {
 
     const updated = await updateProductBySeller(userId, productId, {
       name: String(body.name || "").trim(),
-      price,
+      price: hasVariants ? 0 : price,
       description: body.description ?? "",
       detail: body.detail ?? "",
       images: Array.isArray(body.images)
@@ -481,10 +489,10 @@ export async function PUT(req: Request) {
         typeof body.categoryId === "string"
           ? Number(body.categoryId)
           : null,
-      sale_price: salePrice,
+      sale_price: hasVariants ? null : salePrice,
+      stock: hasVariants ? 0 : finalStock,
       sale_start: body.saleStart || null,
       sale_end: body.saleEnd || null,
-      stock: finalStock,
       is_active:
         typeof body.isActive === "boolean" ? body.isActive : true,
     });
