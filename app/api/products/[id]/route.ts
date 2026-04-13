@@ -321,7 +321,7 @@ export async function PATCH(
 
     console.log("🧠 [PATCH] HAS VARIANTS:", hasVariants);
 
-    /* ================= VALIDATE PRICE ================= */
+    /* ================= PRICE INPUT ================= */
     const price =
       typeof body.price === "number" && !Number.isNaN(body.price)
         ? body.price
@@ -332,7 +332,7 @@ export async function PATCH(
         ? body.salePrice
         : null;
 
-    console.log("💰 [PATCH] PRICE:", { price, salePrice });
+    console.log("💰 [PATCH] INPUT PRICE:", { price, salePrice });
 
     if (
       price !== undefined &&
@@ -346,33 +346,35 @@ export async function PATCH(
       );
     }
 
-    /* ================= BLOCK PRODUCT FIELDS WHEN VARIANTS ================= */
+    /* ================= DERIVE FROM VARIANTS ================= */
+    let finalPrice = price;
+    let finalSalePrice = salePrice;
+    let finalStock: number | undefined = undefined;
+
     if (hasVariants) {
-      console.warn("⚠️ USING VARIANTS MODE");
+      console.log("🧠 [PATCH] CALCULATE FROM VARIANTS");
 
-      if (body.stock !== undefined) {
-        console.error("❌ STOCK NOT ALLOWED WITH VARIANTS");
-        return NextResponse.json(
-          { error: "DO_NOT_USE_PRODUCT_STOCK_WITH_VARIANTS" },
-          { status: 400 }
-        );
-      }
+      const prices = normalizedVariants.map((v) => v.price ?? 0);
 
-      if (body.price !== undefined) {
-        console.error("❌ PRICE NOT ALLOWED WITH VARIANTS");
-        return NextResponse.json(
-          { error: "DO_NOT_USE_PRODUCT_PRICE_WITH_VARIANTS" },
-          { status: 400 }
-        );
-      }
+      const salePrices = normalizedVariants
+        .map((v) => v.salePrice)
+        .filter((p): p is number => typeof p === "number");
 
-      if (body.salePrice !== undefined) {
-        console.error("❌ SALE PRICE NOT ALLOWED WITH VARIANTS");
-        return NextResponse.json(
-          { error: "DO_NOT_USE_PRODUCT_SALE_WITH_VARIANTS" },
-          { status: 400 }
-        );
-      }
+      finalPrice = prices.length ? Math.min(...prices) : 1;
+
+      finalSalePrice =
+        salePrices.length > 0 ? Math.min(...salePrices) : null;
+
+      finalStock = normalizedVariants.reduce(
+        (s, v) => s + (v.stock || 0),
+        0
+      );
+
+      console.log("💰 [PATCH] DERIVED:", {
+        finalPrice,
+        finalSalePrice,
+        finalStock,
+      });
     }
 
     /* ================= DATE ================= */
@@ -432,14 +434,15 @@ export async function PATCH(
 
       category_id: categoryId,
 
-      /* 🔥 FIX QUAN TRỌNG */
-      price: hasVariants ? undefined : price,
-      sale_price: hasVariants ? undefined : salePrice,
-      stock: hasVariants
-        ? undefined
-        : typeof body.stock === "number" && body.stock >= 0
-        ? body.stock
-        : undefined,
+      /* 🔥 FIX CHUẨN */
+      price: finalPrice,
+      sale_price: finalSalePrice,
+      stock:
+        hasVariants
+          ? finalStock
+          : typeof body.stock === "number" && body.stock >= 0
+          ? body.stock
+          : undefined,
 
       sale_start: saleStart,
       sale_end: saleEnd,
@@ -478,13 +481,6 @@ export async function PATCH(
 
     console.log("✅ [PATCH] RELATIONS UPDATED");
 
-    /* ================= FINAL STOCK ================= */
-    const totalStock = hasVariants
-      ? normalizedVariants.reduce((s, v) => s + (v.stock || 0), 0)
-      : updated.stock ?? 0;
-
-    console.log("📦 [PATCH] FINAL STOCK:", totalStock);
-
     /* ================= RESPONSE ================= */
     console.log("🎉 [PATCH] SUCCESS");
 
@@ -493,9 +489,9 @@ export async function PATCH(
       data: {
         id,
         name: updated.name,
-        price: hasVariants ? null : updated.price,
-        salePrice: hasVariants ? null : updated.sale_price,
-        stock: totalStock,
+        price: finalPrice,
+        salePrice: finalSalePrice,
+        stock: hasVariants ? finalStock : updated.stock,
       },
     });
 
