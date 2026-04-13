@@ -32,9 +32,7 @@ export const dynamic = "force-dynamic";
 
   input.forEach((item, index) => {
     if (typeof item !== "object" || item === null) return;
-
     const row = item as Record<string, unknown>;
-
     const raw = typeof row.optionValue === "string"
       ? row.optionValue.trim()
       : "";
@@ -268,10 +266,14 @@ export async function POST(req: Request) {
     }
 
     /* ================= PRICE ================= */
-    const price =
-      typeof body.price === "number" && !Number.isNaN(body.price)
-        ? body.price
-        : 0;
+    const hasVariants = variants.length > 0;
+
+const price =
+  !hasVariants &&
+  typeof body.price === "number" &&
+  !Number.isNaN(body.price)
+    ? body.price
+    : 1; // 🔥 fallback để pass DB constraint
 
     const salePrice =
       typeof body.salePrice === "number" ? body.salePrice : null;
