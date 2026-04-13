@@ -129,29 +129,30 @@ export async function upsertShippingRates({
 export async function getShippingRatesByProduct(
   productId: string
 ): Promise<ShippingRateInput[]> {
+  console.log("[DB][SHIPPING] GET:", productId);
+
   if (!isUUID(productId)) {
     throw new Error("INVALID_PRODUCT");
   }
 
   const { rows } = await query<{
-    code: string;
+    zone: string;
     price: number;
   }>(
     `
-    SELECT sz.code, sr.price
-    FROM shipping_rates sr
-    JOIN shipping_zones sz ON sz.id = sr.zone_id
-    WHERE sr.product_id = $1
+    SELECT zone, price
+    FROM product_shipping_rates
+    WHERE product_id = $1
     `,
     [productId]
   );
 
-  return rows
-    .filter((r) => isValidRegion(r.code))
-    .map((r) => ({
-      zone: r.code,
-      price: Number(r.price),
-    }));
+  console.log("[DB][SHIPPING] RAW:", rows);
+
+  return rows.map((r) => ({
+    zone: r.zone,
+    price: Number(r.price),
+  }));
 }
 
 /* =========================
