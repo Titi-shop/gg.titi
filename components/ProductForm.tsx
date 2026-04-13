@@ -193,6 +193,11 @@ export default function ProductForm({
         alert("Need image");
         return;
       }
+       const hasVariants = form.variants.length > 0;
+
+     const finalStock = hasVariants
+  ? form.variants.reduce((s, v) => s + (v.stock || 0), 0)
+  : Number(form.stock || 0);
 
       const payload = {
         name: form.name,
@@ -202,9 +207,8 @@ export default function ProductForm({
         detail: form.detail,
         images: form.images,
         thumbnail: form.images[0],
-        stock: Number(form.stock || 0),
         isActive: form.isActive,
-
+        stock: finalStock,
         salePrice: form.salePrice || null,
         saleStart: form.saleStart || null,
         saleEnd: form.saleEnd || null,
