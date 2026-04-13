@@ -294,42 +294,43 @@ const payload = {
         </label>
 
       </div>
-       {/* STOCK (ONLY WHEN NO VARIANTS) */}
+       {/* PRICE + STOCK + SALE (ONLY WHEN NO VARIANTS) */}
 {form.variants.length === 0 && (
-  <input
-    type="number"
-    value={form.stock}
-    onChange={(e) =>
-      form.setStock(Number(e.target.value))
-    }
-    placeholder="Stock"
-    className="w-full border p-2 rounded"
-  />
-  )}
+  <>
+    {/* PRICE */}
+    <input
+      type="number"
+      value={form.price}
+      onChange={(e) =>
+        form.setPrice(e.target.value ? Number(e.target.value) : "")
+      }
+      placeholder="Price"
+      className="w-full border p-2 rounded"
+    />
 
-      {/* PRICE (ONLY WHEN NO VARIANTS) */}
-{form.variants.length === 0 && (
-  <input
-    type="number"
-    value={form.price}
-    onChange={(e) =>
-      form.setPrice(e.target.value ? Number(e.target.value) : "")
-    }
-    placeholder="Price"
-    className="w-full border p-2 rounded"
-  />
+    {/* STOCK */}
+    <input
+      type="number"
+      value={form.stock}
+      onChange={(e) =>
+        form.setStock(Number(e.target.value))
+      }
+      placeholder="Stock"
+      className="w-full border p-2 rounded"
+    />
+
+    {/* SALE PRICE */}
+    <input
+      type="number"
+      value={form.salePrice || ""}
+      onChange={(e) =>
+        form.setSalePrice(e.target.value ? Number(e.target.value) : "")
+      }
+      placeholder="Sale price"
+      className="w-full border p-2 rounded"
+    />
+  </>
 )}
-   
-      {/* SALE */}
-      <input
-        type="number"
-        value={form.salePrice || ""}
-        onChange={(e) =>
-          form.setSalePrice(e.target.value ? Number(e.target.value) : "")
-        }
-        placeholder="Sale price"
-        className="w-full border p-2 rounded"
-      />
 
       <div className="grid grid-cols-2 gap-2">
         <input
