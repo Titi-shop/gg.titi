@@ -315,8 +315,8 @@ export default function ProductForm({
         className="w-full border p-2 rounded"
       />
 
-       {/* STOCK (ONLY WHEN NO VARIANTS) */}
-   {form.variants.length === 0 && (
+      {/* STOCK (ONLY WHEN NO VARIANTS) */}
+{form.variants.length === 0 && (
   <input
     type="number"
     value={form.stock}
@@ -326,6 +326,7 @@ export default function ProductForm({
     placeholder="Stock"
     className="w-full border p-2 rounded"
   />
+  )}
    
       {/* SALE */}
       <input
