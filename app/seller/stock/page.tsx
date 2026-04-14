@@ -76,41 +76,6 @@ interface ShopProfile {
    PAGE
 ========================= */
 function isProductOnSale(p: SellerProduct) {
-   function getDisplayPrice(product: any) {
-  const variants = product.variants;
-
-  // ❌ không có variants
-  if (!Array.isArray(variants) || variants.length === 0) {
-    const isSale = isProductOnSale(product);
-
-    return {
-      price: product.price,
-      salePrice: isSale ? product.salePrice : null,
-    };
-  }
-
-  // ✅ có variants
-  let minPrice = Infinity;
-  let minSale = Infinity;
-
-  for (const v of variants) {
-    const price = Number(v.price ?? 0);
-    const sale = Number(v.salePrice ?? 0);
-
-    if (price > 0 && price < minPrice) {
-      minPrice = price;
-    }
-
-    if (sale > 0 && sale < minSale) {
-      minSale = sale;
-    }
-  }
-
-  return {
-    price: minPrice === Infinity ? 0 : minPrice,
-    salePrice: minSale === Infinity ? null : minSale,
-  };
-}
   if (p.salePrice === null) return false;
 
   const now = new Date();
@@ -195,6 +160,7 @@ export default function SellerStockPage() {
 
     stock: Number(p.stock ?? 0),
     sold: Number(p.sold ?? 0),
+
     ratingAvg: Number(p.rating_avg ?? 0), 
 
     isActive: Boolean(p.is_active),
@@ -219,6 +185,7 @@ export default function SellerStockPage() {
       });
 
       if (!res.ok) return;
+
       const data = await res.json();
       const profile = data.profile;
 
@@ -376,7 +343,9 @@ const now = new Date();
 
 {/* INFO */}
 <div className="relative mt-2 px-1">
+
   <div className="ml-28 pt-2">
+
     <h2 className="font-bold text-lg leading-tight">
       {shop.shop_name || t.my_store}
     </h2>
@@ -449,7 +418,6 @@ const now = new Date();
         </div>
       ))
     : products.map((product) => {
-       const display = getDisplayPrice(product);
         const isSale = isProductOnSale(product);
         const isOut = (product.stock ?? 0) <= 0;
         const isOff = product.isActive === false;
@@ -509,22 +477,24 @@ const now = new Date();
               <h3 className="font-semibold text-sm line-clamp-2">
                 {product.name}
               </h3>
-             <div className="mt-1">
-           {isSale && product.salePrice ? (
-       <>
-    <p className="text-xs text-gray-400 line-through">
-      {formatPi(product.price)} π
-    </p>
-    <p className="text-[#ff6600] font-bold">
-      {formatPi(product.salePrice)} π
-    </p>
-  </>
-     ) : (
-  <p className="text-[#ff6600] font-bold">
-    {formatPi(product.price)} π
-        </p>
-          )}
-           </div>
+
+              <div className="mt-1">
+                {isSale ? (
+                  <>
+                    <p className="text-xs text-gray-400 line-through">
+                      {formatPi(product.price)} π
+                    </p>
+                    <p className="text-[#ff6600] font-bold">
+                      {formatPi(product.salePrice)} π
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[#ff6600] font-bold">
+                    {formatPi(product.price)} π
+                  </p>
+                )}
+              </div>
+
               <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
                 <span>⭐ {product.ratingAvg ?? 0}</span>
                 <span>📦 {product.stock ?? 0}</span>
