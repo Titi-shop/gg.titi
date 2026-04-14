@@ -307,20 +307,21 @@ if (!status?.developer_completed) {
   const completeData = await completeRes.json().catch(() => null);
 
   if (!completeRes.ok) {
-    console.error("❌ [PAYMENT][PI_COMPLETE_FAIL]", completeData);
+  console.warn("🟡 [PAYMENT][PI_COMPLETE_WARNING]", completeData);
 
-    if (
-      completeData?.error?.includes?.("already") ||
-      completeData?.message?.includes?.("completed")
-    ) {
-      console.log("🟡 [PAYMENT][ALREADY_COMPLETED]");
-    } else {
-      return NextResponse.json(
-        { error: "PI_COMPLETE_FAILED" },
-        { status: 400 }
-      );
-    }
+  const isAlreadyCompleted =
+    completeData?.error === "already_completed" ||
+    completeData?.error_message?.includes("already");
+
+  if (!isAlreadyCompleted) {
+    return NextResponse.json(
+      { error: "PI_COMPLETE_FAILED" },
+      { status: 400 }
+    );
   }
+
+  // ✅ coi như SUCCESS
+  console.log("🟢 [PAYMENT] ALREADY COMPLETED → CONTINUE");
 }
 
 /* ================= DB ================= */
