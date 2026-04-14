@@ -525,7 +525,19 @@
   "pay_now": "立即支付",
   "unsupported_country": "不支持的国家",
   "order_preview_failed": "订单预览失败",
-  "unknown_error": "发生错误"
+  "unknown_error": "发生错误",
+  "variant_title": "Product Variants",
+  "variant_type": "Type",
+  "variant_value": "Value",
+  "variant_type_placeholder": "Type (size / ml / color)",
+  "variant_value_placeholder": "Value (XL / red...)",
+  "variant_price": "Price",
+  "variant_sale_price": "Sale price",
+  "variant_sale_invalid": "Sale price must be lower than original price",
+  "variant_stock": "Stock",
+  "variant_sku": "SKU",
+  "variant_delete": "✕ Delete variant",
+  "variant_add": "+ Add variant"
 
 
 
