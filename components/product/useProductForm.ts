@@ -35,8 +35,8 @@ function mapShippingRates(rates: any[]) {
 
     const price = Number(r.price);
 
-    base[r.zone] =
-      !Number.isNaN(price) && price > 0 ? price : "";
+base[r.zone] =
+  !Number.isNaN(price) ? price : "";
 
     console.log("✅ mapped:", r.zone, "=", base[r.zone]);
   }
