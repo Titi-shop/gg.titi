@@ -1,5 +1,5 @@
 "use client";
-
+import { toUTCFromInput } from "@/lib/utils/time";
 import { FormEvent, useState } from "react";
 import { compressImage } from "@/lib/upload/imageUtils";
 import { getPiAccessToken } from "@/lib/piAuth";
@@ -201,8 +201,12 @@ const payload = {
   price: hasVariants ? undefined : Number(form.price),
   stock: hasVariants ? undefined : Number(form.stock || 0),
   salePrice: hasVariants ? undefined : (form.salePrice || null),
-  saleStart: form.saleStart || null,
-  saleEnd: form.saleEnd || null,
+  saleStart: form.saleStart
+  ? toUTCFromInput(form.saleStart)
+  : null,
+  saleEnd: form.saleEnd
+  ? toUTCFromInput(form.saleEnd)
+  : null,
 
   variants: form.variants,
 
