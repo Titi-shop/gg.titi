@@ -210,90 +210,236 @@ export default function SellerStockPage() {
 
   /* ================= UI ================= */
   return (
-    <main className="p-4 max-w-2xl mx-auto pb-28">
+  <main className="p-4 max-w-2xl mx-auto pb-28">
 
-      {/* LIST */}
-      <div className="space-y-4">
-        {pageLoading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex gap-3 p-3 bg-white rounded-xl shadow animate-pulse">
-                <div className="w-24 h-24 bg-gray-200 rounded-lg" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4" />
-                  <div className="h-4 bg-gray-200 rounded w-1/2" />
-                </div>
-              </div>
-            ))
-          : products.map((product) => {
-              const display = getDisplayPrice(product);
+    {/* SHOP HEADER */}
+    <div className="mb-10">
 
-              return (
-                <div
-                  key={product.id}
-                  onClick={() => router.push(`/product/${product.id}`)}
-                  className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
-                >
-                  <div className="w-24 h-24 relative rounded-lg overflow-hidden">
-                    <Image
-                      src={product.thumbnail || "/placeholder.png"}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
+      {/* BANNER */}
+      <div className="relative w-full h-40 rounded-xl overflow-hidden">
+        <Image
+          src={shop.shop_banner || "/banners/default-shop.png"}
+          alt="Shop banner"
+          fill
+          priority
+          unoptimized
+          className="object-cover"
+        />
 
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-sm line-clamp-2">
-                      {product.name}
-                    </h3>
+        {/* CHANGE BANNER */}
+        <label className="absolute top-3 left-3 bg-black/60 hover:bg-black/70 text-white text-xs px-3 py-1 rounded cursor-pointer flex items-center gap-1">
+          <Upload size={14} />
+          {t.change_banner}
+          <input
+            type="file"
+            hidden
+            accept="image/*"
+            onChange={handleBannerUpload}
+          />
+        </label>
 
-                    {/* ✅ FIX PRICE */}
-                    <div className="mt-1">
-                      {display.salePrice ? (
-                        <>
-                          <p className="text-xs text-gray-400 line-through">
-                            {formatPi(display.price)} π
-                          </p>
-                          <p className="text-[#ff6600] font-bold">
-                            {formatPi(display.salePrice)} π
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-[#ff6600] font-bold">
-                          {formatPi(display.price)} π
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3 text-xs mt-2">
-                      <span>📦 {product.stock ?? 0}</span>
-                      <span>🛒 {product.sold ?? 0}</span>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/seller/edit/${product.id}`);
-                        }}
-                        className="text-green-600"
-                      >
-                        {t.edit}
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(product.id);
-                        }}
-                        className="text-red-600"
-                      >
-                        {t.delete}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        {/* POST PRODUCT */}
+        <button
+          onClick={() => router.push("/seller/post")}
+          className="absolute top-3 right-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full w-11 h-11 flex items-center justify-center shadow-lg"
+        >
+          <Plus size={20} />
+        </button>
       </div>
-    </main>
-  );
-}
+
+      {/* AVATAR */}
+      <div className="flex justify-center -mt-12">
+        <div className="relative w-24 h-24">
+          {shop.avatar_url ? (
+            <Image
+              src={shop.avatar_url}
+              alt="avatar"
+              fill
+              className="rounded-full border-4 border-white shadow-lg object-cover"
+            />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow-lg flex items-center justify-center text-gray-500">
+              ?
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SHOP NAME */}
+      <h2 className="text-center font-bold text-xl mt-3">
+        {shop.shop_name || t.my_store}
+      </h2>
+
+      {/* STATS */}
+      <div className="flex justify-center gap-6 text-sm text-gray-600 mt-2">
+        <div className="flex items-center gap-1">
+          ⭐ <span>{shop.rating ?? 0}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          📦 <span>{products.length}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          🛒 <span>{shop.total_sales ?? 0}</span>
+        </div>
+      </div>
+
+      {/* MESSAGE */}
+      {message.text && (
+        <p
+          className={`text-center mb-4 ${
+            message.type === "success"
+              ? "text-green-600"
+              : "text-red-600 font-medium"
+          }`}
+        >
+          {message.text}
+        </p>
+      )}
+
+      {/* EMPTY */}
+      {products.length === 0 && (
+        <p className="text-center text-gray-400">
+          {t.no_products}
+        </p>
+      )}
+
+      {/* PRODUCT LIST */}
+      <div className="space-y-4">
+        {products.map((product) => {
+
+          const now = new Date();
+
+          const start = product.saleStart ? new Date(product.saleStart) : null;
+          const end = product.saleEnd ? new Date(product.saleEnd) : null;
+
+          const isSale =
+            product.salePrice !== null &&
+            start !== null &&
+            end !== null &&
+            now >= start &&
+            now <= end;
+
+          const upcoming =
+            product.salePrice !== null &&
+            start !== null &&
+            now < start;
+
+          const ended =
+            product.salePrice !== null &&
+            end !== null &&
+            now > end;
+
+          return (
+            <div
+              key={product.id}
+              onClick={() => router.push(`/product/${product.id}`)}
+              className="flex gap-3 p-3 bg-white rounded-xl shadow border hover:bg-gray-50 cursor-pointer"
+            >
+
+              {/* IMAGE */}
+              <div className="w-24 h-24 relative rounded-lg overflow-hidden flex-shrink-0">
+
+                {isSale && (
+                  <span className="absolute top-1 left-1 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                    SALE
+                  </span>
+                )}
+
+                {upcoming && (
+                  <span className="absolute top-1 left-1 bg-blue-600 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                    UPCOMING
+                  </span>
+                )}
+
+                {ended && (
+                  <span className="absolute top-1 left-1 bg-gray-500 text-white text-xs font-bold px-2 py-0.5 rounded z-10">
+                    ENDED
+                  </span>
+                )}
+
+                {product.thumbnail ? (
+                  <Image
+                    src={product.thumbnail}
+                    alt={product.name}
+                    fill
+                    sizes="96px"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                    {t.no_image}
+                  </div>
+                )}
+              </div>
+
+              {/* CONTENT */}
+              <div className="flex-1 min-w-0">
+
+                <h3 className="font-semibold text-sm line-clamp-2">
+                  {product.name}
+                </h3>
+
+                {/* PRICE */}
+                <div className="mt-1">
+                  {isSale ? (
+                    <>
+                      <p className="text-sm text-gray-400 line-through">
+                        {formatPi(product.price)} π
+                      </p>
+                      <p className="text-[#ff6600] font-bold">
+                        {formatPi(product.salePrice ?? 0)} π
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[#ff6600] font-bold">
+                      {formatPi(product.price)} π
+                    </p>
+                  )}
+                </div>
+
+                {/* SALE TIME (FIX TIMEZONE DISPLAY) */}
+                {product.saleStart && (
+                  <p className="text-xs text-gray-500">
+                    {t.sale_start}:{" "}
+                    {new Date(product.saleStart).toLocaleString()}
+                  </p>
+                )}
+
+                {product.saleEnd && (
+                  <p className="text-xs text-gray-500">
+                    {t.sale_end}:{" "}
+                    {new Date(product.saleEnd).toLocaleString()}
+                  </p>
+                )}
+
+                {/* ACTIONS */}
+                <div className="flex gap-4 mt-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/seller/edit/${product.id}`);
+                    }}
+                    className="text-green-600 underline"
+                  >
+                    {t.edit}
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(product.id);
+                    }}
+                    className="text-red-600 underline"
+                  >
+                    {t.delete}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  </main>
+);
