@@ -253,7 +253,9 @@ const address = addressRes.rows[0];
     ========================================================= */
 
     const subtotal = price * quantity;
-    const total = subtotal + shippingFee;
+const discount = 0; // 🔥 nếu chưa có logic giảm giá
+const itemsTotal = subtotal - discount;
+const total = itemsTotal + shippingFee;
     console.log("🧾 [ORDER][INSERT_DEBUG]", {
   buyer_id: params.userId,
   seller_id: product.seller_id,
@@ -326,7 +328,7 @@ const address = addressRes.rows[0];
   pi_payment_id,
   pi_txid,
 
-  items_total,
+  itemsTotal,
   subtotal,
   discount,
   shipping_fee,
