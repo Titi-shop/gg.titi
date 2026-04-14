@@ -73,10 +73,6 @@ export async function processPiPayment(params: {
       };
     }
 
-    if (!product.seller_id) {
-  console.error("❌ [PAYMENT] INVALID_SELLER");
-  throw new Error("INVALID_SELLER");
-}
     /* =========================================================
        🔒 2. INSERT PAYMENT (ANTI REPLAY)
     ========================================================= */
@@ -121,7 +117,6 @@ export async function processPiPayment(params: {
     );
 
     if (!zoneRes.rows.length) throw new Error("INVALID_COUNTRY");
-
     const realZone = zoneRes.rows[0].code;
 
     if (realZone !== zone) throw new Error("INVALID_REGION");
