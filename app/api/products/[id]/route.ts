@@ -203,15 +203,18 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     /* ================= SHIPPING ================= */
     let shippingRates: { zone: string; price: number }[] = [];
 
-    try {
-      console.log("🚚 [API] LOAD SHIPPING START");
+try {
+  shippingRates = await getShippingRatesByProduct(p.id);
 
-shippingRates = await getShippingRatesByProduct(p.id);
-console.log("📦 [API] SHIPPING DATA:", shippingRates);
-console.log("📊 [API] SHIPPING COUNT:", shippingRates.length);
-    } catch (err) {
-      console.warn("⚠️ SHIPPING LOAD FAILED");
-    }
+  console.log("🚚 [API] SHIPPING RAW:", shippingRates);
+
+  if (!shippingRates.length) {
+    console.warn("⚠️ [API] SHIPPING EMPTY");
+  }
+
+} catch (err) {
+  console.error("💥 [API] SHIPPING ERROR:", err);
+}
 
     /* ================= FINAL PRICE ================= */
     const finalPrice = isSale
