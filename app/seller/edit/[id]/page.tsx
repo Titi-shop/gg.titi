@@ -58,38 +58,6 @@ const { data: productData, isLoading } = useSWR(
   id ? `/api/products/${id}` : null,
   fetcher
 );
-  const product: ProductPayload | null = productData
-  ? {
-      ...productData,
-
-      saleStart: toDateTimeLocal(productData.saleStart),
-      saleEnd: toDateTimeLocal(productData.saleEnd),
-
-      /* 🔥 FIX SHIPPING */
-      shippingRates: (() => {
-        const base = {
-          domestic: 0,
-          sea: 0,
-          asia: 0,
-          europe: 0,
-          north_america: 0,
-          rest_of_world: 0,
-        };
-
-        if (!Array.isArray(productData.shippingRates)) {
-          return base;
-        }
-
-        for (const r of productData.shippingRates) {
-          if (r?.zone) {
-            base[r.zone] = Number(r.price) || 0;
-          }
-        }
-
-        return base;
-      })(),
-    }
-  : null;
 
   if (loading || isLoading) {
   return (
