@@ -73,6 +73,40 @@ export async function processPiPayment(params: {
       };
     }
 
+    if (!product.seller_id) {
+  console.error("❌ [PAYMENT] INVALID_SELLER");
+  throw new Error("INVALID_SELLER");
+}
+
+if (!params.shipping.name) {
+  throw new Error("INVALID_SHIPPING_NAME");
+}
+
+if (!params.shipping.phone) {
+  throw new Error("INVALID_SHIPPING_PHONE");
+}
+
+if (!params.shipping.address_line) {
+  throw new Error("INVALID_SHIPPING_ADDRESS");
+}
+
+if (!country) {
+  throw new Error("INVALID_COUNTRY");
+}
+    console.log("🧾 [ORDER][INSERT_DEBUG]", {
+  buyer_id: params.userId,
+  seller_id: product.seller_id,
+
+  subtotal,
+  shippingFee,
+  total,
+
+  shipping_name: params.shipping.name,
+  shipping_phone: params.shipping.phone,
+  shipping_address_line: params.shipping.address_line,
+  shipping_country: country,
+  shipping_zone: realZone,
+});
     /* =========================================================
        🔒 2. INSERT PAYMENT (ANTI REPLAY)
     ========================================================= */
@@ -144,7 +178,9 @@ export async function processPiPayment(params: {
     if (!product || product.is_active === false || product.deleted_at) {
       throw new Error("PRODUCT_NOT_AVAILABLE");
     }
-
+  if (!isUUID(product.seller_id)) {
+  throw new Error("INVALID_SELLER");
+}
     let price = Number(product.price);
 
     /* =========================================================
@@ -287,10 +323,8 @@ export async function processPiPayment(params: {
         order_number,
         buyer_id,
         seller_id,
-
         pi_payment_id,
         pi_txid,
-
         items_total,
         subtotal,
         discount,
@@ -298,11 +332,9 @@ export async function processPiPayment(params: {
         tax,
         total,
         currency,
-
         payment_status,
         paid_at,
         status,
-
         shipping_name,
         shipping_phone,
         shipping_address_line,
@@ -312,7 +344,6 @@ export async function processPiPayment(params: {
         shipping_country,
         shipping_postal_code,
         shipping_zone,
-
         total_items,
         total_quantity
       )
@@ -340,9 +371,9 @@ export async function processPiPayment(params: {
         0,
         total,
         "PI",
-        params.shipping.name,
-        params.shipping.phone,
-        params.shipping.address_line,
+        params.shipping.name || "",
+        params.shipping.phone || "",
+        params.shipping.address_line || "",
         params.shipping.ward ?? null,
         params.shipping.district ?? null,
         params.shipping.region ?? null,
