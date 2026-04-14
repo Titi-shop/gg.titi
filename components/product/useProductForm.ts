@@ -28,6 +28,25 @@ const [submitting, setSubmitting] = useState(false);
     north_america: "",
     rest_of_world: "",
   });
+  function mapShippingRates(rates: any[]) {
+  const base = {
+    domestic: 0,
+    sea: 0,
+    asia: 0,
+    europe: 0,
+    north_america: 0,
+    rest_of_world: 0,
+  };
+
+  if (!Array.isArray(rates)) return base;
+
+  for (const r of rates) {
+    if (!r?.zone) continue;
+    base[r.zone] = Number(r.price) || 0;
+  }
+
+  return base;
+}
 
   useEffect(() => {
     if (!initialData) return;
@@ -55,6 +74,9 @@ const [submitting, setSubmitting] = useState(false);
     setStock(initialData.stock ?? 1);
     setDetail(initialData.detail || "");
     setVariants(initialData.variants || []);
+
+/* 🔥 FIX SHIPPING */
+setShippingRates(mapShippingRates(initialData.shippingRates));
 
   }, [initialData]);
 
