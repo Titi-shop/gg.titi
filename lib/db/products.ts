@@ -170,11 +170,32 @@ export async function getSellerProducts(
 ): Promise<ProductRecord[]> {
   const { rows } = await query(
     `
-    SELECT *
-    FROM products
-    WHERE seller_id = $1
-      AND deleted_at IS NULL
-    ORDER BY created_at DESC
+    SELECT
+      p.*,
+
+      /* 🔥 MIN VARIANT PRICE */
+      COALESCE(MIN(v.price), p.price) AS min_price,
+
+      /* 🔥 MIN VARIANT SALE */
+      MIN(
+        CASE
+          WHEN v.sale_price IS NOT NULL AND v.sale_price > 0
+          THEN v.sale_price
+        END
+      ) AS min_sale_price
+
+    FROM products p
+
+    LEFT JOIN product_variants v
+      ON v.product_id = p.id
+      AND (v.is_active = TRUE OR v.is_active IS NULL)
+
+    WHERE p.seller_id = $1
+      AND p.deleted_at IS NULL
+
+    GROUP BY p.id
+
+    ORDER BY p.created_at DESC
     `,
     [sellerId]
   );
