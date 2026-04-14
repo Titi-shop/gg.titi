@@ -116,10 +116,12 @@ const existing = await client.query(
 
     const productRes = await client.query(
       `
-      SELECT id, seller_id, name, price, thumbnail, is_active, deleted_at
-      FROM products
-      WHERE id=$1
-      LIMIT 1
+      SELECT 
+  id, seller_id, name, price, thumbnail, is_active, deleted_at,
+  sale_price, sale_start, sale_end
+FROM products
+WHERE id=$1
+LIMIT 1
       `,
       [params.productId]
     );
