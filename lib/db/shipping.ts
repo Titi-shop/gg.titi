@@ -129,9 +129,10 @@ export async function upsertShippingRates({
 export async function getShippingRatesByProduct(
   productId: string
 ): Promise<ShippingRateInput[]> {
-  console.log("[DB][SHIPPING] GET:", productId);
+  console.log("🚚 [DB][SHIPPING] GET START:", productId);
 
   if (!isUUID(productId)) {
+    console.error("❌ INVALID PRODUCT ID");
     throw new Error("INVALID_PRODUCT");
   }
 
@@ -140,55 +141,36 @@ export async function getShippingRatesByProduct(
     price: number;
   }>(
     `
-    SELECT sz.code, sr.price
+    SELECT 
+      sr.product_id,
+      sz.code,
+      sr.price
     FROM shipping_rates sr
-    JOIN shipping_zones sz ON sz.id = sr.zone_id
+    JOIN shipping_zones sz 
+      ON sz.id = sr.zone_id
     WHERE sr.product_id = $1
     `,
     [productId]
   );
 
-  console.log("[DB][SHIPPING] RAW:", rows);
+  console.log("📦 [DB][SHIPPING] RAW ROWS:", rows);
 
-  return rows
-    .filter((r) => isValidRegion(r.code))
+  const result = rows
+    .filter((r) => {
+      const valid = isValidRegion(r.code);
+      if (!valid) {
+        console.warn("⚠️ INVALID REGION:", r.code);
+      }
+      return valid;
+    })
     .map((r) => ({
-      zone: r.code as Region,
-      price: Number(r.price),
-    }));
-}
-
-/* =========================
-   GET — MULTIPLE PRODUCTS
-========================= */
-
-export async function getShippingRatesByProducts(
-  productIds: string[]
-): Promise<
-  { product_id: string; zone: Region; price: number }[]
-> {
-  if (!Array.isArray(productIds)) return [];
-
-  const validIds = productIds.filter(isUUID);
-  if (!validIds.length) return [];
-
-  const { rows } = await query<ShippingRateRow>(
-    `
-    SELECT sr.product_id, sz.code, sr.price
-    FROM shipping_rates sr
-    JOIN shipping_zones sz ON sz.id = sr.zone_id
-    WHERE sr.product_id = ANY($1::uuid[])
-    `,
-    [validIds]
-  );
-
-  return rows
-    .filter((r) => isValidRegion(r.code))
-    .map((r) => ({
-      product_id: r.product_id,
       zone: r.code,
       price: Number(r.price),
     }));
+
+  console.log("✅ [DB][SHIPPING] FINAL:", result);
+
+  return result;
 }
 
 /* =========================
