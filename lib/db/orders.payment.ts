@@ -77,36 +77,6 @@ export async function processPiPayment(params: {
   console.error("❌ [PAYMENT] INVALID_SELLER");
   throw new Error("INVALID_SELLER");
 }
-
-if (!params.shipping.name) {
-  throw new Error("INVALID_SHIPPING_NAME");
-}
-
-if (!params.shipping.phone) {
-  throw new Error("INVALID_SHIPPING_PHONE");
-}
-
-if (!params.shipping.address_line) {
-  throw new Error("INVALID_SHIPPING_ADDRESS");
-}
-
-if (!country) {
-  throw new Error("INVALID_COUNTRY");
-}
-    console.log("🧾 [ORDER][INSERT_DEBUG]", {
-  buyer_id: params.userId,
-  seller_id: product.seller_id,
-
-  subtotal,
-  shippingFee,
-  total,
-
-  shipping_name: params.shipping.name,
-  shipping_phone: params.shipping.phone,
-  shipping_address_line: params.shipping.address_line,
-  shipping_country: country,
-  shipping_zone: realZone,
-});
     /* =========================================================
        🔒 2. INSERT PAYMENT (ANTI REPLAY)
     ========================================================= */
@@ -155,6 +125,34 @@ if (!country) {
     const realZone = zoneRes.rows[0].code;
 
     if (realZone !== zone) throw new Error("INVALID_REGION");
+    /* =========================================================
+   📍 LOAD ADDRESS (SOURCE OF TRUTH)
+========================================================= */
+
+const addressRes = await client.query(
+  `
+  SELECT 
+    full_name,
+    phone,
+    address_line,
+    ward,
+    district,
+    region,
+    country,
+    postal_code
+  FROM addresses
+  WHERE user_id = $1
+  AND is_default = true
+  LIMIT 1
+  `,
+  [params.userId]
+);
+
+if (!addressRes.rows.length) {
+  throw new Error("ADDRESS_NOT_FOUND");
+}
+
+const address = addressRes.rows[0];
 
     /* =========================================================
        📦 4. LOAD PRODUCT
@@ -261,6 +259,14 @@ if (!country) {
 
     const subtotal = price * quantity;
     const total = subtotal + shippingFee;
+    console.log("🧾 [ORDER][INSERT_DEBUG]", {
+  buyer_id: params.userId,
+  seller_id: product.seller_id,
+  subtotal,
+  shippingFee,
+  total,
+  shipping_name: address.full_name,
+});
 
     console.log("🧾 [PAYMENT] CALC", {
       subtotal,
