@@ -528,7 +528,20 @@
   "pay_now": "Thanh toán ngay",
   "unsupported_country": "Quốc gia không được hỗ trợ",
   "order_preview_failed": "Xem trước đơn hàng thất bại",
-  "unknown_error": "Đã xảy ra lỗi"
+  "unknown_error": "Đã xảy ra lỗi",
+
+  "variant_title": "Biến thể sản phẩm",
+  "variant_type": "Loại",
+  "variant_value": "Giá trị",
+  "variant_type_placeholder": "Loại (size / ml / màu)",
+  "variant_value_placeholder": "Giá trị (XL / đỏ...)",
+  "variant_price": "Giá",
+  "variant_sale_price": "Giá sale",
+  "variant_sale_invalid": "Giá sale phải nhỏ hơn giá gốc",
+  "variant_stock": "Tồn kho",
+  "variant_sku": "SKU",
+  "variant_delete": "✕ Xóa biến thể",
+  "variant_add": "+ Thêm biến thể"
 
       
 
