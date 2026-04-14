@@ -186,6 +186,40 @@ export default function SellerStockPage() {
       loadProfile();
     }
   }, [authLoading, loadProducts, loadProfile]);
+   /* ================= BANNER ================= */
+const handleBannerUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await apiAuthFetch("/api/uploadShopBanner", {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+
+    setShop((prev) => ({
+      ...prev,
+      shop_banner: data.banner,
+    }));
+
+    setMessage({
+      text: "Banner updated",
+      type: "success",
+    });
+  } catch {
+    setMessage({
+      text: "Upload failed",
+      type: "error",
+    });
+  }
+};
 
   /* ================= DELETE ================= */
   const handleDelete = async (id: string) => {
@@ -306,18 +340,13 @@ export default function SellerStockPage() {
       {/* PRODUCT LIST */}
       <div className="space-y-4">
         {products.map((product) => {
-
+    const display = getDisplayPrice(product);
           const now = new Date();
 
           const start = product.saleStart ? new Date(product.saleStart) : null;
           const end = product.saleEnd ? new Date(product.saleEnd) : null;
 
-          const isSale =
-            product.salePrice !== null &&
-            start !== null &&
-            end !== null &&
-            now >= start &&
-            now <= end;
+          const isSale = isNowInRange(product.saleStart, product.saleEnd);
 
           const upcoming =
             product.salePrice !== null &&
@@ -381,20 +410,20 @@ export default function SellerStockPage() {
 
                 {/* PRICE */}
                 <div className="mt-1">
-                  {isSale ? (
-                    <>
-                      <p className="text-sm text-gray-400 line-through">
-                        {formatPi(product.price)} π
-                      </p>
-                      <p className="text-[#ff6600] font-bold">
-                        {formatPi(product.salePrice ?? 0)} π
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-[#ff6600] font-bold">
-                      {formatPi(product.price)} π
-                    </p>
-                  )}
+                 {display.salePrice ? (
+  <>
+    <p className="text-sm text-gray-400 line-through">
+      {formatPi(display.price)} π
+    </p>
+    <p className="text-[#ff6600] font-bold">
+      {formatPi(display.salePrice)} π
+    </p>
+  </>
+) : (
+  <p className="text-[#ff6600] font-bold">
+    {formatPi(display.price)} π
+  </p>
+)}
                 </div>
 
                 {/* SALE TIME (FIX TIMEZONE DISPLAY) */}
