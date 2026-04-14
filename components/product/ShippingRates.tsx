@@ -13,27 +13,41 @@ export default function ShippingRates({
     { key: "rest_of_world", label: "Rest of World" },
   ];
 
+  console.log("🚚 [UI] shippingRates:", shippingRates);
+
   return (
     <div className="space-y-2">
       <p className="font-medium">🚚 Shipping Fee</p>
 
       <div className="grid grid-cols-2 gap-3">
-        {zones.map((z) => (
-          <input
-            key={z.key}
-            type="number"
-            step="0.00001"
-            placeholder={z.label}
-            value={shippingRates[z.key] ?? ""}
-            onChange={(e) =>
-              setShippingRates((prev: any) => ({
-                ...prev,
-                [z.key]: e.target.value ? Number(e.target.value) : "",
-              }))
-            }
-            className="border p-2 rounded"
-          />
-        ))}
+        {zones.map((z) => {
+          const value = shippingRates?.[z.key];
+
+          return (
+            <input
+              key={z.key}
+              type="number"
+              step="0.00001"
+              placeholder={z.label}
+
+              /* ✅ FIX 1: luôn là number */
+              value={typeof value === "number" ? value : 0}
+
+              onChange={(e) => {
+                const val = Number(e.target.value);
+
+                console.log("✏️ CHANGE:", z.key, val);
+
+                setShippingRates((prev: any) => ({
+                  ...prev,
+                  [z.key]: Number.isNaN(val) ? 0 : val,
+                }));
+              }}
+
+              className="border p-2 rounded"
+            />
+          );
+        })}
       </div>
     </div>
   );
