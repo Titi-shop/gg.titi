@@ -449,6 +449,7 @@ const now = new Date();
         </div>
       ))
     : products.map((product) => {
+       const display = getDisplayPrice(product);
         const isSale = isProductOnSale(product);
         const isOut = (product.stock ?? 0) <= 0;
         const isOff = product.isActive === false;
@@ -508,26 +509,22 @@ const now = new Date();
               <h3 className="font-semibold text-sm line-clamp-2">
                 {product.name}
               </h3>
-
-              <div className="mt-1">
-                const display = getDisplayPrice(product);
-
-{display.salePrice ? (
-  <>
-    <p className="text-xs text-gray-400 line-through">
+             <div className="mt-1">
+  {display.salePrice ? (
+    <>
+      <p className="text-xs text-gray-400 line-through">
+        {formatPi(display.price)} π
+      </p>
+      <p className="text-[#ff6600] font-bold">
+        {formatPi(display.salePrice)} π
+      </p>
+    </>
+  ) : (
+    <p className="text-[#ff6600] font-bold">
       {formatPi(display.price)} π
     </p>
-    <p className="text-[#ff6600] font-bold">
-      {formatPi(display.salePrice)} π
-    </p>
-  </>
-) : (
-  <p className="text-[#ff6600] font-bold">
-    {formatPi(display.price)} π
-  </p>
-)}
-              </div>
-
+  )}
+</div>
               <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
                 <span>⭐ {product.ratingAvg ?? 0}</span>
                 <span>📦 {product.stock ?? 0}</span>
