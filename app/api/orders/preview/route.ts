@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 type PreviewItem = {
   product_id: string;
   quantity: number;
+  variant_id?: string | null;
 };
 
 type PreviewBody = {
@@ -108,39 +109,50 @@ export async function POST(req: NextRequest) {
 
     const cleanItems: PreviewItem[] = [];
 
-    for (const item of items) {
-      if (!item || typeof item !== "object") {
-        console.log("⚠️ [ORDER][PREVIEW] SKIP INVALID ITEM:", item);
-        continue;
-      }
+for (const item of items) {
+  if (!item || typeof item !== "object") {
+    console.log("⚠️ [ORDER][PREVIEW] SKIP INVALID ITEM:", item);
+    continue;
+  }
 
-      const productId =
-        typeof item.product_id === "string"
-          ? item.product_id.trim()
-          : "";
+  const productId =
+    typeof item.product_id === "string"
+      ? item.product_id.trim()
+      : "";
 
-      const quantity =
-        typeof item.quantity === "number" &&
-        Number.isInteger(item.quantity) &&
-        item.quantity > 0
-          ? item.quantity
-          : 0;
+  const quantity =
+    typeof item.quantity === "number" &&
+    Number.isInteger(item.quantity) &&
+    item.quantity > 0
+      ? item.quantity
+      : 0;
 
-      if (!productId || !isUUID(productId)) {
-        console.log("🔴 [ORDER][PREVIEW] INVALID PRODUCT ID:", productId);
-        continue;
-      }
+  const variantId =
+    typeof (item as any).variant_id === "string"
+      ? (item as any).variant_id.trim()
+      : null;
 
-      if (quantity <= 0) {
-        console.log("🔴 [ORDER][PREVIEW] INVALID QUANTITY:", quantity);
-        continue;
-      }
+  if (!productId || !isUUID(productId)) {
+    console.log("🔴 INVALID PRODUCT ID:", productId);
+    continue;
+  }
 
-      cleanItems.push({
-        product_id: productId,
-        quantity,
-      });
-    }
+  if (variantId && !isUUID(variantId)) {
+    console.log("🔴 INVALID VARIANT ID:", variantId);
+    continue;
+  }
+
+  if (quantity <= 0) {
+    console.log("🔴 INVALID QUANTITY:", quantity);
+    continue;
+  }
+
+  cleanItems.push({
+    product_id: productId,
+    quantity,
+    variant_id: variantId, // ✅ QUAN TRỌNG
+  });
+}
 
     console.log("🟢 [ORDER][PREVIEW] CLEAN ITEMS:", cleanItems);
 
@@ -152,7 +164,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
+console.log("🧾 [ORDER][PREVIEW] FINAL ITEMS:", cleanItems);
     /* ================= CALL DB ================= */
 
     console.log("🟡 [ORDER][PREVIEW] CALL previewOrder");
