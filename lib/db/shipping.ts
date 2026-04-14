@@ -136,23 +136,26 @@ export async function getShippingRatesByProduct(
   }
 
   const { rows } = await query<{
-    zone: string;
+    code: string;
     price: number;
   }>(
     `
-    SELECT zone, price
-    FROM product_shipping_rates
-    WHERE product_id = $1
+    SELECT sz.code, sr.price
+    FROM shipping_rates sr
+    JOIN shipping_zones sz ON sz.id = sr.zone_id
+    WHERE sr.product_id = $1
     `,
     [productId]
   );
 
   console.log("[DB][SHIPPING] RAW:", rows);
 
-  return rows.map((r) => ({
-    zone: r.zone,
-    price: Number(r.price),
-  }));
+  return rows
+    .filter((r) => isValidRegion(r.code))
+    .map((r) => ({
+      zone: r.code as Region,
+      price: Number(r.price),
+    }));
 }
 
 /* =========================
