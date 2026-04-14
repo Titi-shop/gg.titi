@@ -19,9 +19,14 @@ interface OrderItem {
   id: string;
   product_id: string | null;
   product_name: string;
+  thumbnail: string;
+
+  variant_name: string;
+  variant_value: string;
   quantity: number;
   unit_price: number;
   total_price: number;
+  status: string;
 }
 
 interface Order {
@@ -31,10 +36,13 @@ interface Order {
 
   shipping_name: string;
   shipping_phone: string;
-  shipping_address: string;
+
+  shipping_address_line: string;
+  shipping_ward: string | null;
+  shipping_district: string | null;
+  shipping_region: string | null;
   shipping_country: string | null;
   shipping_postal_code: string | null;
-
   total: number;
   order_items: OrderItem[];
 }
@@ -66,45 +74,42 @@ const fetcher = async (url: string): Promise<Order | null> => {
     const data = await res.json();
 
     const items: OrderItem[] = (data.order_items || []).map(
-      (i: unknown) => {
-        const item = i as Record<string, unknown>;
+  (i: any) => ({
+    id: safeString(i.id),
+    product_id: i.product_id ?? null,
+    product_name: safeString(i.product_name),
+    thumbnail: safeString(i.thumbnail),
 
-        return {
-          id: safeString(item.id),
-          product_id:
-            typeof item.product_id === "string"
-              ? item.product_id
-              : null,
-          product_name: safeString(item.product_name),
-          quantity: safeNumber(item.quantity),
-          unit_price: safeNumber(item.unit_price),
-          total_price: safeNumber(item.total_price),
-        };
-      }
-    );
+    variant_name: safeString(i.variant_name),
+    variant_value: safeString(i.variant_value),
+
+    quantity: safeNumber(i.quantity),
+    unit_price: safeNumber(i.unit_price),
+    total_price: safeNumber(i.total_price),
+
+    status: safeString(i.status),
+  })
+);
 
     return {
-      id: safeString(data.id),
-      order_number: safeString(data.order_number),
-      created_at: safeString(data.created_at),
+  id: safeString(data.id),
+  order_number: safeString(data.order_number),
+  created_at: safeString(data.created_at),
 
-      shipping_name: safeString(data.shipping_name),
-      shipping_phone: safeString(data.shipping_phone),
-      shipping_address: safeString(data.shipping_address),
+  shipping_name: safeString(data.shipping_name),
+  shipping_phone: safeString(data.shipping_phone),
 
-      shipping_country:
-        typeof data.shipping_country === "string"
-          ? data.shipping_country
-          : null,
+  shipping_address_line: safeString(data.shipping_address_line),
+  shipping_ward: safeString(data.shipping_ward),
+  shipping_district: safeString(data.shipping_district),
+  shipping_region: safeString(data.shipping_region),
 
-      shipping_postal_code:
-        typeof data.shipping_postal_code === "string"
-          ? data.shipping_postal_code
-          : null,
+  shipping_country: safeString(data.shipping_country),
+  shipping_postal_code: safeString(data.shipping_postal_code),
 
-      total: safeNumber(data.total),
-      order_items: items,
-    };
+  total: safeNumber(data.total),
+  order_items: items,
+};
   } catch {
     return null;
   }
@@ -245,7 +250,17 @@ export default function SellerOrderDetailPage() {
         <div className="text-sm space-y-1 mb-4">
           <p><b>Receiver:</b> {order.shipping_name}</p>
           <p><b>Phone:</b> {order.shipping_phone}</p>
-          <p><b>Address:</b> {order.shipping_address}</p>
+          <p>
+  <b>Address:</b>{" "}
+  {[
+    order.shipping_address_line,
+    order.shipping_ward,
+    order.shipping_district,
+    order.shipping_region,
+  ]
+    .filter(Boolean)
+    .join(", ")}
+</p>
           <p><b>Country:</b> {order.shipping_country}</p>
           <p><b>Postal:</b> {order.shipping_postal_code}</p>
           <p><b>Created:</b> {formatDate(order.created_at)}</p>
@@ -262,21 +277,43 @@ export default function SellerOrderDetailPage() {
           </thead>
 
           <tbody>
-            {order.order_items.map((item, i) => (
-              <tr key={item.id}>
-                <td className="border px-2 py-1">{i + 1}</td>
-                <td className="border px-2 py-1">
-                  {item.product_name}
-                </td>
-                <td className="border px-2 py-1 text-center">
-                  {item.quantity}
-                </td>
-                <td className="border px-2 py-1 text-right">
-                  π{formatPi(item.total_price)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
+  {order.order_items.map((item, i) => (
+    <tr key={item.id}>
+      <td className="border px-2 py-1">{i + 1}</td>
+
+      <td className="border px-2 py-1">
+        <div className="flex gap-2 items-center">
+          {item.thumbnail && (
+            <img
+              src={item.thumbnail}
+              className="w-10 h-10 object-cover rounded"
+            />
+          )}
+
+          <div>
+            <div className="font-medium">
+              {item.product_name}
+            </div>
+
+            {(item.variant_name || item.variant_value) && (
+              <div className="text-xs text-gray-500">
+                {item.variant_name}: {item.variant_value}
+              </div>
+            )}
+          </div>
+        </div>
+      </td>
+
+      <td className="border px-2 py-1 text-center">
+        {item.quantity}
+      </td>
+
+      <td className="border px-2 py-1 text-right">
+        π{formatPi(item.total_price)}
+      </td>
+    </tr>
+  ))}
+</tbody>
         </table>
 
         <div className="mt-4 text-right font-semibold">
