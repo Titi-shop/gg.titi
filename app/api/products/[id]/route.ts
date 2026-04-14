@@ -41,31 +41,52 @@ function normalizeVariants(input: unknown): ProductVariant[] {
       if (!optionValue) return null;
 
       return {
-        id: typeof row.id === "string" ? row.id : undefined,
-        optionName:
-          typeof row.optionName === "string" && row.optionName.trim()
-            ? row.optionName.trim()
-            : "size",
-        optionValue,
-        stock:
-          typeof row.stock === "number" &&
-          !Number.isNaN(row.stock) &&
-          row.stock >= 0
-            ? row.stock
-            : 0,
-        sku:
-          typeof row.sku === "string" && row.sku.trim()
-            ? row.sku.trim()
-            : null,
-        sortOrder:
-          typeof row.sortOrder === "number"
-            ? row.sortOrder
-            : index,
-        isActive:
-          typeof row.isActive === "boolean"
-            ? row.isActive
-            : true,
-      };
+  id: typeof row.id === "string" ? row.id : undefined,
+
+  optionName:
+    typeof row.optionName === "string" && row.optionName.trim()
+      ? row.optionName.trim()
+      : "size",
+
+  optionValue,
+
+  /* 🔥 FIX QUAN TRỌNG */
+  price:
+    typeof row.price === "number" &&
+    !Number.isNaN(row.price) &&
+    row.price > 0
+      ? row.price
+      : 0,
+
+  salePrice:
+    typeof row.salePrice === "number" &&
+    !Number.isNaN(row.salePrice) &&
+    row.salePrice > 0
+      ? row.salePrice
+      : null,
+
+  stock:
+    typeof row.stock === "number" &&
+    !Number.isNaN(row.stock) &&
+    row.stock >= 0
+      ? row.stock
+      : 0,
+
+  sku:
+    typeof row.sku === "string" && row.sku.trim()
+      ? row.sku.trim()
+      : null,
+
+  sortOrder:
+    typeof row.sortOrder === "number"
+      ? row.sortOrder
+      : index,
+
+  isActive:
+    typeof row.isActive === "boolean"
+      ? row.isActive
+      : true,
+};
     })
     .filter((i): i is ProductVariant => i !== null);
 
@@ -141,9 +162,9 @@ function getTotalVariantStock(variants: ProductVariant[]) {
 
     const variants = rawVariants.map((v) => {
   const finalPrice =
-    typeof v.salePrice === "number"
-      ? v.salePrice
-      : v.price;
+  typeof v.salePrice === "number" && v.salePrice > 0
+    ? v.salePrice
+    : v.price;
 
   return {
     ...v,
@@ -209,17 +230,14 @@ function getTotalVariantStock(variants: ProductVariant[]) {
       shortDescription: p.short_description ?? "",
       description: p.description ?? "",
       detail: p.detail ?? "",
-
       thumbnail: p.thumbnail ?? "",
       images: p.images ?? [],
       detailImages: p.detail_images ?? [],
       videoUrl: p.video_url ?? "",
-
       /* 🔥 CORE LOGIC */
       price: hasVariants ? null : p.price ?? 0,
       salePrice: hasVariants ? null : p.sale_price ?? null,
       finalPrice: hasVariants ? null : finalPrice,
-
       minPrice,
       maxPrice,
 
