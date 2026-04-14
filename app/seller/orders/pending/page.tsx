@@ -73,17 +73,6 @@ const fetcher = async (): Promise<Order[]> => {
 
     if (!res.ok) return [];
 
-    const data: unknown = await res.json();
-
-    const fetcher = async (): Promise<Order[]> => {
-  try {
-    const res = await apiAuthFetch(
-      "/api/seller/orders?status=pending",
-      { cache: "no-store" }
-    );
-
-    if (!res.ok) return [];
-
     const data = await res.json();
 
     if (!Array.isArray(data)) return [];
@@ -104,6 +93,7 @@ const fetcher = async (): Promise<Order[]> => {
       shipping_district: o.shipping_district ?? null,
       shipping_region: o.shipping_region ?? null,
 
+      shipping_provider: o.shipping_provider ?? null,
       shipping_country: o.shipping_country ?? null,
       shipping_postal_code: o.shipping_postal_code ?? null,
 
