@@ -54,17 +54,43 @@ console.log("🟣 SHIPPING STATE:", shipping);
   /* ========================= */
 
   const item = useMemo(() => {
-    if (!product) return null;
+  if (!product) return null;
+
+  const selected = product.selectedVariant;
+
+  /* ================= VARIANT MODE ================= */
+  if (selected) {
+    const price =
+      typeof selected.salePrice === "number" && selected.salePrice > 0
+        ? selected.salePrice
+        : selected.price;
 
     return {
       id: product.id,
       name: product.name,
-      price: product.price,
-      finalPrice: product.finalPrice,
+      price,
+      finalPrice: price,
       thumbnail: product.thumbnail || "/placeholder.png",
-      stock: product.stock ?? 1,
+      stock: selected.stock ?? 0,
     };
-  }, [product]);
+  }
+
+  /* ================= PRODUCT MODE ================= */
+  const price =
+    typeof product.salePrice === "number" &&
+    product.salePrice > 0
+      ? product.salePrice
+      : product.price;
+
+  return {
+    id: product.id,
+    name: product.name,
+    price,
+    finalPrice: price,
+    thumbnail: product.thumbnail || "/placeholder.png",
+    stock: product.stock ?? 0,
+  };
+}, [product]);
 
   const maxStock = Math.max(1, item?.stock ?? 0);
 
@@ -148,14 +174,14 @@ console.log("🟣 SHIPPING STATE:", shipping);
 
   /* ========================= */
 
-  const unitPrice = item?.finalPrice ?? item?.price ?? 0;
+  const unitPrice = item?.finalPrice ?? 0;
 
   const availableRegions = useMemo(() => {
     if (!shipping?.country) return [];
 
     const country = shipping.country.toUpperCase();
 
-    return product.shippingRates.filter((r) => {
+    return (product.shippingRates || []).filter((r) => {
       if (country === "VN") return r.zone === "domestic";
       return true;
     });
@@ -263,7 +289,7 @@ console.log("🟣 SHIPPING STATE:", shipping);
         key={r.zone}
         onClick={() => {
   if (!r.zone) return;
-  setZone(r.zone.toLowerCase() as Region);
+  setZone(r.zone as Region);
 }}
         className={`min-w-[90px] rounded-xl border px-3 py-2 text-xs text-center transition
           ${
