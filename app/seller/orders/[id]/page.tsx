@@ -300,6 +300,12 @@ export default function SellerOrderDetailPage() {
                 {item.variant_name}: {item.variant_value}
               </div>
             )}
+            <div className="text-xs mt-1">
+        Status:{" "}
+  <span className="font-medium">
+    {item.status}
+         </span>
+          </div>
           </div>
         </div>
       </td>
