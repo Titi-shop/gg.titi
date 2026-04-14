@@ -174,6 +174,65 @@ export async function getShippingRatesByProduct(
 }
 
 /* =========================
+   GET — MULTIPLE PRODUCTS
+========================= */
+
+export async function getShippingRatesByProducts(
+  productIds: string[]
+): Promise<
+  { product_id: string; zone: Region; price: number }[]
+> {
+  console.log("🚚 [DB][SHIPPING] MULTI GET START:", productIds);
+
+  if (!Array.isArray(productIds)) return [];
+
+  const validIds = productIds.filter(isUUID);
+
+  if (!validIds.length) {
+    console.warn("⚠️ NO VALID PRODUCT IDS");
+    return [];
+  }
+
+  const { rows } = await query<{
+    product_id: string;
+    code: string;
+    price: number;
+  }>(
+    `
+    SELECT 
+      sr.product_id,
+      sz.code,
+      sr.price
+    FROM shipping_rates sr
+    JOIN shipping_zones sz 
+      ON sz.id = sr.zone_id
+    WHERE sr.product_id = ANY($1::uuid[])
+    `,
+    [validIds]
+  );
+
+  console.log("📦 [DB][SHIPPING] MULTI RAW:", rows);
+
+  const result = rows
+    .filter((r) => {
+      const valid = isValidRegion(r.code);
+      if (!valid) {
+        console.warn("⚠️ INVALID REGION:", r.code);
+      }
+      return valid;
+    })
+    .map((r) => ({
+      product_id: r.product_id,
+      zone: r.code as Region,
+      price: Number(r.price),
+    }));
+
+  console.log("✅ [DB][SHIPPING] MULTI FINAL:", result);
+
+  return result;
+}
+
+/* =========================
    ZONE BY COUNTRY
 ========================= */
 
