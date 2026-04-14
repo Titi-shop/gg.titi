@@ -55,13 +55,14 @@ console.log("🟣 SHIPPING STATE:", shipping);
 
   const item = useMemo(() => {
   if (!product) return null;
-
   const selected = product.selectedVariant;
 
-  /* ================= VARIANT MODE ================= */
+  /* ================= VARIANT ================= */
   if (selected) {
     const price =
-      typeof selected.salePrice === "number" && selected.salePrice > 0
+      typeof selected.finalPrice === "number"
+        ? selected.finalPrice
+        : selected.salePrice && selected.salePrice > 0
         ? selected.salePrice
         : selected.price;
 
@@ -75,10 +76,11 @@ console.log("🟣 SHIPPING STATE:", shipping);
     };
   }
 
-  /* ================= PRODUCT MODE ================= */
+  /* ================= PRODUCT ================= */
   const price =
-    typeof product.salePrice === "number" &&
-    product.salePrice > 0
+    typeof product.finalPrice === "number"
+      ? product.finalPrice
+      : product.salePrice && product.salePrice > 0
       ? product.salePrice
       : product.price;
 
@@ -115,9 +117,13 @@ console.log("🟣 SHIPPING STATE:", shipping);
             ward: shipping.ward,
           },
 
-          items: [{ product_id: item.id, quantity }],
-        },
-      ]
+          items: [
+       {
+      product_id: item.id,
+     quantity,
+    variant_id: product.selectedVariant?.id ?? null, 
+   },
+   ],
     : null;
 
   const { data: preview, error: previewError } = useSWR(
@@ -177,15 +183,20 @@ console.log("🟣 SHIPPING STATE:", shipping);
   const unitPrice = item?.finalPrice ?? 0;
 
   const availableRegions = useMemo(() => {
-    if (!shipping?.country) return [];
+  if (!shipping?.country) return [];
 
-    const country = shipping.country.toUpperCase();
+  const country = shipping.country.toUpperCase();
 
-    return (product.shippingRates || []).filter((r) => {
-      if (country === "VN") return r.zone === "domestic";
-      return true;
-    });
-  }, [shipping?.country, product.shippingRates]);
+  // ✅ FIX CRASH / UNDEFINED
+  const rates = Array.isArray(product?.shippingRates)
+    ? product.shippingRates
+    : [];
+  console.log("🚚 SHIPPING RATES:", rates);
+  return rates.filter((r) => {
+    if (country === "VN") return r.zone === "domestic";
+    return true;
+  });
+}, [shipping?.country, product?.shippingRates]);
 
   const total = preview?.total ?? unitPrice * quantity;
 
