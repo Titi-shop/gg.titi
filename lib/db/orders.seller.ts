@@ -144,9 +144,20 @@ export async function getSellerOrderById(
   const { rows } = await query(
     `
     SELECT
-      o.id,
-      o.order_number,
-      o.created_at,
+  o.id,
+  o.order_number,
+  o.created_at,
+
+  o.shipping_name,
+  o.shipping_phone,
+
+  o.shipping_address_line,
+  o.shipping_ward,
+  o.shipping_district,
+  o.shipping_region,
+
+  o.shipping_country,
+  o.shipping_postal_code,
 
       COALESCE(
         json_agg(
