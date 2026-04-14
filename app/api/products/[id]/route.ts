@@ -204,8 +204,11 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     let shippingRates: { zone: string; price: number }[] = [];
 
     try {
-      shippingRates = await getShippingRatesByProduct(p.id);
-      console.log("🚚 SHIPPING:", shippingRates.length);
+      console.log("🚚 [API] LOAD SHIPPING START");
+
+shippingRates = await getShippingRatesByProduct(p.id);
+console.log("📦 [API] SHIPPING DATA:", shippingRates);
+console.log("📊 [API] SHIPPING COUNT:", shippingRates.length);
     } catch (err) {
       console.warn("⚠️ SHIPPING LOAD FAILED");
     }
@@ -322,11 +325,8 @@ export async function PATCH(
 
     /* ================= VARIANTS ================= */
     const normalizedVariants = normalizeVariants(body.variants);
-
     console.log("🧩 [PATCH] VARIANTS:", normalizedVariants);
-
     const hasVariants = normalizedVariants.length > 0;
-
     console.log("🧠 [PATCH] HAS VARIANTS:", hasVariants);
 
     /* ================= PRICE INPUT ================= */
