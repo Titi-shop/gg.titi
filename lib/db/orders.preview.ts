@@ -177,19 +177,45 @@ export async function previewOrder(
 
   /* ================= SHIPPING ================= */
 
-  const { rows: shippingRows } = await query<{
-    product_id: string;
-    price: number;
-  }>(
-    `
-    SELECT sr.product_id, sr.price
-    FROM shipping_rates sr
-    JOIN shipping_zones sz ON sz.id = sr.zone_id
-    WHERE sr.product_id = ANY($1::uuid[])
-      AND sz.code = $2
-    `,
-    [productIds, realZone]
-  );
+  const { rows } = await query(
+  `
+  SELECT 
+    p.id,
+    p.name,
+
+    /* 🔥 PRICE LOGIC */
+    COALESCE(
+      MIN(
+        CASE 
+          WHEN v.sale_price > 0 THEN v.sale_price
+        END
+      ),
+      MIN(v.price),
+      p.sale_price,
+      p.price
+    ) AS price,
+
+    sr.price AS shipping_price
+
+  FROM products p
+
+  LEFT JOIN product_variants v
+    ON v.product_id = p.id
+    AND (v.is_active = TRUE OR v.is_active IS NULL)
+
+  JOIN shipping_rates sr
+    ON sr.product_id = p.id
+
+  JOIN shipping_zones sz
+    ON sz.id = sr.zone_id
+    AND sz.code = $2
+
+  WHERE p.id = ANY($1::uuid[])
+
+  GROUP BY p.id, sr.price
+  `,
+  [productIds, realZone]
+);
 
   const shippingMap = new Map(
     shippingRows.map((r) => [r.product_id, Number(r.price)])
