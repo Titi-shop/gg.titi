@@ -1,3 +1,4 @@
+"use client";
 import type { Product as DBProduct } from "@/types/Product";
 import { Plus, Upload } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
