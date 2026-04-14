@@ -1,5 +1,3 @@
-// lib/db/orders.payment.ts
-
 import { withTransaction } from "@/lib/db";
 
 export async function processPiPayment(params: {
@@ -26,26 +24,75 @@ export async function processPiPayment(params: {
     return /^[0-9a-f-]{36}$/i.test(v);
   }
 
-  const zone = params.zone?.trim().toLowerCase();
-  const country = params.country?.trim().toUpperCase();
-
   if (!isUUID(params.productId)) {
     throw new Error("INVALID_PRODUCT_ID");
   }
 
+  const zone = params.zone?.trim().toLowerCase();
+  const country = params.country?.trim().toUpperCase();
+
   return withTransaction(async (client) => {
 
-    /* ================= IDEMPOTENCY ================= */
-    const existing = await client.query(
-      `SELECT id FROM orders WHERE pi_payment_id=$1 LIMIT 1`,
+    /* =========================================================
+       🔒 1. IDEMPOTENCY (STRONG - USING pi_payments)
+    ========================================================= */
+
+    const paymentRes = await client.query(
+      `
+      SELECT id, status
+      FROM pi_payments
+      WHERE pi_payment_id = $1
+      FOR UPDATE
+      `,
       [params.paymentId]
     );
 
-    if (existing.rows.length > 0) {
-      return { orderId: existing.rows[0].id, duplicated: true };
+    if (paymentRes.rows.length > 0) {
+      const payment = paymentRes.rows[0];
+
+      if (payment.status === "completed") {
+        const existing = await client.query(
+          `SELECT id FROM orders WHERE pi_payment_id = $1 LIMIT 1`,
+          [params.paymentId]
+        );
+
+        return {
+          orderId: existing.rows[0]?.id ?? null,
+          duplicated: true,
+        };
+      }
+
+      // nếu pending → tiếp tục (retry case)
+    } else {
+      // insert payment trước (anti replay)
+      await client.query(
+        `
+        INSERT INTO pi_payments (
+          user_id,
+          pi_payment_id,
+          txid,
+          amount,
+          status,
+          country,
+          zone
+        )
+        VALUES ($1,$2,$3,$4,'pending',$5,$6)
+        `,
+        [
+          params.userId,
+          params.paymentId,
+          params.txid,
+          0, // sẽ update sau
+          country,
+          zone,
+        ]
+      );
     }
 
-    /* ================= ZONE ================= */
+    /* =========================================================
+       🌍 2. VALIDATE ZONE
+    ========================================================= */
+
     const zoneRes = await client.query<{ code: string }>(
       `
       SELECT sz.code
@@ -67,7 +114,10 @@ export async function processPiPayment(params: {
       throw new Error("INVALID_REGION");
     }
 
-    /* ================= PRODUCT ================= */
+    /* =========================================================
+       📦 3. LOAD PRODUCT (SOURCE OF TRUTH)
+    ========================================================= */
+
     const productRes = await client.query(
       `
       SELECT id, seller_id, name, price, thumbnail, is_active, deleted_at
@@ -84,9 +134,37 @@ export async function processPiPayment(params: {
       throw new Error("PRODUCT_NOT_AVAILABLE");
     }
 
-    const price = Number(product.price);
+    let price = Number(product.price);
 
-    /* ================= SHIPPING ================= */
+    /* =========================================================
+       🧩 4. VARIANT PRICE (ANTI FAKE PRICE)
+    ========================================================= */
+
+    if (params.variantId) {
+      const vRes = await client.query(
+        `
+        SELECT price, sale_price
+        FROM product_variants
+        WHERE id = $1 AND product_id = $2
+        LIMIT 1
+        `,
+        [params.variantId, params.productId]
+      );
+
+      if (!vRes.rows.length) throw new Error("INVALID_VARIANT");
+
+      const v = vRes.rows[0];
+
+      price =
+        v.sale_price && v.sale_price > 0
+          ? Number(v.sale_price)
+          : Number(v.price);
+    }
+
+    /* =========================================================
+       🚚 5. SHIPPING
+    ========================================================= */
+
     const shippingRes = await client.query<{ price: number }>(
       `
       SELECT sr.price
@@ -105,9 +183,12 @@ export async function processPiPayment(params: {
 
     const shippingFee = Number(shippingRes.rows[0].price);
 
-    /* ================= STOCK ================= */
+    /* =========================================================
+       📉 6. STOCK (ATOMIC)
+    ========================================================= */
+
     if (params.variantId) {
-      const stockUpdate = await client.query(
+      const stock = await client.query(
         `
         UPDATE product_variants
         SET stock = stock - $1
@@ -117,7 +198,7 @@ export async function processPiPayment(params: {
         [params.quantity, params.variantId]
       );
 
-      if (!stockUpdate.rowCount) throw new Error("OUT_OF_STOCK");
+      if (!stock.rowCount) throw new Error("OUT_OF_STOCK");
     } else {
       const stock = await client.query(
         `
@@ -133,19 +214,17 @@ export async function processPiPayment(params: {
       if (!stock.rowCount) throw new Error("OUT_OF_STOCK");
     }
 
-    /* ================= TOTAL ================= */
+    /* =========================================================
+       💰 7. TOTAL (SERVER ONLY)
+    ========================================================= */
+
     const subtotal = price * params.quantity;
     const total = subtotal + shippingFee;
 
-    console.log("🟣 [ORDER] FINAL_PAYLOAD", {
-      buyer: params.userId,
-      seller: product.seller_id,
-      shipping: params.shipping,
-      zone: realZone,
-      total,
-    });
+    /* =========================================================
+       🧾 8. CREATE ORDER
+    ========================================================= */
 
-    /* ================= ORDER ================= */
     const orderRes = await client.query(
       `
       INSERT INTO orders (
@@ -166,7 +245,6 @@ export async function processPiPayment(params: {
 
         payment_status,
         paid_at,
-
         status,
 
         shipping_name,
@@ -190,13 +268,12 @@ export async function processPiPayment(params: {
 
         $5,$6,$7,$8,$9,$10,$11,
 
-        $12,$13,
+        'paid', NOW(),
+        'pending',
 
-        $14,
+        $12,$13,$14,$15,$16,$17,$18,$19,$20,
 
-        $15,$16,$17,$18,$19,$20,$21,$22,$23,
-
-        $24,$25
+        1,$21
       )
       RETURNING id
       `,
@@ -215,29 +292,26 @@ export async function processPiPayment(params: {
         total,
         "PI",
 
-        "paid",
-        new Date(),
-
-        "pending",
-
         params.shipping.name,
         params.shipping.phone,
         params.shipping.address_line,
         params.shipping.ward ?? null,
         params.shipping.district ?? null,
         params.shipping.region ?? null,
-        params.country,
+        country,
         params.shipping.postal_code ?? null,
         realZone,
 
-        1,
         params.quantity
       ]
     );
 
     const orderId = orderRes.rows[0].id;
 
-    /* ================= ITEM ================= */
+    /* =========================================================
+       📦 9. ORDER ITEM
+    ========================================================= */
+
     await client.query(
       `
       INSERT INTO order_items (
@@ -264,6 +338,22 @@ export async function processPiPayment(params: {
         params.quantity,
         subtotal,
       ]
+    );
+
+    /* =========================================================
+       🔥 10. UPDATE PAYMENT (FINAL)
+    ========================================================= */
+
+    await client.query(
+      `
+      UPDATE pi_payments
+      SET status = 'completed',
+          order_id = $1,
+          amount = $2,
+          completed_at = NOW()
+      WHERE pi_payment_id = $3
+      `,
+      [orderId, total, params.paymentId]
     );
 
     return { orderId, duplicated: false };
