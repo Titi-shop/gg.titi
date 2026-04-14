@@ -369,13 +369,12 @@ const payload = {
         variants={form.variants}
         setVariants={form.setVariants}
       />
-             <textarea
-        name="description"
-        defaultValue={initialData?.description || ""}
-        placeholder={t.description}
-        required
-        className="w-full border p-2 rounded min-h-[70px]"
-      />
+            <textarea
+  value={form.description}
+  onChange={(e) => form.setDescription(e.target.value)}
+  placeholder={t.description}
+  className="w-full border p-2 rounded min-h-[70px]"
+/>
 
            {/* DETAIL */}
       <textarea
