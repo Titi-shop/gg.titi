@@ -260,7 +260,6 @@ const address = addressRes.rows[0];
   subtotal,
   shippingFee,
   total,
-  shipping_name: address.full_name,
 });
 
     console.log("🧾 [PAYMENT] CALC", {
