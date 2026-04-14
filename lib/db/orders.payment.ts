@@ -400,31 +400,49 @@ const total = itemsTotal + shippingFee;
     ========================================================= */
 
     await client.query(
-      `
-      INSERT INTO order_items (
-        order_id,
-        product_id,
-        variant_id,
-        seller_id,
-        product_name,
-        thumbnail,
-        unit_price,
-        quantity,
-        total_price
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      `INSERT INTO order_items (
+  order_id,
+  product_id,
+  variant_id,
+  seller_id,
+
+  product_name,
+  product_slug,
+  thumbnail,
+
+  variant_name,
+  variant_value,
+
+  unit_price,
+  quantity,
+  total_price,
+  currency
+)
+VALUES (
+  $1,$2,$3,$4,
+  $5,$6,$7,
+  $8,$9,
+  $10,$11,$12,$13
+)
       `,
       [
-        orderId,
-        product.id,
-        params.variantId ?? null,
-        product.seller_id,
-        product.name,
-        product.thumbnail ?? "",
-        price,
-        quantity,
-        subtotal,
-      ]
+  orderId,
+  product.id,
+  params.variantId ?? null,
+  product.seller_id,
+
+  product.name,
+  "",              // product_slug (tạm thời)
+  product.thumbnail ?? "",
+
+  "",              // variant_name
+  "",              // variant_value
+
+  price,
+  quantity,
+  subtotal,
+  "PI",            // currency
+]
     );
 
     /* =========================================================
