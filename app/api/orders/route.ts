@@ -1,10 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 
-import {
-  getOrdersByBuyer,
-  getBuyerOrderCounts,
-} from "@/lib/db/orders.buyer";
+/* ✅ IMPORT ĐÚNG */
+import { getOrdersByBuyer } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
