@@ -55,7 +55,6 @@ export async function getSellerOrders(
   }
 
   params.push(limit, offset);
-
   const { rows } = await query(
     `
     SELECT
