@@ -197,23 +197,8 @@ export async function startShippingBySeller(
   sellerId: string
 ) {
   try {
-    /* ================= UPDATE ORDER ================= */
-    const orderRes = await query(
-      `
-      UPDATE orders
-      SET
-        status = 'shipping',
-        shipped_at = NOW(),
-        updated_at = NOW()
-      WHERE id = $1
-        AND seller_id = $2
-        AND status = 'confirmed'
-      `,
-      [orderId, sellerId]
-    );
-
     /* ================= UPDATE ORDER ITEMS ================= */
-    await query(
+    const itemsRes = await query(
       `
       UPDATE order_items
       SET
@@ -227,15 +212,42 @@ export async function startShippingBySeller(
       [orderId, sellerId]
     );
 
-    return orderRes.rowCount > 0;
+    /* ================= CHECK: còn item confirmed không ================= */
+    const { rows } = await query(
+      `
+      SELECT COUNT(*)::int AS remaining
+      FROM order_items
+      WHERE order_id = $1
+        AND status != 'shipping'
+      `,
+      [orderId]
+    );
+
+    const remaining = rows[0]?.remaining ?? 0;
+
+    /* ================= UPDATE ORDER ================= */
+    if (remaining === 0) {
+      await query(
+        `
+        UPDATE orders
+        SET
+          status = 'shipping',
+          shipped_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
+          AND status = 'confirmed'
+        `,
+        [orderId]
+      );
+    }
+
+    return itemsRes.rowCount > 0;
 
   } catch (err) {
     console.error("startShippingBySeller error:", err);
     throw new Error("DB_ERROR");
   }
 }
-
-
 export async function cancelOrderBySeller(
   orderId: string,
   sellerId: string,
