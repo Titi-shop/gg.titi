@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 
-/* ✅ IMPORT TỪ BARREL */
+/* ✅ BARREL IMPORT */
 import { getOrderByBuyerId } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
@@ -23,10 +23,19 @@ export async function GET(
 
     const userId = auth.userId;
 
+    console.log("[ORDER][DETAIL][START]", {
+      userId,
+      orderId: params?.id,
+    });
+
     /* ================= PARAM ================= */
     const orderId = params?.id;
 
     if (!isValidId(orderId)) {
+      console.warn("[ORDER][DETAIL][INVALID_ID]", {
+        orderId,
+      });
+
       return NextResponse.json(
         { error: "INVALID_ORDER_ID" },
         { status: 400 }
@@ -36,17 +45,31 @@ export async function GET(
     /* ================= DB ================= */
     const order = await getOrderByBuyerId(orderId, userId);
 
+    /* ================= NOT FOUND ================= */
     if (!order) {
+      console.warn("[ORDER][DETAIL][NOT_FOUND]", {
+        orderId,
+        userId,
+      });
+
       return NextResponse.json(
         { error: "ORDER_NOT_FOUND" },
         { status: 404 }
       );
     }
 
+    /* ================= SUCCESS ================= */
+    console.log("[ORDER][DETAIL][SUCCESS]", {
+      orderId,
+      items: order?.order_items?.length ?? 0,
+    });
+
     return NextResponse.json(order);
 
   } catch (err) {
-    console.error("[ORDER] GET_ORDER_BY_ID_ERROR", err);
+    console.error("[ORDER][DETAIL][ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
 
     return NextResponse.json(
       { error: "SERVER_ERROR" },
