@@ -9,7 +9,6 @@ import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 
 /* ================= TYPES ================= */
-
 interface OrderItem {
   product_name: string;
   thumbnail: string | null;
