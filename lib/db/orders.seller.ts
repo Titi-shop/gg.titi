@@ -31,7 +31,6 @@ export async function getSellerOrderCounts(sellerId: string) {
 
   return result;
 }
-
 /* =========================================================
    SELLER — ORDERS LIST
 ========================================================= */
