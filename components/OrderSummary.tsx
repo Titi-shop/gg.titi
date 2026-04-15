@@ -13,19 +13,24 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= FETCHER ================= */
 const fetcher = async (url: string) => {
-  const token = await getPiAccessToken();
+  try {
+    const token = await getPiAccessToken();
+    if (!token) return null;
 
-  if (!token) return null;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
 
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+    if (!res.ok) return null;
 
-  if (!res.ok) return null;
-
-  return res.json();
+    return await res.json();
+  } catch (err) {
+    console.error("OrderSummary fetch error:", err);
+    return null;
+  }
 };
 
 /* ================= COMPONENT ================= */
@@ -39,21 +44,22 @@ export default function OrderSummary() {
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
-      keepPreviousData: true, // 🔥 mượt
+      keepPreviousData: true,
       revalidateOnMount: true,
     }
   );
 
-  /* ===== COUNTS (NO BLOCK UI) ===== */
+  /* ================= SAFE COUNTS ================= */
   const counts = {
-    pending: data?.pending ?? 0,
-    confirmed: data?.confirmed ?? 0,
-    shipping: data?.shipping ?? 0,
-    completed: data?.completed ?? 0,
+    pending: Number(data?.pending ?? 0),
+    confirmed: Number(data?.confirmed ?? 0),
+    shipping: Number(data?.shipping ?? 0),
+    completed: Number(data?.completed ?? 0),
   };
 
   return (
     <section className="bg-white mx-4 mt-4 rounded-xl shadow border border-gray-100">
+
       {/* HEADER */}
       <div
         onClick={() => router.push("/customer/orders")}
@@ -70,11 +76,45 @@ export default function OrderSummary() {
 
       {/* ITEMS */}
       <div className="grid grid-cols-5 py-4">
-        <Item icon={<Clock size={22} />} label={t.pending_orders} path="/customer/pending" count={counts.pending} loading={isLoading} />
-        <Item icon={<Package size={22} />} label={t.confirmed_orders} path="/customer/confirmed" count={counts.confirmed} loading={isLoading} />
-        <Item icon={<Truck size={22} />} label={t.shipping_orders} path="/customer/shipping" count={counts.shipping} loading={isLoading} />
-        <Item icon={<Package size={22} />} label={t.completed_orders} path="/customer/completed" count={counts.completed} loading={isLoading} />
-        <Item icon={<RotateCcw size={22} />} label={t.return_orders} path="/customer/returns" />
+
+        <Item
+          icon={<Clock size={22} />}
+          label={t.pending_orders}
+          path="/customer/pending"
+          count={counts.pending}
+          loading={isLoading}
+        />
+
+        <Item
+          icon={<Package size={22} />}
+          label={t.confirmed_orders ?? "Đã xác nhận"}
+          path="/customer/confirmed"
+          count={counts.confirmed}
+          loading={isLoading}
+        />
+
+        <Item
+          icon={<Truck size={22} />}
+          label={t.shipping_orders}
+          path="/customer/shipping"
+          count={counts.shipping}
+          loading={isLoading}
+        />
+
+        <Item
+          icon={<Package size={22} />}
+          label={t.completed_orders}
+          path="/customer/completed"
+          count={counts.completed}
+          loading={isLoading}
+        />
+
+        <Item
+          icon={<RotateCcw size={22} />}
+          label={t.return_orders}
+          path="/customer/returns"
+        />
+
       </div>
     </section>
   );
@@ -102,6 +142,7 @@ function Item({
       onClick={() => router.push(path)}
       className="flex flex-col items-center justify-start h-[88px] text-gray-700 hover:text-orange-500 transition active:scale-95"
     >
+
       {/* ICON */}
       <div className="relative flex items-center justify-center w-11 h-11 rounded-full bg-gray-100 shadow-sm mb-1">
         {icon}
@@ -117,9 +158,10 @@ function Item({
       </div>
 
       {/* LABEL */}
-      <span className="text-[11px] leading-snug text-center line-clamp-2 max-w-[64px]">
+      <span className="text-[11px] text-center line-clamp-2 max-w-[64px]">
         {label}
       </span>
+
     </button>
   );
 }
