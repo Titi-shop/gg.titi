@@ -72,9 +72,12 @@ const fetcher = async (url: string): Promise<Order[]> => {
 
     const data = await res.json();
 
-    if (!Array.isArray(data)) return [];
+    // 🔥 FIX QUAN TRỌNG
+    const list = Array.isArray(data) ? data : data.orders;
 
-    return data.map((o: any) => ({
+    if (!Array.isArray(list)) return [];
+
+    return list.map((o: any) => ({
       id: o.id,
       order_number: o.order_number,
       status: o.status,
@@ -88,10 +91,8 @@ const fetcher = async (url: string): Promise<Order[]> => {
       shipping_ward: o.shipping_ward ?? null,
       shipping_district: o.shipping_district ?? null,
       shipping_region: o.shipping_region ?? null,
-
       shipping_country: o.shipping_country ?? null,
       shipping_postal_code: o.shipping_postal_code ?? null,
-
       order_items: (o.order_items || []).map((i: any) => ({
         product_name: i.product_name ?? "",
         thumbnail: i.thumbnail ?? "",
