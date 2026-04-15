@@ -14,7 +14,6 @@ export async function getOrdersByBuyer(userId: string) {
 
       o.total,
       o.currency,
-
       o.items_total,
       o.shipping_fee,
 
