@@ -36,7 +36,7 @@ interface Order {
 type OrderTab =
   | "all"
   | "pending"
-  | "pickup"
+  | "confirmed"
   | "shipping"
   | "completed"
   | "cancelled";
@@ -98,12 +98,9 @@ export default function CustomerOrdersPage() {
 
     try {
       if (!window.Pi || !user) return;
-
       const item = order.order_items?.[0];
       if (!item) return;
-
       const total = Number(order.total);
-
       await window.Pi.createPayment(
         {
           amount: Number(total.toFixed(6)),
@@ -185,7 +182,7 @@ export default function CustomerOrdersPage() {
           {[
             ["all", t.all],
             ["pending", t.order_pending],
-            ["pickup", t.order_pickup],
+            ["confirmed", t.order_confirmed],
             ["shipping", t.order_shipping],
             ["completed", t.order_completed],
             ["cancelled", t.order_cancelled],
