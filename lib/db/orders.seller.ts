@@ -268,57 +268,29 @@ export async function confirmOrderBySeller(
     return false;
   }
 }
-import { NextResponse } from "next/server";
-import { requireSeller } from "@/lib/auth/guard";
-import { startShippingBySeller } from "@/lib/db/orders";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+export async function startShippingBySeller(
+  orderId: string,
+  sellerId: string
 ) {
-  try {
-    /* ================= AUTH ================= */
-    const auth = await requireSeller();
-    if (!auth.ok) return auth.response;
+  const supabase = createClient();
 
-    const userId = auth.userId;
-    const orderId = params.id;
+  console.log("🚀 startShippingBySeller", { orderId, sellerId });
 
-    if (!orderId) {
-      return NextResponse.json(
-        { error: "MISSING_ORDER_ID" },
-        { status: 400 }
-      );
-    }
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ status: "shipping" })
+    .eq("id", orderId)
+    .eq("seller_id", sellerId)
+    .eq("status", "confirmed") // ⚠️ rất quan trọng
+    .select()
+    .single();
 
-    /* ================= DB ================= */
-    const updated = await startShippingBySeller(
-      orderId,
-      userId
-    );
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: "NOTHING_UPDATED" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= DONE ================= */
-    return NextResponse.json({
-      success: true,
-      message: "ORDER_ITEMS_SHIPPING"
-    });
-
-  } catch (err) {
-    console.error("❌ SHIPPING ERROR:", err);
-
-    return NextResponse.json(
-      { error: "FAILED" },
-      { status: 500 }
-    );
+  if (error) {
+    console.error("❌ UPDATE ERROR", error);
+    return null;
   }
+
+  console.log("✅ UPDATED:", data);
+
+  return data;
 }
