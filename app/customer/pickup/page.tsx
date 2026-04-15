@@ -160,7 +160,7 @@ export default function CustomerPickupPage() {
                 </div>
 
                 {/* PRODUCTS */}
-                <div className="px-4 py-3 space-y-3">
+                
 
                   <div className="space-y-3 px-4 py-3">
   {o.order_items?.map((item, idx) => (
