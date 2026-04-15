@@ -255,45 +255,96 @@ export async function completeOrderByBuyer(
   });
 }
 
+type CancelResult =
+  | "SUCCESS"
+  | "NOT_FOUND"
+  | "FORBIDDEN"
+  | "INVALID_STATUS";
+
 export async function cancelOrderByBuyer(
   orderId: string,
   userId: string,
-  reason?: string
-) {
+  reason?: string | null
+): Promise<CancelResult> {
   try {
-    /* ================= UPDATE ORDER ================= */
-    const res = await query(
-      `
-      UPDATE orders
-      SET 
-        status = 'cancelled',
-        cancel_reason = $3,
-        cancelled_at = NOW(),
-        updated_at = NOW()
-      WHERE id = $1
-        AND buyer_id = $2
-        AND status = 'pending'
-      RETURNING id
-      `,
-      [orderId, userId, reason || null]
-    );
+    return await withTransaction(async (client) => {
 
-    if (res.rowCount === 0) return false;
+      /* ================= CHECK ORDER ================= */
+      const { rows } = await client.query<{
+        buyer_id: string;
+        status: string;
+      }>(
+        `
+        SELECT buyer_id, status
+        FROM orders
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [orderId]
+      );
 
-    /* ================= UPDATE ITEMS ================= */
-    await query(
-      `
-      UPDATE order_items
-      SET status = 'cancelled'
-      WHERE order_id = $1
-      `,
-      [orderId]
-    );
+      const order = rows[0];
 
-    return true;
+      /* ================= NOT FOUND ================= */
+      if (!order) {
+        console.warn("[ORDER][CANCEL][NOT_FOUND]", { orderId });
+        return "NOT_FOUND";
+      }
+
+      /* ================= FORBIDDEN ================= */
+      if (order.buyer_id !== userId) {
+        console.warn("[ORDER][CANCEL][FORBIDDEN]", {
+          orderId,
+          userId,
+        });
+        return "FORBIDDEN";
+      }
+
+      /* ================= INVALID STATUS ================= */
+      if (order.status !== "pending") {
+        console.warn("[ORDER][CANCEL][INVALID_STATUS]", {
+          orderId,
+          status: order.status,
+        });
+        return "INVALID_STATUS";
+      }
+
+      /* ================= UPDATE ORDER ================= */
+      await client.query(
+        `
+        UPDATE orders
+        SET 
+          status = 'cancelled',
+          cancel_reason = $2,
+          cancelled_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
+        `,
+        [orderId, reason ?? null]
+      );
+
+      /* ================= UPDATE ITEMS ================= */
+      await client.query(
+        `
+        UPDATE order_items
+        SET 
+          status = 'cancelled',
+          updated_at = NOW()
+        WHERE order_id = $1
+        `,
+        [orderId]
+      );
+
+      console.log("[ORDER][CANCEL][SUCCESS]", { orderId });
+
+      return "SUCCESS";
+    });
 
   } catch (err) {
-    console.error("cancelOrderByBuyer error:", err);
-    return false;
+    console.error("[ORDER][CANCEL][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
+
+    throw new Error("DB_ERROR");
   }
 }
