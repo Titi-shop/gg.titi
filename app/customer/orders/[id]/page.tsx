@@ -17,90 +17,49 @@ type OrderStatus =
   | "shipping"
   | "completed"
   | "cancelled"
-  | "refunded";
+  | "return_requested";
+
+interface Product {
+  id: string;
+  name: string;
+  thumbnail: string;
+}
 
 interface OrderItem {
-  id: string;
-  product_name: string;
-  thumbnail: string;
   quantity: number;
-  unit_price: number;
-  total_price: number;
-  status: string;
+  price: number;
+  product_id: string;
+
+  product?: Product;
+  product_name?: string;
+  thumbnail?: string;
 }
 
 interface Order {
   id: string;
-  order_number: string;
-  status: OrderStatus;
   total: number;
+  status: OrderStatus;
   created_at: string;
-
-  seller_message?: string;
-  seller_cancel_reason?: string;
-
   order_items: OrderItem[];
 }
 
 /* ================= FETCHER ================= */
 
-const fetcher = async (url: string): Promise<Order | null> => {
-  try {
-    const token = await getPiAccessToken();
-    if (!token) return null;
+const fetcher = async (url: string) => {
+  const token = await getPiAccessToken();
+  if (!token) return null;
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
 
-    if (!res.ok) return null;
+  if (!res.ok) return null;
 
-    const data = await res.json();
-
-    return {
-      id: data.id,
-      order_number: data.order_number,
-      status: data.status,
-      total: Number(data.total ?? 0),
-      created_at: data.created_at,
-
-      seller_message: data.seller_message ?? null,
-      seller_cancel_reason: data.seller_cancel_reason ?? null,
-
-      order_items: (data.order_items || []).map((i: any) => ({
-        id: i.id,
-        product_name: i.product_name ?? "",
-        thumbnail: i.thumbnail ?? "",
-        quantity: Number(i.quantity ?? 0),
-        unit_price: Number(i.unit_price ?? 0),
-        total_price: Number(i.total_price ?? 0),
-        status: i.status ?? "pending",
-      })),
-    };
-  } catch {
-    return null;
-  }
+  return res.json();
 };
-
-/* ================= STATUS COLOR ================= */
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case "pending":
-      return "text-orange-500";
-    case "confirmed":
-      return "text-blue-500";
-    case "shipping":
-      return "text-purple-500";
-    case "completed":
-      return "text-green-600";
-    case "cancelled":
-      return "text-red-500";
-    default:
-      return "text-gray-500";
-  }
-}
 
 /* ================= PAGE ================= */
 
@@ -108,35 +67,39 @@ export default function OrderDetailPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useParams();
+
+  const orderId = params.id as string;
+
   const { user, loading: authLoading } = useAuth();
 
-  const orderId =
-    typeof params?.id === "string"
-      ? params.id
-      : Array.isArray(params?.id)
-      ? params.id[0]
-      : "";
+  /* ================= SWR ================= */
 
-  const { data: order, isLoading } = useSWR(
+  const {
+    data: order,
+    isLoading,
+  } = useSWR(
     user && orderId ? `/api/orders/${orderId}` : null,
-    fetcher
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
   );
 
   /* ================= STATE ================= */
 
   if (isLoading || authLoading) {
     return (
-      <p className="text-center mt-10 text-gray-400">
-        {t.loading_order ?? "Đang tải..."}
-      </p>
+      <main className="p-6 text-center text-gray-400">
+        {t.loading_order}
+      </main>
     );
   }
 
   if (!order) {
     return (
-      <p className="text-center mt-10 text-red-500">
-        {t.order_not_found ?? "Không tìm thấy đơn"}
-      </p>
+      <main className="p-6 text-center text-red-500">
+        {t.order_not_found}
+      </main>
     );
   }
 
@@ -144,103 +107,111 @@ export default function OrderDetailPage() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20">
+      <div className="max-w-xl mx-auto p-4 space-y-6">
 
-      {/* HEADER */}
-      <div className="bg-white p-4 border-b">
-        <button
-          onClick={() => router.back()}
-          className="text-sm mb-2"
-        >
-          ← {t.back ?? "Quay lại"}
-        </button>
+        {/* HEADER */}
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <h1 className="text-lg font-bold mb-2">
+            🧾 {t.order_detail}
+          </h1>
 
-        <div className="flex justify-between items-center">
-          <p className="font-semibold">
-            #{order.order_number}
+          <p className="text-sm text-gray-500">
+            {t.order_id}: {order.id}
           </p>
 
-          <span className={`text-sm font-medium ${getStatusColor(order.status)}`}>
-            {t[`order_status_${order.status}`] ?? order.status}
-          </span>
+          <p className="text-sm mt-1">
+            {t.status}:{" "}
+            <span className="font-semibold text-orange-500">
+              {t[`order_status_${order.status}`] ?? order.status}
+            </span>
+          </p>
+
+          <p className="text-xs text-gray-400 mt-1">
+            {t.created_at}:{" "}
+            {new Date(order.created_at).toLocaleString()}
+          </p>
         </div>
 
-        <p className="text-xs text-gray-400 mt-1">
-          {new Date(order.created_at).toLocaleString()}
-        </p>
-      </div>
+        {/* PRODUCTS */}
+        <div className="bg-white rounded-xl shadow-sm p-4 space-y-4">
+          {order.order_items?.map((item: OrderItem, idx: number) => {
 
-      {/* SELLER MESSAGE */}
-      {order.seller_message && (
-        <div className="bg-green-50 text-green-700 text-sm px-4 py-3 border-b">
-          ✔ {order.seller_message}
+            const image =
+              item.product?.thumbnail ||
+              item.thumbnail ||
+              "/placeholder.png";
+
+            const name =
+              item.product?.name ||
+              item.product_name ||
+              "Product";
+
+            return (
+              <div key={idx} className="flex gap-3">
+
+                <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden">
+                  <img
+                    src={image}
+                    alt={name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+
+                <div className="flex-1">
+                  <p className="font-medium text-sm">
+                    {name}
+                  </p>
+
+                  <p className="text-xs text-gray-500">
+                    x{item.quantity}
+                  </p>
+
+                  <p className="text-sm font-semibold mt-1">
+                    π{formatPi(item.price)}
+                  </p>
+                </div>
+
+              </div>
+            );
+          })}
         </div>
-      )}
 
-      {order.seller_cancel_reason && (
-        <div className="bg-red-50 text-red-600 text-sm px-4 py-3 border-b">
-          ✖ {order.seller_cancel_reason}
+        {/* TOTAL */}
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <p className="text-base font-bold">
+            {t.total ?? "Total"}: π{formatPi(order.total)}
+          </p>
         </div>
-      )}
 
-      {/* PRODUCTS */}
-      <div className="mt-3 bg-white divide-y">
-        {order.order_items.map((item) => (
-          <div key={item.id} className="flex gap-3 p-4">
+        {/* ACTIONS */}
+        <div className="space-y-3">
 
-            <img
-              src={item.thumbnail || "/placeholder.png"}
-              className="w-20 h-20 rounded object-cover border"
-            />
+          {order.status === "completed" && (
+            <button
+              onClick={() =>
+                router.push(`/customer/orders/${order.id}/return`)
+              }
+              className="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+            >
+              {t.request_return}
+            </button>
+          )}
 
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">
-                {item.product_name}
-              </p>
+          {order.status === "return_requested" && (
+            <button
+              onClick={() =>
+                router.push(`/customer/returns`)
+              }
+              className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            >
+              {t.view_return_status}
+            </button>
+          )}
 
-              <p className="text-xs text-gray-500 mt-1">
-                x{item.quantity}
-              </p>
-
-              <p className="text-xs mt-1">
-                Status:{" "}
-                <span className="text-orange-500">
-                  {item.status}
-                </span>
-              </p>
-
-              <p className="text-sm font-semibold mt-2">
-                π{formatPi(item.total_price)}
-              </p>
-            </div>
-
-          </div>
-        ))}
-      </div>
-
-      {/* TOTAL */}
-      <div className="mt-3 bg-white p-4 flex justify-between font-semibold">
-        <span>{t.total ?? "Tổng tiền"}</span>
-        <span className="text-orange-600">
-          π{formatPi(order.total)}
-        </span>
-      </div>
-
-      {/* ACTION */}
-      <div className="p-4 space-y-3">
-
-        {order.status === "completed" && (
-          <button
-            onClick={() =>
-              router.push(`/customer/orders/${order.id}/return`)
-            }
-            className="w-full py-2 bg-red-500 text-white rounded-lg"
-          >
-            {t.request_return ?? "Yêu cầu hoàn hàng"}
-          </button>
-        )}
+        </div>
 
       </div>
-
     </main>
   );
 }
