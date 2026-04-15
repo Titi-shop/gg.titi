@@ -35,11 +35,17 @@ interface Order {
   status: OrderStatus;
   total: number;
   created_at: string;
-
   seller_message?: string;
   seller_cancel_reason?: string;
-
   order_items: OrderItem[];
+  shipping_name: string;
+shipping_phone: string;
+shipping_address_line: string;
+shipping_ward?: string | null;
+shipping_district?: string | null;
+shipping_region?: string | null;
+  shipping_country?: string | null;
+  shipping_postal_code?: string | null;
 }
 
 /* ================= FETCHER ================= */
@@ -64,6 +70,14 @@ const fetcher = async (url: string): Promise<Order | null> => {
       status: data.status,
       total: Number(data.total ?? 0),
       created_at: data.created_at,
+      shipping_name: data.shipping_name ?? "",
+shipping_phone: data.shipping_phone ?? "",
+shipping_address_line: data.shipping_address_line ?? "",
+shipping_ward: data.shipping_ward ?? null,
+shipping_district: data.shipping_district ?? null,
+shipping_region: data.shipping_region ?? null,
+shipping_country: data.shipping_country ?? null,
+shipping_postal_code: data.shipping_postal_code ?? null,
 
       seller_message: data.seller_message ?? null,
       seller_cancel_reason: data.seller_cancel_reason ?? null,
@@ -168,6 +182,34 @@ export default function OrderDetailPage() {
           {new Date(order.created_at).toLocaleString()}
         </p>
       </div>
+      {/* SHIPPING */}
+<div className="bg-white mt-3 p-4 border-b">
+  <p className="font-semibold text-sm mb-2">
+    📍 {t.shipping_address ?? "Địa chỉ nhận hàng"}
+  </p>
+
+  <p className="text-sm">
+    {order.shipping_name} · {order.shipping_phone}
+  </p>
+
+  <p className="text-xs text-gray-600 mt-1">
+    {[
+      order.shipping_address_line,
+      order.shipping_ward,
+      order.shipping_district,
+      order.shipping_region,
+    ]
+      .filter(Boolean)
+      .join(", ")}
+  </p>
+
+  {(order.shipping_country || order.shipping_postal_code) && (
+    <p className="text-xs text-gray-400">
+      {order.shipping_country}
+      {order.shipping_postal_code && ` · ${order.shipping_postal_code}`}
+    </p>
+  )}
+</div>
 
       {/* SELLER MESSAGE */}
       {order.seller_message && (
@@ -237,6 +279,12 @@ export default function OrderDetailPage() {
           >
             {t.request_return ?? "Yêu cầu hoàn hàng"}
           </button>
+       <button
+  onClick={() => router.push(`/product/${order.order_items[0]?.product_id}`)}
+  className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg"
+>
+  {t.buy_again ?? "Mua lại"}
+</button>
         )}
 
       </div>
