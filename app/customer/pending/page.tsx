@@ -284,33 +284,34 @@ export default function PendingOrdersPage() {
 
                 {/* PRODUCTS */}
                 <div className="space-y-3 px-4 py-3">
-                  {o.order_items?.map((item, idx) => (
-                    <div key={idx} className="flex gap-3">
+  {o.order_items?.map((item, idx) => (
+    <div key={idx} className="flex gap-3">
 
-                      <img
-                        src={item.thumbnail || "/placeholder.png"}
-                        className="w-14 h-14 rounded object-cover"
-                      />
+      <img
+        src={item.thumbnail || "/placeholder.png"}
+        className="w-16 h-16 rounded object-cover border"
+      />
 
-                      <div className="flex-1">
-                        <p className="text-sm line-clamp-1">
-                          {item.product_name}
-                        </p>
+      <div className="flex-1">
+        <p className="text-sm font-medium line-clamp-2">
+          {item.product_name}
+        </p>
 
-                        <p className="text-xs text-gray-500">
-                          x{item.quantity} · π{formatPi(item.unit_price)}
-                        </p>
-                        <p className="text-xs mt-1">
-                      Status:{" "}
-                <span className="font-medium text-orange-600">
-               {item.status}
-              </span>
-                </p>
-                      </div>
+        <p className="text-xs text-gray-500 mt-1">
+          x{item.quantity} · π{formatPi(item.unit_price)}
+        </p>
 
-                    </div>
-                  ))}
-                </div>
+        <p className="text-xs mt-1">
+          Status:{" "}
+          <span className="font-medium text-orange-600">
+            {item.status}
+          </span>
+        </p>
+      </div>
+
+    </div>
+  ))}
+</div>
 
                 {/* FOOTER */}
                 <div className="flex justify-between px-4 py-3 border-t">
