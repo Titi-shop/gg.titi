@@ -265,16 +265,19 @@ export async function completeOrderByBuyer(
       /* ================= UPDATE ORDER ================= */
       await client.query(
         `
-        UPDATE orders
-        SET
-          status = 'completed',
-          delivered_at = NOW(),
-          updated_at = NOW()
-        WHERE id = $1
-          AND buyer_id = $2
-        `,
-        [orderId, userId]
-      );
+        await client.query(
+  `
+  UPDATE orders
+  SET
+    status = 'completed',
+    delivered_at = NOW(),
+    updated_at = NOW()
+  WHERE id = $1
+    AND buyer_id = $2
+    AND status = 'shipping'
+  `,
+    [orderId, userId]
+    );
 
       console.log("[ORDER][COMPLETE][SUCCESS]", { orderId });
 
@@ -299,7 +302,7 @@ export async function cancelOrderByBuyer(
   orderId: string,
   userId: string,
   reason?: string | null
-): Promise<CancelResult> {
+   ): Promise<CancelResult> {
   try {
     return await withTransaction(async (client) => {
 
@@ -346,28 +349,33 @@ export async function cancelOrderByBuyer(
       /* ================= UPDATE ORDER ================= */
       await client.query(
         `
-        UPDATE orders
-        SET 
-          status = 'cancelled',
-          cancel_reason = $2,
-          cancelled_at = NOW(),
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [orderId, reason ?? null]
-      );
+        await client.query(
+  `
+  UPDATE orders
+  SET 
+    status = 'cancelled',
+    cancel_reason = $2,
+    cancelled_at = NOW(),
+    updated_at = NOW()
+  WHERE id = $1
+    AND buyer_id = $2
+    AND status = 'pending'
+  `,
+  [orderId, reason ?? null]
+);
 
       /* ================= UPDATE ITEMS ================= */
       await client.query(
-        `
-        UPDATE order_items
-        SET 
-          status = 'cancelled',
-          updated_at = NOW()
-        WHERE order_id = $1
-        `,
-        [orderId]
-      );
+  `
+  UPDATE order_items
+  SET 
+    status = 'cancelled',
+    updated_at = NOW()
+  WHERE order_id = $1
+    AND status IN ('pending','confirmed')
+  `,
+  [orderId]
+);
 
       console.log("[ORDER][CANCEL][SUCCESS]", { orderId });
 
