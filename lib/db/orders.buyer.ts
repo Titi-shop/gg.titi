@@ -10,25 +10,56 @@ export async function getOrdersByBuyer(userId: string) {
       o.id,
       o.order_number,
       o.status,
+      o.payment_status,
+
       o.total,
+      o.currency,
+
+      o.items_total,
+      o.shipping_fee,
+
       o.created_at,
+
+      /* SHIPPING */
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address_line,
+      o.shipping_ward,
+      o.shipping_district,
+      o.shipping_region,
+      o.shipping_country,
+      o.shipping_postal_code,
+
+      /* TIMELINE */
+      o.confirmed_at,
+      o.shipped_at,
+      o.delivered_at,
 
       COALESCE(
         json_agg(
           json_build_object(
             'id', oi.id,
             'product_id', oi.product_id,
+
             'product_name', oi.product_name,
+            'product_slug', oi.product_slug,
+
             'thumbnail', oi.thumbnail,
+            'images', oi.images,
+
+            'variant_name', oi.variant_name,
+            'variant_value', oi.variant_value,
+
             'quantity', oi.quantity,
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
+
+            'currency', oi.currency,
             'status', oi.status
           )
         ) FILTER (WHERE oi.id IS NOT NULL),
         '[]'
       ) AS order_items
-
     FROM orders o
     JOIN order_items oi ON oi.order_id = o.id
 
@@ -74,23 +105,74 @@ export async function getOrderByBuyerId(
     `
     SELECT
       o.id,
+      o.order_number,
       o.status,
+      o.payment_status,
+
       o.total,
+      o.currency,
+
+      o.items_total,
+      o.subtotal,
+      o.discount,
+      o.shipping_fee,
+      o.tax,
+
       o.created_at,
+
+      /* SHIPPING */
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address_line,
+      o.shipping_ward,
+      o.shipping_district,
+      o.shipping_region,
+      o.shipping_country,
+      o.shipping_postal_code,
+      o.shipping_provider,
+      o.shipping_zone,
+
+      /* TIMELINE */
+      o.confirmed_at,
+      o.shipped_at,
+      o.delivered_at,
+      o.cancelled_at,
+
+      /* NOTE */
+      o.buyer_note,
+      o.admin_note,
 
       COALESCE(
         json_agg(
           json_build_object(
             'id', oi.id,
             'product_id', oi.product_id,
+
             'product_name', oi.product_name,
+            'product_slug', oi.product_slug,
+
             'thumbnail', oi.thumbnail,
+            'images', oi.images,
+
+            'variant_name', oi.variant_name,
+            'variant_value', oi.variant_value,
+
             'quantity', oi.quantity,
             'unit_price', oi.unit_price,
             'total_price', oi.total_price,
-            'status', oi.status
+
+            'currency', oi.currency,
+            'status', oi.status,
+
+            'tracking_code', oi.tracking_code,
+            'shipping_provider', oi.shipping_provider,
+
+            'shipped_at', oi.shipped_at,
+            'delivered_at', oi.delivered_at,
+
+            'snapshot', oi.snapshot
           )
-        ),
+        ) FILTER (WHERE oi.id IS NOT NULL),
         '[]'
       ) AS order_items
 
@@ -98,6 +180,7 @@ export async function getOrderByBuyerId(
     JOIN order_items oi ON oi.order_id = o.id
 
     WHERE o.id=$1 AND o.buyer_id=$2
+
     GROUP BY o.id
     `,
     [orderId, userId]
