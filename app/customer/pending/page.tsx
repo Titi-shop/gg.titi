@@ -319,6 +319,13 @@ export default function PendingOrdersPage() {
                   <span className="text-sm font-semibold">
                     {t.total}: π{formatPi(o.total)}
                   </span>
+                   <div className="flex gap-2">
+           <button
+      onClick={() => router.push(`/orders/${o.id}`)}
+      className="px-3 py-1 text-xs border rounded"
+          >
+             Chi tiết
+               </button>
 
                   <button
                     onClick={() => setShowCancelFor(o.id)}
