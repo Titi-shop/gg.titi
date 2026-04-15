@@ -192,69 +192,103 @@ export async function getOrderByBuyerId(
   return rows[0] ?? null;
 }
 
+type CompleteResult =
+  | "SUCCESS"
+  | "NOT_FOUND"
+  | "FORBIDDEN"
+  | "INVALID_STATUS";
 export async function completeOrderByBuyer(
   orderId: string,
   userId: string
-): Promise<boolean> {
+): Promise<CompleteResult> {
   if (!orderId || !userId) {
     throw new Error("INVALID_INPUT");
   }
 
-  return withTransaction(async (client) => {
-    /* ================= CHECK ORDER ================= */
-    const { rows } = await client.query<{
-      status: string;
-    }>(
-      `
-      SELECT status
-      FROM orders
-      WHERE id = $1
-      AND buyer_id = $2
-      LIMIT 1
-      `,
-      [orderId, userId]
-    );
+  try {
+    return await withTransaction(async (client) => {
 
-    const order = rows[0];
+      /* ================= CHECK ORDER ================= */
+      const { rows } = await client.query<{
+        buyer_id: string;
+        status: string;
+      }>(
+        `
+        SELECT buyer_id, status
+        FROM orders
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [orderId]
+      );
 
-    if (!order) {
-      return false;
-    }
+      const order = rows[0];
 
-    /* ================= VALID STATUS ================= */
-    if (order.status !== "shipping") {
-      return false;
-    }
+      /* ================= NOT FOUND ================= */
+      if (!order) {
+        console.warn("[ORDER][COMPLETE][NOT_FOUND]", { orderId });
+        return "NOT_FOUND";
+      }
 
-    /* ================= UPDATE ITEMS ================= */
-    await client.query(
-      `
-      UPDATE order_items
-      SET
-        status = 'completed',
-        delivered_at = NOW()
-      WHERE order_id = $1
-      AND status = 'shipping'
-      `,
-      [orderId]
-    );
+      /* ================= FORBIDDEN ================= */
+      if (order.buyer_id !== userId) {
+        console.warn("[ORDER][COMPLETE][FORBIDDEN]", {
+          orderId,
+          userId,
+        });
+        return "FORBIDDEN";
+      }
 
-    /* ================= UPDATE ORDER ================= */
-    await client.query(
-      `
-      UPDATE orders
-      SET
-        status = 'completed',
-        delivered_at = NOW()
-      WHERE id = $1
-      `,
-      [orderId]
-    );
+      /* ================= INVALID STATUS ================= */
+      if (order.status !== "shipping") {
+        console.warn("[ORDER][COMPLETE][INVALID_STATUS]", {
+          orderId,
+          status: order.status,
+        });
+        return "INVALID_STATUS";
+      }
 
-    return true;
-  });
+      /* ================= UPDATE ITEMS ================= */
+      await client.query(
+        `
+        UPDATE order_items
+        SET
+          status = 'completed',
+          delivered_at = NOW(),
+          updated_at = NOW()
+        WHERE order_id = $1
+          AND status = 'shipping'
+        `,
+        [orderId]
+      );
+
+      /* ================= UPDATE ORDER ================= */
+      await client.query(
+        `
+        UPDATE orders
+        SET
+          status = 'completed',
+          delivered_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
+          AND buyer_id = $2
+        `,
+        [orderId, userId]
+      );
+
+      console.log("[ORDER][COMPLETE][SUCCESS]", { orderId });
+
+      return "SUCCESS";
+    });
+
+  } catch (err) {
+    console.error("[ORDER][COMPLETE][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
+
+    throw new Error("DB_ERROR");
+  }
 }
-
 type CancelResult =
   | "SUCCESS"
   | "NOT_FOUND"
