@@ -226,31 +226,6 @@ export async function cancelOrderBySeller(
 
   return res.rowCount > 0;
 }
-
-export async function confirmOrderBySeller(
-  orderId: string,
-  sellerId: string,
-  message: string | null
-) {
-  return withTransaction(async (client) => {
-    await client.query(
-      `
-      UPDATE order_items
-      SET status='confirmed', seller_message=$3
-      WHERE order_id=$1 AND seller_id=$2
-      `,
-      [orderId, sellerId, message]
-    );
-
-    await client.query(
-      `UPDATE orders SET status='pickup' WHERE id=$1`,
-      [orderId]
-    );
-
-    return true;
-  });
-}
-
 export async function confirmOrderBySeller(
   orderId: string,
   sellerId: string,
