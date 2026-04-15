@@ -71,7 +71,7 @@ export default function OrderSummary() {
       {/* ITEMS */}
       <div className="grid grid-cols-5 py-4">
         <Item icon={<Clock size={22} />} label={t.pending_orders} path="/customer/pending" count={counts.pending} loading={isLoading} />
-        <Item icon={<Package size={22} />} label={t.confirmed_orders} path="/customer/pickup" count={counts.pickup} loading={isLoading} />
+        <Item icon={<Package size={22} />} label={t.confirmed_orders} path="/customer/confirmed" count={counts.confirmed} loading={isLoading} />
         <Item icon={<Truck size={22} />} label={t.shipping_orders} path="/customer/shipping" count={counts.shipping} loading={isLoading} />
         <Item icon={<Package size={22} />} label={t.completed_orders} path="/customer/completed" count={counts.completed} loading={isLoading} />
         <Item icon={<RotateCcw size={22} />} label={t.return_orders} path="/customer/returns" />
