@@ -250,22 +250,20 @@ export async function completeOrderByBuyer(
 
       /* ================= UPDATE ITEMS ================= */
       await client.query(
-        `
-        UPDATE order_items
-        SET
-          status = 'completed',
-          delivered_at = NOW(),
-          updated_at = NOW()
-        WHERE order_id = $1
-          AND status = 'shipping'
-        `,
-        [orderId]
-      );
+  `
+  UPDATE order_items
+  SET
+    status = 'completed',
+    delivered_at = NOW(),
+    updated_at = NOW()
+  WHERE order_id = $1
+    AND status = 'shipping'
+  `,
+  [orderId]
+);
 
-      /* ================= UPDATE ORDER ================= */
-      await client.query(
-        `
-        await client.query(
+/* ================= UPDATE ORDER ================= */
+await client.query(
   `
   UPDATE orders
   SET
@@ -274,10 +272,9 @@ export async function completeOrderByBuyer(
     updated_at = NOW()
   WHERE id = $1
     AND buyer_id = $2
-    AND status = 'shipping'
   `,
-    [orderId, userId]
-    );
+  [orderId, userId]
+);
 
       console.log("[ORDER][COMPLETE][SUCCESS]", { orderId });
 
