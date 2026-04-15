@@ -1,5 +1,6 @@
 {
   
+  "order_detail": "Details",
   "order_completed": "completed",
   "order_pending": "Pending ",
   "order_pickup": "Pickup",
