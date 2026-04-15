@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     const userId = auth.userId;
 
     /* ================= DB ================= */
+    const status = req.nextUrl.searchParams.get("status");
     const orders = await getOrdersByBuyer(userId);
 
     return NextResponse.json({ orders });
