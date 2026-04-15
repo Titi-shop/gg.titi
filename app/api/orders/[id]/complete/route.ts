@@ -33,22 +33,22 @@ export async function PATCH(
     }
 
     /* ================= DB ================= */
-    const success = await completeOrderByBuyer(
-      orderId,
-      userId
-    );
+    const result = await completeOrderByBuyer(orderId, userId);
 
-    if (!success) {
-      console.warn("[ORDER][COMPLETE][FAILED]", {
-        orderId,
-        userId,
-      });
+if (result === "NOT_FOUND") {
+  return NextResponse.json({ error: "ORDER_NOT_FOUND" }, { status: 404 });
+}
 
-      return NextResponse.json(
-        { error: "ORDER_CANNOT_COMPLETE" },
-        { status: 400 }
-      );
-    }
+if (result === "FORBIDDEN") {
+  return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+}
+
+if (result === "INVALID_STATUS") {
+  return NextResponse.json(
+    { error: "ORDER_CANNOT_COMPLETE" },
+    { status: 400 }
+  );
+}
 
     /* ================= SUCCESS ================= */
     console.log("[ORDER][COMPLETE][SUCCESS]", {
