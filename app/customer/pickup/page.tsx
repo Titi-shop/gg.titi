@@ -163,8 +163,6 @@ export default function CustomerPickupPage() {
     {t.total}: π{formatPi(o.total)}
   </span>
 
-  <div className="flex gap-2">
-
 
                   <button
                     onClick={() =>
