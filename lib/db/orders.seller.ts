@@ -250,3 +250,47 @@ export async function confirmOrderBySeller(
     return true;
   });
 }
+
+export async function confirmOrderBySeller(
+  orderId: string,
+  sellerId: string,
+  sellerMessage?: string | null
+) {
+  try {
+    /* ================= UPDATE ORDER ================= */
+    const orderRes = await query(
+      `
+      UPDATE orders
+      SET 
+        status = 'confirmed',
+        confirmed_at = NOW(),
+        seller_message = COALESCE($3, seller_message),
+        updated_at = NOW()
+      WHERE id = $1
+        AND seller_id = $2
+        AND status = 'pending'
+      RETURNING id
+      `,
+      [orderId, sellerId, sellerMessage]
+    );
+
+    if (orderRes.rowCount === 0) return false;
+
+    /* ================= UPDATE ITEMS ================= */
+    await query(
+      `
+      UPDATE order_items
+      SET status = 'confirmed'
+      WHERE order_id = $1
+        AND status = 'pending'
+      `,
+      [orderId]
+    );
+
+    return true;
+  } catch (err) {
+    console.error("confirmOrderBySeller error:", err);
+    return false;
+  }
+}
+
