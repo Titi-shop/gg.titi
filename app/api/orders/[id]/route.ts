@@ -34,7 +34,7 @@ export async function GET(
     }
 
     /* ================= DB ================= */
-    const order = await getBuyerOrderById(orderId, userId);
+    const order = await getOrderByBuyerId(orderId, userId);
 
     if (!order) {
       return NextResponse.json(
