@@ -14,7 +14,18 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 /* ================= TYPES ================= */
-
+type RawItem = {
+  id?: string;
+  product_id?: string | null;
+  product_name?: string;
+  thumbnail?: string;
+  variant_name?: string;
+  variant_value?: string;
+  quantity?: number;
+  unit_price?: number;
+  total_price?: number;
+  status?: string;
+};
 interface OrderItem {
   id: string;
   product_id: string | null;
@@ -79,8 +90,7 @@ const fetcher = async (url: string): Promise<Order | null> => {
 
     const data = await res.json();
 
-    const items: OrderItem[] = (data.order_items || []).map(
-  (i: any) => ({
+    const items: OrderItem[] = (data.order_items || []).map((i: RawItem) => ({
     id: safeString(i.id),
     product_id: i.product_id ?? null,
     product_name: safeString(i.product_name),
