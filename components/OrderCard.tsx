@@ -1,62 +1,118 @@
 "use client";
 
-type Props = {
-  status: string;
-  orderId: string;
-  loading?: boolean;
+import { formatPi } from "@/lib/pi";
+import Image from "next/image";
 
-  onDetail?: () => void;
-  onConfirm?: () => void;
-  onCancel?: () => void;
+/* ================= TYPES ================= */
+
+interface OrderItem {
+  id: string;
+  product_name: string;
+  thumbnail: string;
+  quantity: number;
+  unit_price: number;
+}
+
+interface Order {
+  id: string;
+  order_number: string;
+  created_at: string;
+  shipping_name?: string;
+  total: number;
+  order_items: OrderItem[];
+}
+
+/* ================= HELPER ================= */
+
+function formatDate(date: string): string {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+/* ================= COMPONENT ================= */
+
+type Props = {
+  order: Order;
+  onClick?: () => void;
+  actions?: React.ReactNode; // 👈 QUAN TRỌNG
 };
 
-export default function OrderActions({
-  status,
-  loading,
-  onDetail,
-  onConfirm,
-  onCancel,
+export default function OrderCard({
+  order,
+  onClick,
+  actions,
 }: Props) {
   return (
-    <div className="flex gap-2">
+    <div
+      onClick={onClick}
+      className="bg-white rounded-xl shadow-sm border overflow-hidden cursor-pointer active:scale-[0.98] transition"
+    >
+      {/* HEADER */}
+      <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
+        <div>
+          <p className="font-semibold text-sm">
+            #{order.order_number}
+          </p>
 
-      {/* DETAIL */}
-      {onDetail && (
-        <button
-          onClick={onDetail}
-          className="px-3 py-1.5 text-xs border rounded-lg"
-        >
-          Detail
-        </button>
+          <p className="text-xs text-gray-500">
+            {formatDate(order.created_at)}
+          </p>
+        </div>
+      </div>
+
+      {/* CUSTOMER */}
+      {order.shipping_name && (
+        <div className="px-4 py-3 text-sm border-b">
+          <span className="text-gray-500">Customer: </span>
+          {order.shipping_name}
+        </div>
       )}
 
-      {/* 🔥 PENDING */}
-      {status === "pending" && (
-        <>
-          <button
-            disabled={loading}
-            onClick={onConfirm}
-            className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
-          >
-            Confirm
-          </button>
+      {/* PRODUCTS */}
+      <div className="divide-y">
+        {order.order_items.map((item) => (
+          <div key={item.id} className="flex gap-3 p-4">
+            <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden">
+              <Image
+                src={item.thumbnail || "/placeholder.png"}
+                alt={item.product_name}
+                width={56}
+                height={56}
+                className="object-cover"
+              />
+            </div>
 
-          <button
-            disabled={loading}
-            onClick={onCancel}
-            className="px-3 py-1.5 text-xs border border-gray-400 rounded-lg"
-          >
-            Cancel
-          </button>
-        </>
-      )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium line-clamp-1">
+                {item.product_name}
+              </p>
 
-      {/* SHIPPING */}
-      {status === "confirmed" && (
-        <button className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg">
-          Shipping
-        </button>
-      )}
+              <p className="text-xs text-gray-500">
+                x{item.quantity} · π{formatPi(item.unit_price)}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* FOOTER */}
+      <div
+        className="px-4 py-3 border-t bg-gray-50 text-sm flex justify-between items-center"
+        onClick={(e) => e.stopPropagation()} // 👈 tránh click card
+      >
+        <span className="font-semibold">
+          Total: π{formatPi(order.total)}
+        </span>
+
+        {/* ACTIONS */}
+        {actions}
+      </div>
     </div>
   );
 }
