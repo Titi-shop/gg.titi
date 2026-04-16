@@ -138,7 +138,6 @@ const { user, loading: authLoading } = useAuth();
   ];
 
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
   const [sellerMessage, setSellerMessage] = useState<string>("");
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
@@ -284,14 +283,8 @@ const { user, loading: authLoading } = useAuth();
           orders.map((o) => (
             <div
               key={o.id}
-              onClick={() => {
-                if (expandedId === o.id) {
-                  router.push(`/seller/orders/${o.id}`);
-                } else {
-                  setExpandedId(o.id);
-                }
-              }}
-              className="bg-white rounded-xl shadow-sm overflow-hidden border"
+              onClick={() => router.push(`/seller/orders/${o.id}`)}
+className="bg-white rounded-xl shadow-sm overflow-hidden border cursor-pointer active:scale-[0.98] transition"
             >
               {/* ORDER HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
@@ -410,32 +403,48 @@ const { user, loading: authLoading } = useAuth();
             </span>
 
                   <div className="flex gap-2">
-                    <button
-                      disabled={processingId === o.id}
-                      onClick={() => {
-                        setSellerMessage(
-                          t.confirm_default_message ??
-                            "Thank you for your order. "
-                        );
-                        setShowConfirmFor(o.id);
-                        setShowCancelFor(null);
-                      }}
-                      className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
-                    >
-                      {t.confirm ?? "Xác nhận"}
-                    </button>
 
-                    <button
-                      disabled={processingId === o.id}
-                      onClick={() => {
-                        setShowCancelFor(o.id);
-                        setShowConfirmFor(null);
-                      }}
-                      className="px-3 py-1.5 text-xs border border-gray-400 rounded-lg"
-                    >
-                      {t.cancel ?? "Huỷ"}
-                    </button>
-                  </div>
+  {/* DETAIL */}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      router.push(`/seller/orders/${o.id}`);
+    }}
+    className="px-3 py-1.5 text-xs border rounded-lg"
+  >
+    {t.detail ?? "Detail"}
+  </button>
+
+  {/* CONFIRM */}
+  <button
+    disabled={processingId === o.id}
+    onClick={(e) => {
+      e.stopPropagation();
+      setSellerMessage(
+        t.confirm_default_message ??
+          "Thank you for your order."
+      );
+      setShowConfirmFor(o.id);
+      setShowCancelFor(null);
+    }}
+    className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
+  >
+    {t.confirm ?? "Confirm"}
+  </button>
+
+  {/* CANCEL */}
+  <button
+    disabled={processingId === o.id}
+    onClick={(e) => {
+      e.stopPropagation();
+      setShowCancelFor(o.id);
+      setShowConfirmFor(null);
+    }}
+    className="px-3 py-1.5 text-xs border border-gray-400 rounded-lg"
+  >
+    {t.cancel ?? "Cancel"}
+  </button>
+</div>
                 </div>
 
                 {/* CONFIRM FORM */}
