@@ -550,7 +550,10 @@
   "processing": "Đang xử lý...",
   "shipping_failed": "Chuyển đơn thất bại",
   "network_error": "Lỗi mạng",
-  "detail": "Chi tiết"
+  "detail": "Chi tiết",
+  "completed_orders": "Đơn đã hoàn thành",
+  "no_completed_orders": "Không có đơn hoàn thành",
+  "search_order": "Tìm mã đơn"
 
 
       
