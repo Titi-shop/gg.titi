@@ -544,7 +544,13 @@
   "variant_stock": "Tồn kho",
   "variant_sku": "SKU",
   "variant_delete": "✕ Xóa biến thể",
-  "variant_add": "+ Thêm biến thể"
+  "variant_add": "+ Thêm biến thể",
+  "confirm_shipping": "Xác nhận chuyển đơn sang vận chuyển?",
+  "ok": "OK",
+  "processing": "Đang xử lý...",
+  "shipping_failed": "Chuyển đơn thất bại",
+  "network_error": "Lỗi mạng"
+
 
       
 
