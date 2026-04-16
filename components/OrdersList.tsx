@@ -49,7 +49,8 @@ type Props = {
   onClick: (id: string) => void;
   initialTab?: OrderTab;
 
-  renderActions?: (order: Order) => React.ReactNode; // 🔥 QUAN TRỌNG
+  renderActions?: (order: Order) => React.ReactNode;
+  renderExtra?: (order: Order) => React.ReactNode; // ✅ THÊM DÒNG NÀY
 };
 
 /* ================= COMPONENT ================= */
@@ -141,17 +142,15 @@ export default function OrdersList({
           </p>
         ) : (
           filtered.map((order) => (
-  <div key={order.id} className="space-y-2">
-    
+  <div key={order.id}>
     <OrderCard
       order={order}
       onClick={() => onClick(order.id)}
       actions={renderActions?.(order)}
     />
 
-    {/* 👇 FORM HIỂN THỊ NGAY DƯỚI ORDER */}
+    {/* ✅ THÊM DÒNG NÀY */}
     {renderExtra?.(order)}
-
   </div>
 ))
         )}
