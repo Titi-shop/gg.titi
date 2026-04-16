@@ -3,19 +3,17 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
-import useSWR from "swr";
-import Image from "next/image";
+import { formatPi } from "@/lib/pi";
 
-const fetcher = (url: string) =>
-  apiAuthFetch(url, { cache: "no-store" }).then((res) =>
-    res.ok ? res.json() : []
-  );
+import OrdersList from "@/components/OrdersList";
+import OrderActions from "@/components/OrderActions";
 
 /* ================= TYPES ================= */
 
@@ -27,255 +25,279 @@ type OrderStatus =
   | "returned"
   | "cancelled";
 
+interface RawOrderItem {
+  id: string;
+  product_name?: string;
+  thumbnail?: string;
+  quantity?: number;
+  unit_price?: number;
+  status?: string;
+}
+
+interface RawOrder {
+  id: string;
+  order_number: string;
+  total: number | string;
+  created_at: string;
+  shipping_name?: string;
+  shipping_phone?: string;
+  order_items?: RawOrderItem[];
+}
+
 interface OrderItem {
   id: string;
-  product_id: string | null;
   product_name: string;
   thumbnail: string;
-  images: string[] | null;
   quantity: number;
   unit_price: number;
-  total_price: number;
-  status: OrderStatus;
 }
 
 interface Order {
   id: string;
   order_number: string;
-  created_at: string;
-   status: OrderStatus; 
-  shipping_name?: string;
-  shipping_phone?: string;
-  shipping_address?: string;
-  shipping_provider?: string | null;
-  shipping_country?: string | null;
-  shipping_postal_code?: string | null;
+  status: OrderStatus;
   total: number;
+  created_at: string;
+  shipping_name: string;
+  shipping_phone: string;
   order_items: OrderItem[];
 }
 
-type OrderTab = "all" | OrderStatus;
+/* ================= FETCH ================= */
 
-/* ================= HELPERS ================= */
-
-function formatDate(date: string): string {
-  const d = new Date(date);
-
-  if (Number.isNaN(d.getTime())) {
-    return "—";
-  }
-
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+const fetcher = async (): Promise<Order[]> => {
+  const res = await apiAuthFetch("/api/seller/orders", {
+    cache: "no-store",
   });
-}
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  if (!Array.isArray(data)) return [];
+
+  return data.map((o: RawOrder) => {
+    const status =
+      (o.order_items?.[0]?.status as OrderStatus) ??
+      "pending";
+
+    return {
+      id: o.id,
+      order_number: o.order_number,
+      status,
+      total: Number(o.total ?? 0),
+      created_at: o.created_at,
+      shipping_name: o.shipping_name ?? "",
+      shipping_phone: o.shipping_phone ?? "",
+      order_items: (o.order_items ?? []).map((i) => ({
+        id: i.id,
+        product_name: i.product_name ?? "",
+        thumbnail: i.thumbnail ?? "",
+        quantity: Number(i.quantity ?? 0),
+        unit_price: Number(i.unit_price ?? 0),
+      })),
+    };
+  });
+};
 
 /* ================= PAGE ================= */
 
 export default function SellerOrdersPage() {
-
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<OrderTab>("all");
-  const { data: orders = [], isLoading } = useSWR(
-  user ? "/api/seller/orders" : null,
-  fetcher,
-  {
-    revalidateOnFocus: false,
-    dedupingInterval: 5000,
-    keepPreviousData: true, // 🔥 thêm dòng này
-  }
-);
-  const filteredOrders = useMemo(() => {
-  if (activeTab === "all") return orders;
 
-  return orders.filter((o) => o.status === activeTab);
-}, [orders, activeTab]);
+  const { data: orders = [], isLoading, mutate } = useSWR(
+    !authLoading && user ? "/api/seller/orders" : null,
+    fetcher
+  );
+
+  /* ================= STATE ================= */
+
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
+  const [sellerMessage, setSellerMessage] = useState("");
+
+  const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
+  const [selectedReason, setSelectedReason] = useState("");
+
+  const [confirmShippingId, setConfirmShippingId] = useState<string | null>(null);
+
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
-    () =>
-      filteredOrders.reduce(
-        (sum, o) => sum + Number(o.total ?? 0),
-        0
-      ),
-    [filteredOrders]
+    () => orders.reduce((s, o) => s + o.total, 0),
+    [orders]
   );
-  const counts = useMemo(() => {
-  const map: Record<OrderTab, number> = {
-    all: orders.length,
-    pending: 0,
-    confirmed: 0,
-    shipping: 0,
-    completed: 0,
-    returned: 0,
-    cancelled: 0,
-  };
 
-  for (const o of orders) {
-  if (map[o.status] !== undefined) {
-    map[o.status]++;
+  /* ================= ACTIONS ================= */
+
+  async function handleConfirm(id: string) {
+    if (!sellerMessage.trim()) return;
+
+    try {
+      setProcessingId(id);
+
+      await apiAuthFetch(`/api/seller/orders/${id}/confirm`, {
+        method: "PATCH",
+        body: JSON.stringify({ seller_message: sellerMessage }),
+      });
+
+      setShowConfirmFor(null);
+      mutate();
+    } finally {
+      setProcessingId(null);
+    }
   }
-}
-  return map;
-}, [orders]);
-const goDetail = useCallback(
-  (id: string) => {
-    router.push(`/seller/orders/${id}`);
-  },
-  [router]
-);
+
+  async function handleCancel(id: string) {
+    if (!selectedReason) return;
+
+    try {
+      setProcessingId(id);
+
+      await apiAuthFetch(`/api/seller/orders/${id}/cancel`, {
+        method: "PATCH",
+        body: JSON.stringify({ cancel_reason: selectedReason }),
+      });
+
+      setShowCancelFor(null);
+      mutate();
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleShipping(id: string) {
+    try {
+      setProcessingId(id);
+
+      await apiAuthFetch(`/api/seller/orders/${id}/shipping`, {
+        method: "PATCH",
+      });
+
+      setConfirmShippingId(null);
+      mutate();
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  /* ================= LOADING ================= */
+
+  if (isLoading || authLoading) {
+    return <p className="text-center mt-10">Loading...</p>;
+  }
+
   /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
-
-          <p className="text-sm opacity-90">
-            {t.shop_orders ?? "Shop Orders"}
+          <p>{t.orders ?? "Orders"}</p>
+          <p className="text-xs">
+            {orders.length} · π{formatPi(totalPi)}
           </p>
-
-          <p className="text-xs opacity-80 mt-1">
-            {t.orders ?? "Orders"}: {filteredOrders.length} · π
-            {formatPi(totalPi)}
-          </p>
-
         </div>
       </header>
 
-      {/* TABS */}
+      <OrdersList
+        orders={orders}
+        onClick={() => {}}
+        initialTab="pending"
 
-      <div className="bg-white border-b">
+        renderActions={(o) => (
+          <OrderActions
+            status={o.status}
+            loading={processingId === o.id}
 
-        <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
+            onDetail={() =>
+              router.push(`/seller/orders/${o.id}`)
+            }
 
-          {([
-            ["all", t.all ?? "All"],
-            ["pending", t.pending_orders ?? "Pending"],
-            ["confirmed", t.confirmed_orders ?? "Confirmed"],
-            ["shipping", t.shipping_orders ?? "Shipping"],
-            ["completed", t.completed_orders ?? "Completed"],
-            ["returned", t.returned_orders ?? "Returned"],
-            ["cancelled", t.cancelled_orders ?? "Cancelled"],
-          ] as [OrderTab, string][])
+            onConfirm={() => {
+              setShowConfirmFor(o.id);
+              setShowCancelFor(null);
+            }}
 
-          .map(([key, label]) => (
+            onCancel={() => {
+              setShowCancelFor(o.id);
+              setShowConfirmFor(null);
+            }}
 
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`pb-2 border-b-2 ${
-                activeTab === key
-                  ? "border-gray-700 text-gray-700 font-semibold"
-                  : "border-transparent text-gray-500"
-              }`}
-            >
+            onShipping={() => {
+              setConfirmShippingId(o.id);
+            }}
+          />
+        )}
 
-              {label}
-
-              <div className="text-xs mt-1 text-center">
-                {counts[key]}
+        renderExtra={(o) => (
+          <>
+            {/* CONFIRM */}
+            {showConfirmFor === o.id && (
+              <div className="bg-white p-3 rounded border mt-2">
+                <textarea
+                  value={sellerMessage}
+                  onChange={(e) => setSellerMessage(e.target.value)}
+                  className="w-full border p-2"
+                />
+                <button
+                  onClick={() => handleConfirm(o.id)}
+                  className="mt-2 bg-green-600 text-white px-3 py-1 rounded"
+                >
+                  OK
+                </button>
               </div>
-            </button>
-          ))}
-        </div>
-      </div>
+            )}
 
-      {/* CONTENT */}
+            {/* CANCEL */}
+            {showCancelFor === o.id && (
+              <div className="bg-white p-3 rounded border mt-2">
+                <label>
+                  <input
+                    type="radio"
+                    onChange={() => setSelectedReason("Out of stock")}
+                  />
+                  Out of stock
+                </label>
 
-      <section className="px-4 mt-4 space-y-4">
+                <button
+                  onClick={() => handleCancel(o.id)}
+                  className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
+                >
+                  OK
+                </button>
+              </div>
+            )}
 
-{isLoading ? (
-  Array.from({ length: 5 }).map((_, i) => (
-    <div
-      key={i}
-      className="bg-white rounded-xl p-4 animate-pulse space-y-3"
-    >
-      <div className="h-4 bg-gray-200 w-1/3 rounded" />
-      <div className="h-3 bg-gray-200 w-1/2 rounded" />
-      <div className="h-14 bg-gray-200 rounded" />
-    </div>
-  ))
-) : filteredOrders.length === 0 ? (
-  <p className="text-center text-gray-400">
-    {t.no_orders ?? "No orders"}
-  </p>
-) : (
-  filteredOrders.map((o) => (
-    <div
-      key={o.id}
-      onClick={() => goDetail(o.id)}
-      className="bg-white rounded-xl shadow-sm border overflow-hidden"
-    >
-      {/* HEADER */}
-      <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
-        <div>
-          <p className="font-semibold text-sm">
-            #{o.order_number}
-          </p>
-          <p className="text-xs text-gray-500">
-            {formatDate(o.created_at)}
-          </p>
-        </div>
-      </div>
+            {/* SHIPPING */}
+            {confirmShippingId === o.id && (
+              <div className="bg-white p-3 rounded border mt-2">
+                <p>Confirm shipping?</p>
 
-      {/* BUYER */}
-      {(o.shipping_name || o.shipping_phone || o.shipping_address) && (
-        <div className="px-4 py-3 text-sm border-b space-y-1">
-          <p>
-            <span className="text-gray-500">
-              {t.customer ?? "Customer"}:
-            </span>{" "}
-            {o.shipping_name ?? "—"}
-          </p>
-        </div>
-      )}
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setConfirmShippingId(null)}
+                    className="flex-1 border rounded"
+                  >
+                    Cancel
+                  </button>
 
-      {/* PRODUCTS */}
-      <div className="divide-y">
-        {o.order_items?.map((item) => (
-          <div key={item.id} className="flex gap-3 p-4">
-            <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden">
-              <Image
-                src={item.thumbnail || "/placeholder.png"}
-                alt={item.product_name}
-                width={56}
-                height={56}
-                className="object-cover"
-              />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium line-clamp-1">
-                {item.product_name}
-              </p>
-              <p className="text-xs text-gray-500">
-                x{item.quantity} · π{formatPi(item.unit_price)}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* FOOTER */}
-      <div className="px-4 py-3 border-t bg-gray-50 text-sm">
-        <span className="font-semibold">
-          {t.total ?? "Total"}: π{formatPi(Number(o.total ?? 0))}
-        </span>
-      </div>
-    </div>
-  ))
-)}
-
-      </section>
-
+                  <button
+                    onClick={() => handleShipping(o.id)}
+                    className="flex-1 bg-gray-800 text-white rounded"
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      />
     </main>
   );
 }
