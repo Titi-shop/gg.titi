@@ -425,5 +425,10 @@
   "variant_stock": "Stock",
   "variant_sku": "SKU",
   "variant_delete": "✕ Delete variant",
-  "variant_add": "+ Add variant"
+  "variant_add": "+ Add variant",
+  "confirm_shipping": "Confirm shipping this order?",
+  "ok": "OK",
+  "processing": "Processing...",
+  "shipping_failed": "Shipping failed",
+  "network_error": "Network error"
 }
