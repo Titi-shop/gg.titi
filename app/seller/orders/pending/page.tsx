@@ -247,40 +247,43 @@ export default function SellerPendingOrdersPage() {
 
       {/* LIST */}
       <OrdersList
-        orders={orders}
-        onClick={() => {}}
-        initialTab="pending"
-        renderActions={(o) => (
-          <OrderActions
-            status={o.status}
-            orderId={o.id}
-            loading={processingId === o.id}
-            onDetail={() =>
-              router.push(`/seller/orders/${o.id}`)
-            }
-            onConfirm={() => {
-              setSellerMessage("Thank you");
-              setShowConfirmFor(o.id);
-              setShowCancelFor(null);
-            }}
-            onCancel={() => {
-              setShowCancelFor(o.id);
-              setShowConfirmFor(null);
-            }}
-          />
-        )}
-      />
+  orders={orders}
+  onClick={() => {}}
+  initialTab="pending"
 
-      {/* CONFIRM FORM */}
-      {showConfirmFor && (
-        <div className="p-4">
+  renderActions={(o) => (
+    <OrderActions
+      status={o.status}
+      orderId={o.id}
+      loading={processingId === o.id}
+      onDetail={() =>
+        router.push(`/seller/orders/${o.id}`)
+      }
+      onConfirm={() => {
+        setSellerMessage("Thank you");
+        setShowConfirmFor(o.id);
+        setShowCancelFor(null);
+      }}
+      onCancel={() => {
+        setShowCancelFor(o.id);
+        setShowConfirmFor(null);
+      }}
+    />
+  )}
+
+  renderExtra={(o) => (
+    <>
+      {/* ✅ CONFIRM đúng order */}
+      {showConfirmFor === o.id && (
+        <div className="bg-white p-3 rounded-lg border mt-2">
           <textarea
             value={sellerMessage}
             onChange={(e) => setSellerMessage(e.target.value)}
             className="w-full border p-2"
           />
+
           <button
-            onClick={() => handleConfirm(showConfirmFor)}
+            onClick={() => handleConfirm(o.id)}
             className="mt-2 px-3 py-1 bg-green-600 text-white rounded"
           >
             OK
@@ -288,29 +291,34 @@ export default function SellerPendingOrdersPage() {
         </div>
       )}
 
-      {/* CANCEL FORM */}
-      {showCancelFor && (
-        <div className="p-4">
+      {/* ✅ CANCEL đúng order */}
+      {showCancelFor === o.id && (
+        <div className="bg-white p-3 rounded-lg border mt-2">
           {SELLER_CANCEL_REASONS.map((r) => (
             <label key={r} className="block">
               <input
                 type="radio"
                 value={r}
                 checked={selectedReason === r}
-                onChange={(e) => setSelectedReason(e.target.value)}
+                onChange={(e) =>
+                  setSelectedReason(e.target.value)
+                }
               />
               {r}
             </label>
           ))}
 
           <button
-            onClick={() => handleCancel(showCancelFor)}
+            onClick={() => handleCancel(o.id)}
             className="mt-2 px-3 py-1 bg-red-500 text-white rounded"
           >
             OK
           </button>
         </div>
       )}
+    </>
+  )}
+/>
     </main>
   );
 }
