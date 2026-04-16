@@ -16,7 +16,13 @@ import OrderActions from "@/components/OrderActions";
 
 /* ================= TYPES ================= */
 
-type OrderStatus = "pending" | "confirmed" | "cancelled";
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "shipping"
+  | "completed"
+  | "returned"
+  | "cancelled";
 
 interface RawOrderItem {
   id: string;
@@ -24,13 +30,12 @@ interface RawOrderItem {
   thumbnail?: string;
   quantity?: number;
   unit_price?: number;
-  status?: string; 
+  status?: string;
 }
 
 interface RawOrder {
   id: string;
   order_number: string;
-  status: OrderStatus;
   total: number | string;
   created_at: string;
   shipping_name?: string;
@@ -61,47 +66,50 @@ interface Order {
 
 const fetcher = async (): Promise<Order[]> => {
   try {
-    const res = await apiAuthFetch(
-      "/api/seller/orders",
-      { cache: "no-store" }
-    );
+    const res = await apiAuthFetch("/api/seller/orders", {
+      cache: "no-store",
+    });
 
     if (!res.ok) return [];
+
     const data: unknown = await res.json();
     if (!Array.isArray(data)) return [];
+
     return data.map((o) => {
-  const order = o as RawOrder;
+      const order = o as RawOrder;
 
-  // ✅ LẤY STATUS TỪ order_items
-  const itemStatuses = (order.order_items ?? []).map((i) =>
-    String(i.status ?? "").toLowerCase().trim()
-  );
+      // ✅ derive status từ order_items
+      const itemStatuses = (order.order_items ?? []).map((i) =>
+        String(i.status ?? "").toLowerCase().trim()
+      );
 
-  let status: OrderStatus = "pending";
+      let status: OrderStatus = "pending";
 
-  if (itemStatuses.includes("confirmed")) status = "confirmed";
-  else if (itemStatuses.includes("cancelled")) status = "cancelled";
-  else if (itemStatuses.includes("pending")) status = "pending";
+      if (itemStatuses.includes("shipping")) status = "shipping";
+      else if (itemStatuses.includes("completed")) status = "completed";
+      else if (itemStatuses.includes("returned")) status = "returned";
+      else if (itemStatuses.includes("confirmed")) status = "confirmed";
+      else if (itemStatuses.includes("cancelled")) status = "cancelled";
+      else if (itemStatuses.includes("pending")) status = "pending";
 
-  return {
-    id: order.id,
-    order_number: order.order_number,
-    status, // ✅ đúng
+      return {
+        id: order.id,
+        order_number: order.order_number,
+        status,
+        total: Number(order.total ?? 0),
+        created_at: order.created_at,
+        shipping_name: order.shipping_name ?? "",
+        shipping_phone: order.shipping_phone ?? "",
 
-    total: Number(order.total ?? 0),
-    created_at: order.created_at,
-    shipping_name: order.shipping_name ?? "",
-    shipping_phone: order.shipping_phone ?? "",
-
-    order_items: (order.order_items ?? []).map((i) => ({
-      id: i.id,
-      product_name: i.product_name ?? "",
-      thumbnail: i.thumbnail ?? "",
-      quantity: Number(i.quantity ?? 0),
-      unit_price: Number(i.unit_price ?? 0),
-    })),
-  };
-});
+        order_items: (order.order_items ?? []).map((i) => ({
+          id: i.id,
+          product_name: i.product_name ?? "",
+          thumbnail: i.thumbnail ?? "",
+          quantity: Number(i.quantity ?? 0),
+          unit_price: Number(i.unit_price ?? 0),
+        })),
+      };
+    });
   } catch {
     return [];
   }
@@ -115,9 +123,7 @@ export default function SellerPendingOrdersPage() {
   const { user, loading: authLoading } = useAuth();
 
   const { data: orders = [], isLoading, mutate } = useSWR(
-    !authLoading && user
-      ? "/api/seller/orders?status=pending"
-      : null,
+    !authLoading && user ? "/api/seller/orders" : null,
     fetcher
   );
 
@@ -218,14 +224,17 @@ export default function SellerPendingOrdersPage() {
   /* ================= LOADING ================= */
 
   if (isLoading || authLoading) {
-    return <p className="text-center mt-10">{t.loading ?? "Loading..."}</p>;
+    return (
+      <p className="text-center mt-10">
+        {t.loading ?? "Loading..."}
+      </p>
+    );
   }
 
   /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
-
       {/* HEADER */}
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
@@ -236,7 +245,33 @@ export default function SellerPendingOrdersPage() {
         </div>
       </header>
 
-      {/* FORM (GLOBAL - không dùng o nữa) */}
+      {/* LIST */}
+      <OrdersList
+        orders={orders}
+        onClick={() => {}}
+        initialTab="pending"
+        renderActions={(o) => (
+          <OrderActions
+            status={o.status}
+            orderId={o.id}
+            loading={processingId === o.id}
+            onDetail={() =>
+              router.push(`/seller/orders/${o.id}`)
+            }
+            onConfirm={() => {
+              setSellerMessage("Thank you");
+              setShowConfirmFor(o.id);
+              setShowCancelFor(null);
+            }}
+            onCancel={() => {
+              setShowCancelFor(o.id);
+              setShowConfirmFor(null);
+            }}
+          />
+        )}
+      />
+
+      {/* CONFIRM FORM */}
       {showConfirmFor && (
         <div className="p-4">
           <textarea
@@ -253,6 +288,7 @@ export default function SellerPendingOrdersPage() {
         </div>
       )}
 
+      {/* CANCEL FORM */}
       {showCancelFor && (
         <div className="p-4">
           {SELLER_CANCEL_REASONS.map((r) => (
