@@ -66,17 +66,14 @@ const fetcher = async (): Promise<Order[]> => {
     );
 
     if (!res.ok) return [];
-
     const data: unknown = await res.json();
     if (!Array.isArray(data)) return [];
-
     return data.map((o) => {
       const order = o as RawOrder;
-
       return {
-        id: order.id,
+  id: order.id,
         order_number: order.order_number,
-        status: order.status,
+        status: String(order.status).toLowerCase().trim() as OrderStatus, /
         total: Number(order.total ?? 0),
         created_at: order.created_at,
         shipping_name: order.shipping_name ?? "",
