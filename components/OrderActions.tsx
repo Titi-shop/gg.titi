@@ -43,34 +43,50 @@ export default function OrderActions({
       {/* DETAIL */}
       {onDetail && (
         <button
-          onClick={onDetail}
-          className="px-3 py-1.5 text-xs border rounded-lg"
-        >
-          {t.detail ?? "Detail"}
-        </button>
+  onClick={onDetail}
+  className="
+    px-3 py-1.5 text-xs border rounded-lg
+    active:scale-95
+    transition-all duration-150
+    hover:bg-gray-100
+  "
+>
+  {t.detail ?? "Detail"}
+</button>
       )}
 
       {/* PENDING */}
       {status === "pending" && (
         <>
           {onConfirm && (
-            <button
-              disabled={loading}
-              onClick={onConfirm}
-              className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
-            >
-              {t.confirm ?? "Confirm"}
-            </button>
+           <button
+  disabled={loading}
+  onClick={onConfirm}
+  className={`
+    px-3 py-1.5 text-xs rounded-lg text-white
+    bg-gray-700
+    active:scale-95
+    transition-all duration-150
+    ${loading ? "opacity-50" : "hover:bg-gray-800"}
+  `}
+>
+  {loading ? "..." : t.confirm ?? "Confirm"}
+</button>
           )}
 
           {onCancel && (
             <button
-              disabled={loading}
-              onClick={onCancel}
-              className="px-3 py-1.5 text-xs border rounded-lg disabled:opacity-50"
-            >
-              {t.cancel ?? "Cancel"}
-            </button>
+  disabled={loading}
+  onClick={onCancel}
+  className={`
+    px-3 py-1.5 text-xs rounded-lg border
+    active:scale-95
+    transition-all duration-150
+    ${loading ? "opacity-50" : "hover:bg-gray-100"}
+  `}
+>
+  {t.cancel ?? "Cancel"}
+</button>
           )}
         </>
       )}
@@ -78,12 +94,18 @@ export default function OrderActions({
       {/* CONFIRMED */}
       {status === "confirmed" && onShipping && (
         <button
-          disabled={loading}
-          onClick={onShipping}
-          className="px-3 py-1.5 text-xs bg-gray-800 text-white rounded-lg disabled:opacity-50"
-        >
-          {t.start_shipping ?? "Start shipping"}
-        </button>
+  disabled={loading}
+  onClick={onShipping}
+  className={`
+    px-3 py-1.5 text-xs rounded-lg text-white
+    bg-blue-600
+    active:scale-95
+    transition-all duration-150
+    ${loading ? "opacity-50" : "hover:bg-blue-700"}
+  `}
+>
+  {loading ? "..." : t.start_shipping ?? "Start shipping"}
+</button>
       )}
     </div>
   );
