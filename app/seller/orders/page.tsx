@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
@@ -25,33 +25,6 @@ type OrderStatus =
   | "returned"
   | "cancelled";
 
-interface RawOrderItem {
-  id: string;
-  product_name?: string;
-  thumbnail?: string;
-  quantity?: number;
-  unit_price?: number;
-  status?: string;
-}
-
-interface RawOrder {
-  id: string;
-  order_number: string;
-  total: number | string;
-  created_at: string;
-  shipping_name?: string;
-  shipping_phone?: string;
-  order_items?: RawOrderItem[];
-}
-
-interface OrderItem {
-  id: string;
-  product_name: string;
-  thumbnail: string;
-  quantity: number;
-  unit_price: number;
-}
-
 interface Order {
   id: string;
   order_number: string;
@@ -60,7 +33,7 @@ interface Order {
   created_at: string;
   shipping_name: string;
   shipping_phone: string;
-  order_items: OrderItem[];
+  order_items: any[];
 }
 
 /* ================= FETCH ================= */
@@ -75,10 +48,18 @@ const fetcher = async (): Promise<Order[]> => {
   const data = await res.json();
   if (!Array.isArray(data)) return [];
 
-  return data.map((o: RawOrder) => {
-    const status =
-      (o.order_items?.[0]?.status as OrderStatus) ??
-      "pending";
+  return data.map((o: any) => {
+    const statuses = (o.order_items ?? []).map((i: any) =>
+      String(i.status ?? "").toLowerCase()
+    );
+
+    let status: OrderStatus = "pending";
+
+    if (statuses.includes("shipping")) status = "shipping";
+    else if (statuses.includes("completed")) status = "completed";
+    else if (statuses.includes("returned")) status = "returned";
+    else if (statuses.includes("confirmed")) status = "confirmed";
+    else if (statuses.includes("cancelled")) status = "cancelled";
 
     return {
       id: o.id,
@@ -88,13 +69,7 @@ const fetcher = async (): Promise<Order[]> => {
       created_at: o.created_at,
       shipping_name: o.shipping_name ?? "",
       shipping_phone: o.shipping_phone ?? "",
-      order_items: (o.order_items ?? []).map((i) => ({
-        id: i.id,
-        product_name: i.product_name ?? "",
-        thumbnail: i.thumbnail ?? "",
-        quantity: Number(i.quantity ?? 0),
-        unit_price: Number(i.unit_price ?? 0),
-      })),
+      order_items: o.order_items ?? [],
     };
   });
 };
@@ -115,19 +90,21 @@ export default function SellerOrdersPage() {
 
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
-  const [sellerMessage, setSellerMessage] = useState("");
+  const [modal, setModal] = useState<null | {
+    type: "confirm" | "cancel" | "shipping";
+    orderId: string;
+  }>(null);
 
-  const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
 
-  const [confirmShippingId, setConfirmShippingId] = useState<string | null>(null);
- const SELLER_CANCEL_REASONS = [
+  const SELLER_CANCEL_REASONS = [
     t.cancel_reason_out_of_stock ?? "Out of stock",
     t.cancel_reason_discontinued ?? "Discontinued",
     t.cancel_reason_wrong_price ?? "Wrong price",
     t.cancel_reason_other ?? "Other",
   ];
+
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
@@ -135,63 +112,62 @@ export default function SellerOrdersPage() {
     [orders]
   );
 
-  /* ================= ACTIONS ================= */
+  /* ================= ACTION ================= */
 
-  async function handleConfirm(id: string) {
-    if (!sellerMessage.trim()) return;
+  async function handleAction() {
+    if (!modal) return;
+    const id = modal.orderId;
 
     try {
       setProcessingId(id);
 
-      await apiAuthFetch(`/api/seller/orders/${id}/confirm`, {
-        method: "PATCH",
-        body: JSON.stringify({ seller_message: sellerMessage }),
-      });
+      if (modal.type === "confirm") {
+        await apiAuthFetch(`/api/seller/orders/${id}/confirm`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            seller_message: t.thank_you ?? "Thank you",
+          }),
+        });
+        setToast(t.confirm_success ?? "Confirmed");
+      }
 
-      setShowConfirmFor(null);
+      if (modal.type === "cancel") {
+        if (!selectedReason) return;
+        await apiAuthFetch(`/api/seller/orders/${id}/cancel`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            cancel_reason: selectedReason,
+          }),
+        });
+        setToast(t.cancel_success ?? "Cancelled");
+      }
+
+      if (modal.type === "shipping") {
+        await apiAuthFetch(`/api/seller/orders/${id}/shipping`, {
+          method: "PATCH",
+        });
+        setToast(t.shipping_success ?? "Shipping started");
+      }
+
+      setModal(null);
       mutate();
     } finally {
       setProcessingId(null);
     }
   }
 
-  async function handleCancel(id: string) {
-    if (!selectedReason) return;
+  /* ================= TOAST AUTO HIDE ================= */
 
-    try {
-      setProcessingId(id);
-
-      await apiAuthFetch(`/api/seller/orders/${id}/cancel`, {
-        method: "PATCH",
-        body: JSON.stringify({ cancel_reason: selectedReason }),
-      });
-
-      setShowCancelFor(null);
-      mutate();
-    } finally {
-      setProcessingId(null);
-    }
-  }
-
-  async function handleShipping(id: string) {
-    try {
-      setProcessingId(id);
-
-      await apiAuthFetch(`/api/seller/orders/${id}/shipping`, {
-        method: "PATCH",
-      });
-
-      setConfirmShippingId(null);
-      mutate();
-    } finally {
-      setProcessingId(null);
-    }
-  }
+  useEffect(() => {
+    if (!toast) return;
+    const tmr = setTimeout(() => setToast(null), 2000);
+    return () => clearTimeout(tmr);
+  }, [toast]);
 
   /* ================= LOADING ================= */
 
   if (isLoading || authLoading) {
-    return <p className="text-center mt-10">Loading...</p>;
+    return <p className="text-center mt-10">{t.loading ?? "Loading..."}</p>;
   }
 
   /* ================= UI ================= */
@@ -209,11 +185,11 @@ export default function SellerOrdersPage() {
         </div>
       </header>
 
+      {/* LIST */}
       <OrdersList
         orders={orders}
         onClick={() => {}}
-        initialTab="pending"
-
+        initialTab="all"
         renderActions={(o) => (
           <OrderActions
             status={o.status}
@@ -223,86 +199,74 @@ export default function SellerOrdersPage() {
               router.push(`/seller/orders/${o.id}`)
             }
 
-            onConfirm={() => {
-              setShowConfirmFor(o.id);
-              setShowCancelFor(null);
-            }}
+            onConfirm={() =>
+              setModal({ type: "confirm", orderId: o.id })
+            }
 
-            onCancel={() => {
-              setShowCancelFor(o.id);
-              setShowConfirmFor(null);
-            }}
+            onCancel={() =>
+              setModal({ type: "cancel", orderId: o.id })
+            }
 
-            onShipping={() => {
-              setConfirmShippingId(o.id);
-            }}
+            onShipping={() =>
+              setModal({ type: "shipping", orderId: o.id })
+            }
           />
         )}
-
-        renderExtra={(o) => (
-          <>
-            {/* CONFIRM */}
-            {showConfirmFor === o.id && (
-              <div className="bg-white p-3 rounded border mt-2">
-                <textarea
-                  value={sellerMessage}
-                  onChange={(e) => setSellerMessage(e.target.value)}
-                  className="w-full border p-2"
-                />
-                <button
-                  onClick={() => handleConfirm(o.id)}
-                  className="mt-2 bg-green-600 text-white px-3 py-1 rounded"
-                >
-                  OK
-                </button>
-              </div>
-            )}
-
-            {/* CANCEL */}
-            {showCancelFor === o.id && (
-              <div className="bg-white p-3 rounded border mt-2">
-                <label>
-                  <input
-                    type="radio"
-                    onChange={() => setSelectedReason("Out of stock")}
-                  />
-                  Out of stock
-                </label>
-
-                <button
-                  onClick={() => handleCancel(o.id)}
-                  className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
-                >
-                  OK
-                </button>
-              </div>
-            )}
-
-            {/* SHIPPING */}
-            {confirmShippingId === o.id && (
-              <div className="bg-white p-3 rounded border mt-2">
-                <p>Confirm shipping?</p>
-
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => setConfirmShippingId(null)}
-                    className="flex-1 border rounded"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    onClick={() => handleShipping(o.id)}
-                    className="flex-1 bg-gray-800 text-white rounded"
-                  >
-                    OK
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
       />
+
+      {/* MODAL */}
+      {modal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-4 w-80">
+
+            <p className="text-sm text-center mb-4">
+              {modal.type === "confirm" && (t.confirm_order ?? "Confirm order?")}
+              {modal.type === "cancel" && (t.cancel_order ?? "Cancel order?")}
+              {modal.type === "shipping" && (t.confirm_shipping ?? "Start shipping?")}
+            </p>
+
+            {modal.type === "cancel" && (
+              <div className="space-y-2 mb-3">
+                {SELLER_CANCEL_REASONS.map((r) => (
+                  <label key={r} className="flex gap-2 text-sm">
+                    <input
+                      type="radio"
+                      checked={selectedReason === r}
+                      onChange={() => setSelectedReason(r)}
+                    />
+                    {r}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setModal(null)}
+                className="flex-1 border py-2 rounded"
+              >
+                {t.cancel ?? "Cancel"}
+              </button>
+
+              <button
+                onClick={handleAction}
+                className="flex-1 bg-gray-800 text-white py-2 rounded active:scale-95"
+              >
+                {processingId === modal.orderId
+                  ? t.processing ?? "Processing..."
+                  : t.ok ?? "OK"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-2 rounded-lg text-sm">
+          {toast}
+        </div>
+      )}
     </main>
   );
 }
