@@ -5,7 +5,7 @@ import Image from "next/image";
 
 /* ================= TYPES ================= */
 
-interface OrderItem {
+export interface OrderItem {
   id: string;
   product_name: string;
   thumbnail: string;
@@ -13,7 +13,7 @@ interface OrderItem {
   unit_price: number;
 }
 
-interface Order {
+export interface Order {
   id: string;
   order_number: string;
   created_at: string;
@@ -40,7 +40,7 @@ function formatDate(date: string): string {
 type Props = {
   order: Order;
   onClick?: () => void;
-  actions?: React.ReactNode; // 👈 QUAN TRỌNG
+  actions?: React.ReactNode;
 };
 
 export default function OrderCard({
@@ -76,7 +76,7 @@ export default function OrderCard({
 
       {/* PRODUCTS */}
       <div className="divide-y">
-        {order.order_items.map((item) => (
+        {(order.order_items ?? []).map((item) => (
           <div key={item.id} className="flex gap-3 p-4">
             <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden">
               <Image
@@ -104,7 +104,7 @@ export default function OrderCard({
       {/* FOOTER */}
       <div
         className="px-4 py-3 border-t bg-gray-50 text-sm flex justify-between items-center"
-        onClick={(e) => e.stopPropagation()} // 👈 tránh click card
+        onClick={(e) => e.stopPropagation()}
       >
         <span className="font-semibold">
           Total: π{formatPi(order.total)}
