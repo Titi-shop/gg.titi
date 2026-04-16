@@ -49,10 +49,7 @@ export default function OrderCard({
   actions,
 }: Props) {
   return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-xl shadow-sm border overflow-hidden cursor-pointer active:scale-[0.98] transition"
-    >
+   <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
       {/* HEADER */}
       <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
         <div>
