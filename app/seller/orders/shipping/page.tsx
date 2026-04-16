@@ -143,12 +143,9 @@ export default function SellerShippingOrdersPage() {
         ) : (
           orders.map((order) => (
 
-            <div
-              key={order.id}
-              onDoubleClick={() =>
-                router.push(`/seller/orders/${order.id}`)
-              }
-              className="bg-white rounded-xl shadow-sm overflow-hidden border"
+           <div
+          key={order.id}
+          className="bg-white rounded-xl shadow-sm overflow-hidden border"
             >
 
               {/* HEADER */}
@@ -229,13 +226,25 @@ export default function SellerShippingOrdersPage() {
               </div>
 
               {/* FOOTER */}
-              <div className="px-4 py-3 border-t bg-gray-50">
+              <div
+  className="px-4 py-3 border-t bg-gray-50"
+  onClick={(e) => e.stopPropagation()}
+>
+  <div className="flex justify-between items-center">
 
-                <span className="font-semibold">
-                  {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
-                </span>
+    <span className="font-semibold">
+      {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
+    </span>
 
-              </div>
+    <button
+      onClick={() => router.push(`/seller/orders/${order.id}`)}
+      className="px-3 py-1.5 text-xs border rounded-lg"
+    >
+      {t.detail ?? "Detail"}
+    </button>
+
+  </div>
+</div>
 
             </div>
 
