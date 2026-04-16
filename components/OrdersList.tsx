@@ -1,5 +1,12 @@
-type OrderTab =
-  | "all"
+"use client";
+
+import { useMemo, useState } from "react";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import OrderCard from "./OrderCard";
+
+/* ================= TYPES ================= */
+
+export type OrderStatus =
   | "pending"
   | "confirmed"
   | "shipping"
@@ -7,20 +14,52 @@ type OrderTab =
   | "returned"
   | "cancelled";
 
+export type OrderTab = "all" | OrderStatus;
+
+export interface OrderItem {
+  id: string;
+  product_id: string | null;
+  product_name: string;
+  thumbnail: string;
+  images: string[] | null;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  status: OrderStatus;
+}
+
+export interface Order {
+  id: string;
+  order_number: string;
+  created_at: string;
+  status: OrderStatus;
+
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+
+  total: number;
+  order_items: OrderItem[];
+}
+
+/* ================= PROPS ================= */
+
 type Props = {
+  orders: Order[];
+  onClick: (id: string) => void;
   initialTab?: OrderTab;
 };
 
-export default function OrdersList({ initialTab = "all" }: Props) {
+/* ================= COMPONENT ================= */
+
+export default function OrdersList({
+  orders,
+  onClick,
+  initialTab = "all",
+}: Props) {
   const { t } = useTranslation();
-  const router = useRouter();
 
   const [tab, setTab] = useState<OrderTab>(initialTab);
-
-  const { data: orders = [], isLoading } = useSWR(
-    "/api/seller/orders",
-    fetcher
-  );
 
   /* ================= FILTER ================= */
 
@@ -29,7 +68,29 @@ export default function OrdersList({ initialTab = "all" }: Props) {
     return orders.filter((o) => o.status === tab);
   }, [orders, tab]);
 
-  /* ================= TABS CONFIG ================= */
+  /* ================= COUNT ================= */
+
+  const counts = useMemo(() => {
+    const map: Record<OrderTab, number> = {
+      all: orders.length,
+      pending: 0,
+      confirmed: 0,
+      shipping: 0,
+      completed: 0,
+      returned: 0,
+      cancelled: 0,
+    };
+
+    for (const o of orders) {
+      if (map[o.status] !== undefined) {
+        map[o.status]++;
+      }
+    }
+
+    return map;
+  }, [orders]);
+
+  /* ================= TABS ================= */
 
   const tabs: [OrderTab, string][] = [
     ["all", t.all ?? "All"],
@@ -41,45 +102,49 @@ export default function OrdersList({ initialTab = "all" }: Props) {
     ["cancelled", t.cancelled_orders ?? "Cancelled"],
   ];
 
+  /* ================= UI ================= */
+
   return (
     <div>
 
-      {/* ================= TABS ================= */}
+      {/* TABS */}
       <div className="bg-white border-b">
         <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
-
           {tabs.map(([key, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`
-                pb-2 border-b-2 transition
-                ${
-                  tab === key
-                    ? "border-black font-semibold"
-                    : "border-transparent text-gray-400"
-                }
-              `}
+              className={`pb-2 border-b-2 transition ${
+                tab === key
+                  ? "border-black font-semibold"
+                  : "border-transparent text-gray-400"
+              }`}
             >
               {label}
+
+              <div className="text-xs text-center mt-1">
+                {counts[key]}
+              </div>
             </button>
           ))}
-
         </div>
       </div>
 
-      {/* ================= LIST ================= */}
-
+      {/* LIST */}
       <div className="p-4 space-y-4">
-
-        {filtered.map((order) => (
-          <OrderCard
-            key={order.id}
-            order={order}
-            onClick={() => router.push(`/seller/orders/${order.id}`)}
-          />
-        ))}
-
+        {filtered.length === 0 ? (
+          <p className="text-center text-gray-400">
+            {t.no_orders ?? "No orders"}
+          </p>
+        ) : (
+          filtered.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              onClick={() => onClick(order.id)}
+            />
+          ))
+        )}
       </div>
 
     </div>
