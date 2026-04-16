@@ -282,12 +282,52 @@ export async function confirmOrderBySeller(
   orderId: string,
   sellerId: string,
   sellerMessage?: string | null
-) {
+): Promise<boolean> {
   try {
     return await withTransaction(async (client) => {
 
+      /* ================= CHECK ORDER ================= */
+      const { rows } = await client.query<{
+        seller_id: string;
+        status: string;
+      }>(
+        `
+        SELECT seller_id, status
+        FROM orders
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [orderId]
+      );
+
+      const order = rows[0];
+
+      /* ❌ NOT FOUND */
+      if (!order) {
+        console.warn("[ORDER][SELLER][CONFIRM][NOT_FOUND]", { orderId });
+        return false;
+      }
+
+      /* ❌ FORBIDDEN */
+      if (order.seller_id !== sellerId) {
+        console.warn("[ORDER][SELLER][CONFIRM][FORBIDDEN]", {
+          orderId,
+          sellerId,
+        });
+        return false;
+      }
+
+      /* ❌ INVALID STATUS */
+      if (order.status !== "pending") {
+        console.warn("[ORDER][SELLER][CONFIRM][INVALID_STATUS]", {
+          orderId,
+          status: order.status,
+        });
+        return false;
+      }
+
       /* ================= UPDATE ITEMS ================= */
-      const itemsRes = await client.query(
+      await client.query(
         `
         UPDATE order_items
         SET
@@ -302,26 +342,19 @@ export async function confirmOrderBySeller(
         [orderId, sellerId, sellerMessage]
       );
 
-      if (itemsRes.rowCount === 0) {
-        console.warn("[ORDER][SELLER][CONFIRM][NO_ITEMS]", {
-          orderId,
-        });
-        return false;
-      }
-
-      /* ================= SYNC ================= */
+      /* ================= SYNC ORDER ================= */
       await syncOrderStatus(client, orderId);
 
-      console.log("[ORDER][SELLER][CONFIRM][SUCCESS]", {
-        orderId,
-      });
+      console.log("[ORDER][SELLER][CONFIRM][SUCCESS]", { orderId });
 
       return true;
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error("[ORDER][SELLER][CONFIRM][DB_ERROR]", {
-      message: err instanceof Error ? err.message : "UNKNOWN",
+      message: err?.message,
+      detail: err?.detail,
+      code: err?.code,
     });
 
     throw new Error("DB_ERROR");
