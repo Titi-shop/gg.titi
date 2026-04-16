@@ -2,7 +2,6 @@
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
 import useSWR from "swr";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
