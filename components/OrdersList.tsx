@@ -60,6 +60,7 @@ export default function OrdersList({
   onClick,
   initialTab = "all",
   renderActions,
+  renderExtra, // ✅ THÊM DÒNG NÀY
 }: Props) {
   const { t } = useTranslation();
 
