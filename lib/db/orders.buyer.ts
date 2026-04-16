@@ -334,17 +334,17 @@ export async function cancelOrderByBuyer(
 
       await client.query(
   `
-     UPDATE order_items
+  UPDATE order_items
   SET 
     status = 'cancelled',
+    seller_cancel_reason = COALESCE($2, seller_cancel_reason),
     updated_at = NOW()
   WHERE order_id = $1
     AND status IN ('pending','confirmed')
   `,
-     [orderId]
-    );
-
-     await syncOrderStatus(client, orderId);
+  [orderId, reason ?? null]
+);
+await syncOrderStatus(client, orderId);
 
       console.log("[ORDER][CANCEL][SUCCESS]", { orderId });
 
