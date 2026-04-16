@@ -180,13 +180,13 @@ export default function SellerConfirmedOrdersPage() {
         ) : (
           orders.map((order) => (
 
-            <div
-              key={order.id}
-              onDoubleClick={() =>
-                router.push(`/seller/orders/${order.id}`)
-              }
-              className="bg-white rounded-xl shadow-sm overflow-hidden border"
-            >
+          <div
+       key={order.id}
+  onClick={() =>
+    router.push(`/seller/orders/${order.id}`)
+       }
+        className="bg-white rounded-xl shadow-sm overflow-hidden border cursor-pointer active:scale-[0.98] transition"
+        >
 
               {/* HEADER */}
               <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
@@ -271,12 +271,20 @@ export default function SellerConfirmedOrdersPage() {
                 onClick={(e) => e.stopPropagation()}
               >
 
-                <div className="flex justify-between items-center">
+               <div className="flex justify-between items-center gap-2">
 
                   <span className="font-semibold">
                     {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
                   </span>
-
+                  <button
+  onClick={(e) => {
+    e.stopPropagation();
+    router.push(`/seller/orders/${order.id}`);
+  }}
+  className="px-3 py-1.5 text-xs border rounded-lg"
+>
+  {t.detail ?? "Detail"}
+</button>
                   <button
                     disabled={processingId === order.id}
                     onClick={() => startShipping(order.id)}
