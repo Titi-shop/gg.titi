@@ -1,4 +1,4 @@
-import { query, withTransaction } from "@/lib/db";
+import { query, withTransaction, syncOrderStatus} from "@/lib/db";
 
 /* =========================================================
    BUYER — ORDERS LIST
@@ -262,19 +262,7 @@ export async function completeOrderByBuyer(
   [orderId]
 );
 
-/* ================= UPDATE ORDER ================= */
-await client.query(
-  `
-  UPDATE orders
-  SET
-    status = 'completed',
-    delivered_at = NOW(),
-    updated_at = NOW()
-  WHERE id = $1
-    AND buyer_id = $2
-  `,
-  [orderId, userId]
-);
+await syncOrderStatus(client, orderId);
 
       console.log("[ORDER][COMPLETE][SUCCESS]", { orderId });
 
@@ -343,34 +331,19 @@ export async function cancelOrderByBuyer(
         return "INVALID_STATUS";
       }
 
-      /* ================= UPDATE ORDER ================= */
       await client.query(
   `
-  UPDATE orders
-  SET 
-    status = 'cancelled',
-    cancel_reason = $3,
-    cancelled_at = NOW(),
-    updated_at = NOW()
-  WHERE id = $1
-    AND buyer_id = $2
-    AND status = 'pending'
-  `,
-  [orderId, userId, reason ?? null]
-);
-
-      /* ================= UPDATE ITEMS ================= */
-      await client.query(
-  `
-  UPDATE order_items
+     UPDATE order_items
   SET 
     status = 'cancelled',
     updated_at = NOW()
   WHERE order_id = $1
     AND status IN ('pending','confirmed')
   `,
-  [orderId]
-);
+     [orderId]
+    );
+
+     await syncOrderStatus(client, orderId);
 
       console.log("[ORDER][CANCEL][SUCCESS]", { orderId });
 
