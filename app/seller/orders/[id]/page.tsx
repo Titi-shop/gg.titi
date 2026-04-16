@@ -34,6 +34,11 @@ interface Order {
   order_number: string;
   created_at: string;
 
+  confirmed_at?: string | null;
+  shipped_at?: string | null;
+  delivered_at?: string | null;
+  cancelled_at?: string | null;
+
   shipping_name: string;
   shipping_phone: string;
 
@@ -43,6 +48,7 @@ interface Order {
   shipping_region: string | null;
   shipping_country: string | null;
   shipping_postal_code: string | null;
+
   total: number;
   order_items: OrderItem[];
 }
@@ -96,6 +102,11 @@ const fetcher = async (url: string): Promise<Order | null> => {
   order_number: safeString(data.order_number),
   created_at: safeString(data.created_at),
 
+  confirmed_at: data.confirmed_at ?? null,
+  shipped_at: data.shipped_at ?? null,
+  delivered_at: data.delivered_at ?? null,
+  cancelled_at: data.cancelled_at ?? null,
+
   shipping_name: safeString(data.shipping_name),
   shipping_phone: safeString(data.shipping_phone),
 
@@ -114,6 +125,49 @@ const fetcher = async (url: string): Promise<Order | null> => {
     return null;
   }
 };
+function OrderTimeline(order: Order) {
+  const steps = [
+    { label: "Pending", time: order.created_at },
+    { label: "Confirmed", time: order.confirmed_at },
+    { label: "Shipping", time: order.shipped_at },
+    { label: "Completed", time: order.delivered_at },
+    { label: "Cancelled", time: order.cancelled_at },
+  ];
+
+  return (
+    <div className="mb-4 p-3 bg-gray-50 rounded border">
+      <h2 className="font-semibold mb-2">Order Timeline</h2>
+
+      <div className="space-y-3">
+        {steps.map((s, i) => {
+          const active = !!s.time;
+
+          return (
+            <div key={i} className="flex items-center gap-3">
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  active ? "bg-green-500" : "bg-gray-300"
+                }`}
+              />
+
+              <div>
+                <div className="text-sm font-medium">
+                  {s.label}
+                </div>
+
+                <div className="text-xs text-gray-400">
+                  {s.time
+                    ? formatDate(s.time)
+                    : "Waiting"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /* ================= PAGE ================= */
 
@@ -238,6 +292,18 @@ export default function SellerOrderDetailPage() {
         className="bg-white p-4 border shadow max-w-xl mx-auto"
       >
         <h1 className="text-lg font-bold text-center mb-3">
+          <h1 className="text-lg font-bold text-center mb-3">
+  DELIVERY NOTE
+</h1>
+
+{qr && (
+  <div className="flex justify-center mb-3">
+    <img src={qr} alt="QR" />
+  </div>
+)}
+
+{/* 🔥 TIMELINE */}
+{OrderTimeline(order)}
           DELIVERY NOTE
         </h1>
 
@@ -302,9 +368,21 @@ export default function SellerOrderDetailPage() {
             )}
             <div className="text-xs mt-1">
         Status:{" "}
-  <span className="font-medium">
-    {item.status}
-         </span>
+<span
+  className={`font-medium ${
+    item.status === "completed"
+      ? "text-green-600"
+      : item.status === "shipping"
+      ? "text-blue-600"
+      : item.status === "confirmed"
+      ? "text-yellow-600"
+      : item.status === "cancelled"
+      ? "text-red-600"
+      : "text-gray-500"
+  }`}
+>
+  {item.status}
+</span>
           </div>
           </div>
         </div>
