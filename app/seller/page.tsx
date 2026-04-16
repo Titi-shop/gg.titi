@@ -124,12 +124,47 @@ export default function SellerPage() {
         </div>
 
         <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-          <StatusCard href="/seller/orders/pending" icon={<Clock size={16} />} count={stats.pending} label={t.pending_orders ?? "Pending"} />
-          <StatusCard href="/seller/orders/confirmed" icon={<CheckCircle2 size={16} />} count={stats.confirmed} label={t.confirmed_orders ?? "Confirmed"} />
-          <StatusCard href="/seller/orders/shipping" icon={<Truck size={16} />} count={stats.shipping} label={t.shipping_orders ?? "Shipping"} />
-          <StatusCard href="/seller/orders/completed" icon={<PackageCheck size={16} />} count={stats.completed} label={t.completed_orders ?? "Completed"} />
-          <StatusCard href="/seller/orders/returned" icon={<RotateCcw size={16} />} count={stats.returned} label={t.returned_orders ?? "Returned"} />
-          <StatusCard href="/seller/orders/cancelled" icon={<XCircle size={16} />} count={stats.cancelled} label={t.cancelled_orders ?? "Cancelled"} />
+          <StatusCard
+  href="/seller/orders?tab=pending"
+  icon={<Clock size={16} />}
+  count={stats.pending}
+  label={t.pending_orders ?? "Pending"}
+/>
+
+<StatusCard
+  href="/seller/orders?tab=confirmed"
+  icon={<CheckCircle2 size={16} />}
+  count={stats.confirmed}
+  label={t.confirmed_orders ?? "Confirmed"}
+/>
+
+<StatusCard
+  href="/seller/orders?tab=shipping"
+  icon={<Truck size={16} />}
+  count={stats.shipping}
+  label={t.shipping_orders ?? "Shipping"}
+/>
+
+<StatusCard
+  href="/seller/orders?tab=completed"
+  icon={<PackageCheck size={16} />}
+  count={stats.completed}
+  label={t.completed_orders ?? "Completed"}
+/>
+
+<StatusCard
+  href="/seller/orders?tab=returned"
+  icon={<RotateCcw size={16} />}
+  count={stats.returned}
+  label={t.returned_orders ?? "Returned"}
+/>
+
+<StatusCard
+  href="/seller/orders?tab=cancelled"
+  icon={<XCircle size={16} />}
+  count={stats.cancelled}
+  label={t.cancelled_orders ?? "Cancelled"}
+/>
         </div>
       </section>
     </main>
