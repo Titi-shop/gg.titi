@@ -199,7 +199,6 @@ export async function startShippingBySeller(
   try {
     return await withTransaction(async (client) => {
 
-      /* ================= UPDATE ITEMS ================= */
       const itemsRes = await client.query(
         `
         UPDATE order_items
@@ -222,21 +221,13 @@ export async function startShippingBySeller(
         return false;
       }
 
-      /* ================= SYNC ORDER ================= */
       await syncOrderStatus(client, orderId);
-
-      console.log("[ORDER][SELLER][SHIP][SUCCESS]", {
-        orderId,
-      });
 
       return true;
     });
 
   } catch (err) {
-    console.error("[ORDER][SELLER][SHIP][DB_ERROR]", {
-      message: err instanceof Error ? err.message : "UNKNOWN",
-    });
-
+    console.error("[ORDER][SELLER][SHIP][REAL_ERROR]", err);
     throw new Error("DB_ERROR");
   }
 }
