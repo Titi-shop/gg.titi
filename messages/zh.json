@@ -527,7 +527,22 @@
   "pay_now": "立即支付",
   "unsupported_country": "不支持的国家",
   "order_preview_failed": "订单预览失败",
-  "unknown_error": "发生错误"
+  "unknown_error": "发生错误",
+  "confirm_shipping": "确认将订单转为发货状态？",
+  "ok": "确定",
+  "processing": "处理中...",
+  "shipping_failed": "发货失败",
+  "network_error": "网络错误",
+
+  "detail": "详情",
+  "confirmed_orders": "已确认订单",
+  "orders": "订单",
+  "no_confirmed_orders": "暂无已确认订单",
+  "customer": "客户",
+  "phone": "电话",
+  "total": "总计",
+  "start_shipping": "开始发货",
+  "status_confirmed": "已确认"
 
 
 
