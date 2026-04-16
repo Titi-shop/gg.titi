@@ -48,6 +48,8 @@ type Props = {
   orders: Order[];
   onClick: (id: string) => void;
   initialTab?: OrderTab;
+
+  renderActions?: (order: Order) => React.ReactNode; // 🔥 QUAN TRỌNG
 };
 
 /* ================= COMPONENT ================= */
@@ -56,6 +58,7 @@ export default function OrdersList({
   orders,
   onClick,
   initialTab = "all",
+  renderActions,
 }: Props) {
   const { t } = useTranslation();
 
@@ -142,6 +145,7 @@ export default function OrdersList({
               key={order.id}
               order={order}
               onClick={() => onClick(order.id)}
+              actions={renderActions?.(order)} // 🔥 CHÍNH LÀ DÒNG QUAN TRỌNG
             />
           ))
         )}
