@@ -13,7 +13,6 @@ import { useAuth } from "@/context/AuthContext";
 
 import OrdersList from "@/components/OrdersList";
 import OrderActions from "@/components/OrderActions";
-import OrderCard from "@/components/OrderCard";
 /* ================= TYPES ================= */
 
 type OrderStatus =
