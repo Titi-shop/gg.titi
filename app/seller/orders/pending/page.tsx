@@ -73,7 +73,7 @@ const fetcher = async (): Promise<Order[]> => {
       return {
   id: order.id,
         order_number: order.order_number,
-        status: String(order.status).toLowerCase().trim() as OrderStatus, /
+        status: String(order.status).toLowerCase().trim() as OrderStatus,
         total: Number(order.total ?? 0),
         created_at: order.created_at,
         shipping_name: order.shipping_name ?? "",
