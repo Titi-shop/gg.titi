@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 
 import OrdersList from "@/components/OrdersList";
 import OrderActions from "@/components/OrderActions";
+
 /* ================= TYPES ================= */
 
 type OrderStatus =
@@ -245,44 +246,41 @@ export default function SellerPendingOrdersPage() {
       </header>
 
       {/* LIST */}
-<OrdersList
-  orders={orders}
-  onClick={(id) => router.push(`/seller/orders/${id}`)}
-  initialTab="pending"
+      <OrdersList
+        orders={orders}
+        onClick={() => {}}
+        initialTab="pending"
+        renderActions={(o) => (
+          <OrderActions
+            status={o.status}
+            orderId={o.id}
+            loading={processingId === o.id}
+            onDetail={() =>
+              router.push(`/seller/orders/${o.id}`)
+            }
+            onConfirm={() => {
+              setSellerMessage("Thank you");
+              setShowConfirmFor(o.id);
+              setShowCancelFor(null);
+            }}
+            onCancel={() => {
+              setShowCancelFor(o.id);
+              setShowConfirmFor(null);
+            }}
+          />
+        )}
+      />
 
-  renderActions={(o) => (
-    <OrderActions
-      status={o.status}
-      orderId={o.id}
-      loading={processingId === o.id}
-      onDetail={() =>
-        router.push(`/seller/orders/${o.id}`)
-      }
-      onConfirm={() => {
-        setSellerMessage("Thank you");
-        setShowConfirmFor(o.id);
-        setShowCancelFor(null);
-      }}
-      onCancel={() => {
-        setShowCancelFor(o.id);
-        setShowConfirmFor(null);
-      }}
-    />
-  )}
-
-  renderExtra={(o) => (
-    <>
-      {/* CONFIRM */}
-      {showConfirmFor === o.id && (
-        <div className="bg-white p-3 rounded-lg border mt-2">
+      {/* CONFIRM FORM */}
+      {showConfirmFor && (
+        <div className="p-4">
           <textarea
             value={sellerMessage}
             onChange={(e) => setSellerMessage(e.target.value)}
             className="w-full border p-2"
           />
-
           <button
-            onClick={() => handleConfirm(o.id)}
+            onClick={() => handleConfirm(showConfirmFor)}
             className="mt-2 px-3 py-1 bg-green-600 text-white rounded"
           >
             OK
@@ -290,34 +288,29 @@ export default function SellerPendingOrdersPage() {
         </div>
       )}
 
-      {/* CANCEL */}
-      {showCancelFor === o.id && (
-        <div className="bg-white p-3 rounded-lg border mt-2">
+      {/* CANCEL FORM */}
+      {showCancelFor && (
+        <div className="p-4">
           {SELLER_CANCEL_REASONS.map((r) => (
             <label key={r} className="block">
               <input
                 type="radio"
                 value={r}
                 checked={selectedReason === r}
-                onChange={(e) =>
-                  setSelectedReason(e.target.value)
-                }
+                onChange={(e) => setSelectedReason(e.target.value)}
               />
               {r}
             </label>
           ))}
 
           <button
-            onClick={() => handleCancel(o.id)}
+            onClick={() => handleCancel(showCancelFor)}
             className="mt-2 px-3 py-1 bg-red-500 text-white rounded"
           >
             OK
           </button>
         </div>
       )}
-    </>
-  )}
-/>
     </main>
   );
 }
