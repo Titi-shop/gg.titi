@@ -1,4 +1,4 @@
-import { query, withTransaction } from "@/lib/db";
+import { query, withTransaction, syncOrderStatus } from "@/lib/db";
 
 /* =========================================================
    SELLER — ORDER COUNTS
@@ -15,13 +15,13 @@ export async function getSellerOrderCounts(sellerId: string) {
   );
 
   const result = {
-  pending: 0,
-  confirmed: 0,
-  shipping: 0,
-  completed: 0,
-  cancelled: 0,
-  refunded: 0, 
-};
+    pending: 0,
+    confirmed: 0,
+    shipping: 0,
+    completed: 0,
+    cancelled: 0,
+    refunded: 0,
+  };
 
   for (const r of rows) {
     if (r.status in result) {
@@ -31,6 +31,7 @@ export async function getSellerOrderCounts(sellerId: string) {
 
   return result;
 }
+
 /* =========================================================
    SELLER — ORDERS LIST
 ========================================================= */
@@ -55,6 +56,7 @@ export async function getSellerOrders(
   }
 
   params.push(limit, offset);
+
   const { rows } = await query(
     `
     SELECT
@@ -64,12 +66,10 @@ export async function getSellerOrders(
 
       o.shipping_name,
       o.shipping_phone,
-
       o.shipping_address_line,
       o.shipping_ward,
       o.shipping_district,
       o.shipping_region,
-
       o.shipping_country,
       o.shipping_postal_code,
 
@@ -142,20 +142,18 @@ export async function getSellerOrderById(
   const { rows } = await query(
     `
     SELECT
-  o.id,
-  o.order_number,
-  o.created_at,
+      o.id,
+      o.order_number,
+      o.created_at,
 
-  o.shipping_name,
-  o.shipping_phone,
-
-  o.shipping_address_line,
-  o.shipping_ward,
-  o.shipping_district,
-  o.shipping_region,
-
-  o.shipping_country,
-  o.shipping_postal_code,
+      o.shipping_name,
+      o.shipping_phone,
+      o.shipping_address_line,
+      o.shipping_ward,
+      o.shipping_district,
+      o.shipping_region,
+      o.shipping_country,
+      o.shipping_postal_code,
 
       COALESCE(
         json_agg(
@@ -192,14 +190,15 @@ export async function getSellerOrderById(
    SELLER — ACTIONS
 ========================================================= */
 
+/* ================= SHIPPING ================= */
 export async function startShippingBySeller(
   orderId: string,
   sellerId: string
-) {
+): Promise<boolean> {
   try {
     return await withTransaction(async (client) => {
 
-      const itemsRes = await client.query(
+      const res = await client.query(
         `
         UPDATE order_items
         SET
@@ -213,7 +212,7 @@ export async function startShippingBySeller(
         [orderId, sellerId]
       );
 
-      if (itemsRes.rowCount === 0) {
+      if (res.rowCount === 0) {
         console.warn("[ORDER][SELLER][SHIP][NO_ITEMS]", {
           orderId,
           sellerId,
@@ -223,24 +222,29 @@ export async function startShippingBySeller(
 
       await syncOrderStatus(client, orderId);
 
+      console.log("[ORDER][SELLER][SHIP][SUCCESS]", { orderId });
+
       return true;
     });
 
   } catch (err) {
-    console.error("[ORDER][SELLER][SHIP][REAL_ERROR]", err);
+    console.error("[ORDER][SELLER][SHIP][DB_ERROR]", {
+      message: err instanceof Error ? err.message : "UNKNOWN",
+    });
     throw new Error("DB_ERROR");
   }
 }
+
+/* ================= CANCEL ================= */
 export async function cancelOrderBySeller(
   orderId: string,
   sellerId: string,
   reason: string | null
-) {
+): Promise<boolean> {
   try {
     return await withTransaction(async (client) => {
 
-      /* ================= UPDATE ITEMS ================= */
-      const itemsRes = await client.query(
+      const res = await client.query(
         `
         UPDATE order_items
         SET
@@ -249,23 +253,21 @@ export async function cancelOrderBySeller(
           updated_at = NOW()
         WHERE order_id = $1
           AND seller_id = $2
+          AND status IN ('pending','confirmed')
         `,
         [orderId, sellerId, reason]
       );
 
-      if (itemsRes.rowCount === 0) {
+      if (res.rowCount === 0) {
         console.warn("[ORDER][SELLER][CANCEL][NO_ITEMS]", {
           orderId,
         });
         return false;
       }
 
-      /* ================= SYNC ================= */
       await syncOrderStatus(client, orderId);
 
-      console.log("[ORDER][SELLER][CANCEL][SUCCESS]", {
-        orderId,
-      });
+      console.log("[ORDER][SELLER][CANCEL][SUCCESS]", { orderId });
 
       return true;
     });
@@ -274,10 +276,11 @@ export async function cancelOrderBySeller(
     console.error("[ORDER][SELLER][CANCEL][DB_ERROR]", {
       message: err instanceof Error ? err.message : "UNKNOWN",
     });
-
     throw new Error("DB_ERROR");
   }
 }
+
+/* ================= CONFIRM ================= */
 export async function confirmOrderBySeller(
   orderId: string,
   sellerId: string,
@@ -286,7 +289,6 @@ export async function confirmOrderBySeller(
   try {
     return await withTransaction(async (client) => {
 
-      /* ================= CHECK ORDER ================= */
       const { rows } = await client.query<{
         seller_id: string;
         status: string;
@@ -302,13 +304,11 @@ export async function confirmOrderBySeller(
 
       const order = rows[0];
 
-      /* ❌ NOT FOUND */
       if (!order) {
         console.warn("[ORDER][SELLER][CONFIRM][NOT_FOUND]", { orderId });
         return false;
       }
 
-      /* ❌ FORBIDDEN */
       if (order.seller_id !== sellerId) {
         console.warn("[ORDER][SELLER][CONFIRM][FORBIDDEN]", {
           orderId,
@@ -317,7 +317,6 @@ export async function confirmOrderBySeller(
         return false;
       }
 
-      /* ❌ INVALID STATUS */
       if (order.status !== "pending") {
         console.warn("[ORDER][SELLER][CONFIRM][INVALID_STATUS]", {
           orderId,
@@ -326,7 +325,6 @@ export async function confirmOrderBySeller(
         return false;
       }
 
-      /* ================= UPDATE ITEMS ================= */
       await client.query(
         `
         UPDATE order_items
@@ -339,10 +337,9 @@ export async function confirmOrderBySeller(
           AND seller_id = $2
           AND status = 'pending'
         `,
-        [orderId, sellerId, sellerMessage]
+        [orderId, sellerId, sellerMessage ?? ""]
       );
 
-      /* ================= SYNC ORDER ================= */
       await syncOrderStatus(client, orderId);
 
       console.log("[ORDER][SELLER][CONFIRM][SUCCESS]", { orderId });
@@ -350,13 +347,10 @@ export async function confirmOrderBySeller(
       return true;
     });
 
-  } catch (err: any) {
+  } catch (err) {
     console.error("[ORDER][SELLER][CONFIRM][DB_ERROR]", {
-      message: err?.message,
-      detail: err?.detail,
-      code: err?.code,
+      message: err instanceof Error ? err.message : "UNKNOWN",
     });
-
     throw new Error("DB_ERROR");
   }
 }
