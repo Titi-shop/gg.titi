@@ -10,40 +10,7 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { formatPi } from "@/lib/pi";
-
-/* ================= TYPES ================= */
-
-interface OrderItem {
-  id: string;
-  product_id: string | null;
-  product_name: string;
-  thumbnail?: string;
-  images?: string[];
-
-  quantity: number;
-  unit_price: number | string;
-  total_price: number | string;
-}
-
-interface Order {
-  id: string;
-  order_number?: string;
-
-  status: string;
-  total: number | string;
-
-  created_at?: string;
-
-  shipping_name?: string;
-  shipping_phone?: string;
-  shipping_address?: string;
-
-  shipping_provider?: string | null;
-  shipping_country?: string | null;
-  shipping_postal_code?: string | null;
-
-  order_items: OrderItem[];
-}
+import OrdersList, { Order } from "@/components/OrdersList";
 
 /* ================= FETCHER ================= */
 
@@ -57,26 +24,38 @@ const fetcher = async (): Promise<Order[]> => {
     if (!res.ok) return [];
 
     const data: unknown = await res.json();
-    return Array.isArray(data) ? (data as Order[]) : [];
+    if (!Array.isArray(data)) return [];
+
+    return data.map((o: any): Order => ({
+      id: String(o.id),
+      order_number: String(o.order_number ?? ""),
+      created_at: String(o.created_at ?? ""),
+      status: "shipping",
+
+      shipping_name: o.shipping_name ?? "",
+      shipping_phone: o.shipping_phone ?? "",
+      shipping_address: o.shipping_address_line ?? "",
+
+      total: Number(o.total ?? 0),
+
+      order_items: Array.isArray(o.order_items)
+        ? o.order_items.map((i: any) => ({
+            id: String(i.id),
+            product_id: i.product_id ?? null,
+            product_name: String(i.product_name ?? ""),
+            thumbnail: String(i.thumbnail ?? ""),
+            images: Array.isArray(i.images) ? i.images : [],
+            quantity: Number(i.quantity ?? 0),
+            unit_price: Number(i.unit_price ?? 0),
+            total_price: Number(i.total_price ?? 0),
+            status: "shipping",
+          }))
+        : [],
+    }));
   } catch {
     return [];
   }
 };
-
-/* ================= HELPERS ================= */
-
-function formatDate(date?: string): string {
-  if (!date) return "—";
-
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return "—";
-
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
 
 /* ================= PAGE ================= */
 
@@ -85,8 +64,6 @@ export default function SellerShippingOrdersPage() {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
-  /* ================= SWR ================= */
-
   const { data: orders = [], isLoading } = useSWR(
     !authLoading && user
       ? "/api/seller/orders?status=shipping"
@@ -94,18 +71,10 @@ export default function SellerShippingOrdersPage() {
     fetcher
   );
 
-  /* ================= TOTAL ================= */
-
   const totalPi = useMemo(
-    () =>
-      orders.reduce(
-        (sum, o) => sum + Number(o.total ?? 0),
-        0
-      ),
+    () => orders.reduce((sum, o) => sum + o.total, 0),
     [orders]
   );
-
-  /* ================= LOADING ================= */
 
   if (isLoading || authLoading) {
     return (
@@ -115,143 +84,26 @@ export default function SellerShippingOrdersPage() {
     );
   }
 
-  /* ================= UI ================= */
-
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
-          <p className="text-sm opacity-90">
-            {t.shipping_orders ?? "Shipping orders"}
-          </p>
-
-          <p className="text-xs opacity-80 mt-1">
-            {t.orders ?? "Orders"}: {orders.length} · π{formatPi(totalPi)}
+          <p>{t.shipping_orders ?? "Shipping orders"}</p>
+          <p className="text-xs">
+            {t.orders}: {orders.length} · π{formatPi(totalPi)}
           </p>
         </div>
       </header>
 
       {/* LIST */}
-      <section className="mt-6 px-4 space-y-4">
+      <OrdersList
+        orders={orders}
+        initialTab="shipping"
+        onClick={(id) => router.push(`/seller/orders/${id}`)}
+      />
 
-        {orders.length === 0 ? (
-          <p className="text-center text-gray-400">
-            {t.no_shipping_orders ?? "No shipping orders"}
-          </p>
-        ) : (
-          orders.map((order) => (
-
-           <div
-          key={order.id}
-          className="bg-white rounded-xl shadow-sm overflow-hidden border"
-            >
-
-              {/* HEADER */}
-              <div className="flex justify-between px-4 py-3 border-b bg-gray-50">
-
-                <div>
-                  <p className="font-semibold text-sm">
-                    #{order.order_number ?? order.id.slice(0, 8)}
-                  </p>
-
-                  <p className="text-xs text-gray-500">
-                    {formatDate(order.created_at)}
-                  </p>
-                </div>
-
-                <span className="text-blue-600 text-sm font-medium">
-                  {t.status_shipping ?? "Shipping"}
-                </span>
-
-              </div>
-
-              {/* SHIPPING */}
-              <div className="px-4 py-3 text-sm space-y-1 border-b">
-
-                <p>
-                  <span className="text-gray-500">
-                    {t.customer ?? "Customer"}:
-                  </span>{" "}
-                  {order.shipping_name}
-                </p>
-
-                <p>
-                  <span className="text-gray-500">
-                    {t.phone ?? "Phone"}:
-                  </span>{" "}
-                  {order.shipping_phone}
-                </p>
-
-                <p className="text-gray-600 text-xs">
-                  {order.shipping_address}
-                </p>
-
-              </div>
-
-              {/* PRODUCTS */}
-              <div className="divide-y">
-
-                {order.order_items.map((item) => (
-
-                  <div key={item.id} className="flex gap-3 p-4">
-
-                    <img
-                      src={
-                        item.thumbnail ??
-                        item.images?.[0] ??
-                        "/placeholder.png"
-                      }
-                      alt={item.product_name}
-                      className="w-14 h-14 rounded-lg object-cover bg-gray-100"
-                    />
-
-                    <div className="flex-1 min-w-0">
-
-                      <p className="text-sm font-medium line-clamp-1">
-                        {item.product_name}
-                      </p>
-
-                      <p className="text-xs text-gray-500 mt-1">
-                        x{item.quantity} · π{formatPi(Number(item.unit_price))}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                ))}
-
-              </div>
-
-              {/* FOOTER */}
-              <div
-  className="px-4 py-3 border-t bg-gray-50"
-  onClick={(e) => e.stopPropagation()}
->
-  <div className="flex justify-between items-center">
-
-    <span className="font-semibold">
-      {t.total ?? "Total"}: π{formatPi(Number(order.total ?? 0))}
-    </span>
-
-    <button
-      onClick={() => router.push(`/seller/orders/${order.id}`)}
-      className="px-3 py-1.5 text-xs border rounded-lg"
-    >
-      {t.detail ?? "Detail"}
-    </button>
-
-  </div>
-</div>
-
-            </div>
-
-          ))
-        )}
-
-      </section>
     </main>
   );
 }
