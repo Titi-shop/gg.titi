@@ -4,7 +4,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
 
-type OrderStatus =
+export type OrderStatus =
   | "pending"
   | "confirmed"
   | "shipping"
@@ -53,21 +53,25 @@ export default function OrderActions({
       {/* PENDING */}
       {status === "pending" && (
         <>
-          <button
-            disabled={loading}
-            onClick={onConfirm}
-            className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
-          >
-            {t.confirm ?? "Confirm"}
-          </button>
+          {onConfirm && (
+            <button
+              disabled={loading}
+              onClick={onConfirm}
+              className="px-3 py-1.5 text-xs bg-gray-700 text-white rounded-lg disabled:opacity-50"
+            >
+              {t.confirm ?? "Confirm"}
+            </button>
+          )}
 
-          <button
-            disabled={loading}
-            onClick={onCancel}
-            className="px-3 py-1.5 text-xs border rounded-lg disabled:opacity-50"
-          >
-            {t.cancel ?? "Cancel"}
-          </button>
+          {onCancel && (
+            <button
+              disabled={loading}
+              onClick={onCancel}
+              className="px-3 py-1.5 text-xs border rounded-lg disabled:opacity-50"
+            >
+              {t.cancel ?? "Cancel"}
+            </button>
+          )}
         </>
       )}
 
