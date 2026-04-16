@@ -70,36 +70,38 @@ const fetcher = async (): Promise<Order[]> => {
     const data: unknown = await res.json();
     if (!Array.isArray(data)) return [];
     return data.map((o) => {
-      const order = o as RawOrder;
-      return {
-  id: order.id,
-        order_number: order.order_number,
-        const itemStatuses = (order.order_items ?? []).map((i) =>
-  String((i as any).status ?? "").toLowerCase().trim()
-);
+  const order = o as RawOrder;
 
-const status: OrderStatus =
-  itemStatuses.includes("pending")
-    ? "pending"
-    : itemStatuses.includes("confirmed")
-    ? "confirmed"
-    : itemStatuses.includes("cancelled")
-    ? "cancelled"
-    : "pending";
-        status,
-        total: Number(order.total ?? 0),
-        created_at: order.created_at,
-        shipping_name: order.shipping_name ?? "",
-        shipping_phone: order.shipping_phone ?? "",
-        order_items: (order.order_items ?? []).map((i) => ({
-          id: i.id,
-          product_name: i.product_name ?? "",
-          thumbnail: i.thumbnail ?? "",
-          quantity: Number(i.quantity ?? 0),
-          unit_price: Number(i.unit_price ?? 0),
-        })),
-      };
-    });
+  // ✅ LẤY STATUS TỪ order_items
+  const itemStatuses = (order.order_items ?? []).map((i) =>
+    String(i.status ?? "").toLowerCase().trim()
+  );
+
+  let status: OrderStatus = "pending";
+
+  if (itemStatuses.includes("confirmed")) status = "confirmed";
+  else if (itemStatuses.includes("cancelled")) status = "cancelled";
+  else if (itemStatuses.includes("pending")) status = "pending";
+
+  return {
+    id: order.id,
+    order_number: order.order_number,
+    status, // ✅ đúng
+
+    total: Number(order.total ?? 0),
+    created_at: order.created_at,
+    shipping_name: order.shipping_name ?? "",
+    shipping_phone: order.shipping_phone ?? "",
+
+    order_items: (order.order_items ?? []).map((i) => ({
+      id: i.id,
+      product_name: i.product_name ?? "",
+      thumbnail: i.thumbnail ?? "",
+      quantity: Number(i.quantity ?? 0),
+      unit_price: Number(i.unit_price ?? 0),
+    })),
+  };
+});
   } catch {
     return [];
   }
