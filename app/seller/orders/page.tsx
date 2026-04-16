@@ -86,6 +86,7 @@ export default function SellerOrdersPage() {
   {
     revalidateOnFocus: false,
     dedupingInterval: 5000,
+    keepPreviousData: true, // 🔥 thêm dòng này
   }
 );
   const filteredOrders = useMemo(() => {
