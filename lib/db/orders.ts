@@ -26,13 +26,15 @@ export async function syncOrderStatus(
   client: PoolClient,
   orderId: string
 ): Promise<void> {
-  /* ================= VALIDATE ================= */
-  if (!orderId || typeof orderId !== "string") {
+  const isUUID =
+    typeof orderId === "string" &&
+    /^[0-9a-f-]{36}$/i.test(orderId);
+
+  if (!isUUID) {
     throw new Error("INVALID_ORDER_ID");
   }
 
   try {
-    /* ================= CALCULATE ================= */
     const { rows } = await client.query<OrderStatRow>(
       `
       SELECT
@@ -55,60 +57,53 @@ export async function syncOrderStatus(
       return;
     }
 
-    /* ================= DETERMINE STATUS ================= */
     let nextStatus: string = "pending";
 
-    /**
-     * PRIORITY (RẤT QUAN TRỌNG)
-     * completed > cancelled > shipping > confirmed > pending
-     */
-    if (stat.completed === stat.total) {
-      nextStatus = "completed";
-    } else if (stat.cancelled === stat.total) {
-      nextStatus = "cancelled";
-    } else if (stat.shipping > 0) {
+    if (stat.shipping > 0) {
       nextStatus = "shipping";
+    } else if (stat.completed === stat.total) {
+      nextStatus = "completed";
     } else if (stat.confirmed > 0) {
       nextStatus = "confirmed";
-    } else {
-      nextStatus = "pending";
+    } else if (stat.cancelled === stat.total) {
+      nextStatus = "cancelled";
     }
 
-    /* ================= UPDATE ORDER ================= */
+    const { rows: orderRows } = await client.query<{ status: string }>(
+      `SELECT status FROM orders WHERE id = $1 LIMIT 1`,
+      [orderId]
+    );
+
+    if (!orderRows[0] || orderRows[0].status === nextStatus) {
+      return;
+    }
+
     await client.query(
       `
       UPDATE orders
       SET
         status = $2,
         updated_at = NOW(),
-
         confirmed_at = CASE 
           WHEN $2 = 'confirmed' AND confirmed_at IS NULL 
           THEN NOW() ELSE confirmed_at END,
-
         shipped_at = CASE 
           WHEN $2 = 'shipping' AND shipped_at IS NULL 
           THEN NOW() ELSE shipped_at END,
-
         delivered_at = CASE 
           WHEN $2 = 'completed' AND delivered_at IS NULL 
           THEN NOW() ELSE delivered_at END,
-
         cancelled_at = CASE 
           WHEN $2 = 'cancelled' AND cancelled_at IS NULL 
           THEN NOW() ELSE cancelled_at END
-
       WHERE id = $1
-        AND status <> $2
       `,
       [orderId, nextStatus]
     );
 
-    /* ================= LOG ================= */
-    console.log("[ORDER][SYNC][DONE]", {
+    console.log("[ORDER][SYNC]", {
       orderId,
       nextStatus,
-      stat,
     });
 
   } catch (err) {
