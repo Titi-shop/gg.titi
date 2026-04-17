@@ -8,14 +8,17 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
+
 import OrderFilterBar from "@/components/OrderFilterBar";
 import OrdersList from "@/components/OrdersList";
 import OrderActions from "@/components/OrderActions";
 
-/* ================= TYPES ================= */
+/* ======================================================
+   TYPES
+====================================================== */
 
 type OrderStatus =
   | "pending"
@@ -24,6 +27,8 @@ type OrderStatus =
   | "completed"
   | "returned"
   | "cancelled";
+
+type TabType = OrderStatus | "all";
 
 interface RawOrderItem {
   id: string;
@@ -63,7 +68,9 @@ interface Order {
   order_items: OrderItem[];
 }
 
-/* ================= FETCH ================= */
+/* ======================================================
+   FETCHER
+====================================================== */
 
 const fetcher = async (): Promise<Order[]> => {
   const res = await apiAuthFetch("/api/seller/orders", {
@@ -72,21 +79,30 @@ const fetcher = async (): Promise<Order[]> => {
 
   if (!res.ok) return [];
 
-  const data = await res.json();
+  const data: unknown = await res.json();
+
   if (!Array.isArray(data)) return [];
 
-  return data.map((o: RawOrder) => {
-    const itemStatuses = (o.order_items ?? []).map((i) =>
-  String(i.status ?? "").toLowerCase().trim()
-);
+  return data.map((row) => {
+    const o = row as RawOrder;
 
-let status: OrderStatus = "pending";
+    const itemStatuses = (o.order_items ?? []).map((item) =>
+      String(item.status ?? "").toLowerCase().trim()
+    );
 
-if (itemStatuses.includes("shipping")) status = "shipping";
-else if (itemStatuses.includes("completed")) status = "completed";
-else if (itemStatuses.includes("returned")) status = "returned";
-else if (itemStatuses.includes("confirmed")) status = "confirmed";
-else if (itemStatuses.includes("cancelled")) status = "cancelled";
+    let status: OrderStatus = "pending";
+
+    if (itemStatuses.includes("shipping")) {
+      status = "shipping";
+    } else if (itemStatuses.includes("completed")) {
+      status = "completed";
+    } else if (itemStatuses.includes("returned")) {
+      status = "returned";
+    } else if (itemStatuses.includes("confirmed")) {
+      status = "confirmed";
+    } else if (itemStatuses.includes("cancelled")) {
+      status = "cancelled";
+    }
 
     return {
       id: o.id,
@@ -96,358 +112,525 @@ else if (itemStatuses.includes("cancelled")) status = "cancelled";
       created_at: o.created_at,
       shipping_name: o.shipping_name ?? "",
       shipping_phone: o.shipping_phone ?? "",
-      order_items: (o.order_items ?? []).map((i) => ({
-        id: i.id,
-        product_name: i.product_name ?? "",
-        thumbnail: i.thumbnail ?? "",
-        quantity: Number(i.quantity ?? 0),
-        unit_price: Number(i.unit_price ?? 0),
+      order_items: (o.order_items ?? []).map((item) => ({
+        id: item.id,
+        product_name: item.product_name ?? "",
+        thumbnail: item.thumbnail ?? "",
+        quantity: Number(item.quantity ?? 0),
+        unit_price: Number(item.unit_price ?? 0),
       })),
     };
   });
 };
 
-/* ================= PAGE ================= */
+/* ======================================================
+   PAGE
+====================================================== */
 
 export default function SellerOrdersPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
-  const { data: orders = [], isLoading, mutate } = useSWR(
+  const {
+    data: orders = [],
+    isLoading,
+    mutate,
+  } = useSWR(
     !authLoading && user ? "/api/seller/orders" : null,
     fetcher
   );
 
-  /* ================= STATE ================= */
+  /* ======================================================
+     STATE
+  ====================================================== */
 
-  const [processingId, setProcessingId] = useState<string | null>(null);
-const [customReason, setCustomReason] = useState("");
-  const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
-  const [sellerMessage, setSellerMessage] = useState("");
- const [currentTab, setCurrentTab] = useState<OrderStatus | "all">("pending");
-  const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState("");
-const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
-  const [confirmShippingId, setConfirmShippingId] = useState<string | null>(null);
-const SELLER_CANCEL_REASONS = [
-  t.cancel_reason_out_of_stock ?? "Out of stock",
-  t.cancel_reason_discontinued ?? "Discontinued",
-  t.cancel_reason_wrong_price ?? "Wrong price",
-  t.cancel_reason_other ?? "Other",
-];
-  /* ================= TOTAL ================= */
+  const [currentTab, setCurrentTab] =
+    useState<TabType>("pending");
 
-  const totalPi = useMemo(
-    () => orders.reduce((s, o) => s + o.total, 0),
-    [orders]
-  );
-  const statsByStatus = useMemo(() => {
-  const map: Record<OrderStatus | "all", { count: number; total: number }> = {
-    all: { count: 0, total: 0 },
-    pending: { count: 0, total: 0 },
-    confirmed: { count: 0, total: 0 },
-    shipping: { count: 0, total: 0 },
-    completed: { count: 0, total: 0 },
-    returned: { count: 0, total: 0 },
-    cancelled: { count: 0, total: 0 },
-  };
+  const [processingId, setProcessingId] =
+    useState<string | null>(null);
 
-  for (const o of orders) {
-    map.all.count++;
-    map.all.total += o.total;
+  const [showConfirmFor, setShowConfirmFor] =
+    useState<string | null>(null);
 
-    if (map[o.status]) {
-      map[o.status].count++;
-      map[o.status].total += o.total;
+  const [showCancelFor, setShowCancelFor] =
+    useState<string | null>(null);
+
+  const [confirmShippingId, setConfirmShippingId] =
+    useState<string | null>(null);
+
+  const [sellerMessage, setSellerMessage] =
+    useState("");
+
+  const [selectedReason, setSelectedReason] =
+    useState("");
+
+  const [customReason, setCustomReason] =
+    useState("");
+
+  /* ======================================================
+     CANCEL REASONS
+  ====================================================== */
+
+  const sellerCancelReasons = [
+    t.cancel_reason_out_of_stock ??
+      "Out of stock",
+    t.cancel_reason_discontinued ??
+      "Discontinued",
+    t.cancel_reason_wrong_price ??
+      "Wrong price",
+    t.cancel_reason_other ??
+      "Other",
+  ];
+
+  /* ======================================================
+     FILTERED LIST
+  ====================================================== */
+
+  const tabOrders = useMemo(() => {
+    if (currentTab === "all") {
+      return orders;
     }
-  }
 
-  return map;
-}, [orders]);
+    return orders.filter(
+      (order) => order.status === currentTab
+    );
+  }, [orders, currentTab]);
 
-  /* ================= ACTIONS ================= */
+  /* ======================================================
+     TOTAL
+  ====================================================== */
 
-  async function handleConfirm(id: string) {
+  const headerTotal = useMemo(() => {
+    return tabOrders.reduce(
+      (sum, order) => sum + order.total,
+      0
+    );
+  }, [tabOrders]);
+
+  /* ======================================================
+     ACTIONS
+  ====================================================== */
+
+  async function handleConfirm(
+    orderId: string
+  ) {
     if (!sellerMessage.trim()) return;
 
     try {
-      setProcessingId(id);
+      setProcessingId(orderId);
 
-      await apiAuthFetch(`/api/seller/orders/${id}/confirm`, {
-  method: "PATCH",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ seller_message: sellerMessage }),
-});
+      await apiAuthFetch(
+        `/api/seller/orders/${orderId}/confirm`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            seller_message:
+              sellerMessage.trim(),
+          }),
+        }
+      );
 
       setShowConfirmFor(null);
       setSellerMessage("");
-      mutate();
+
+      await mutate();
     } finally {
       setProcessingId(null);
     }
   }
 
-  async function handleCancel(id: string) {
-  const reason =
-    selectedReason === (t.cancel_reason_other ?? "Other")
-      ? customReason
-      : selectedReason;
+  async function handleCancel(
+    orderId: string
+  ) {
+    const otherText =
+      t.cancel_reason_other ??
+      "Other";
 
-  // ✅ THÊM ĐOẠN NÀY Ở ĐÂY
-  if (!reason.trim()) {
-    alert(t.select_reason ?? "Please select reason");
-    return;
-  }
+    const reason =
+      selectedReason === otherText
+        ? customReason.trim()
+        : selectedReason.trim();
 
-  try {
-    setProcessingId(id);
+    if (!reason) {
+      alert(
+        t.select_reason ??
+          "Please select reason"
+      );
+      return;
+    }
 
-    await apiAuthFetch(`/api/seller/orders/${id}/cancel`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cancel_reason: reason }),
-    });
+    try {
+      setProcessingId(orderId);
 
-    setShowCancelFor(null);
-    setSelectedReason("");
-    setCustomReason("");
-
-    mutate();
-  } finally {
-    setProcessingId(null);
-  }
-}
-
-  async function handleShipping(id: string) {
-  try {
-    setProcessingId(id);
-
-    await apiAuthFetch(`/api/seller/orders/${id}/shipping`, {
-      method: "PATCH",
-    });
-
-    setConfirmShippingId(null);
-    mutate();
-  } finally {
-    setProcessingId(null);
-  }
-}
-  /* ================= LOADING ================= */
-
-  if (isLoading || authLoading) {
-    return <p className="text-center mt-10">Loading...</p>;
-  }
-
-  /* ================= UI ================= */
-const currentList =
-  filteredOrders.length ? filteredOrders : orders;
-
-const headerStats = currentList.filter(
-  (o) => currentTab === "all" || o.status === currentTab
-);
-
-const headerTotal = headerStats.reduce(
-  (s, o) => s + o.total,
-  0
-);
-  return (
-    <main className="min-h-screen bg-gray-100 pb-24">
-
-      {/* HEADER */}
-     <header className="bg-gray-600 text-white px-4 py-4">
-  <div className="bg-gray-500 rounded-lg p-4">
-
-    <p>
-      {
+      await apiAuthFetch(
+        `/api/seller/orders/${orderId}/cancel`,
         {
-          all: t.all_orders ?? "All orders",
-          pending: t.pending_orders ?? "Pending",
-          confirmed: t.confirmed_orders ?? "Confirmed",
-          shipping: t.shipping_orders ?? "Shipping",
-          completed: t.completed_orders ?? "Completed",
-          returned: t.returned_orders ?? "Returned",
-          cancelled: t.cancelled_orders ?? "Cancelled",
-        }[currentTab]
-      }
-    </p>
+          method: "PATCH",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            cancel_reason: reason,
+          }),
+        }
+      );
 
-    <p className="text-xs">
-      {headerStats.length} · π{formatPi(headerTotal)}
-    </p>
+      setShowCancelFor(null);
+      setSelectedReason("");
+      setCustomReason("");
 
-  </div>
-</header>
-<OrderFilterBar
-  orders={orders}
-  onFiltered={setFilteredOrders}
-/>
+      await mutate();
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  async function handleShipping(
+    orderId: string
+  ) {
+    try {
+      setProcessingId(orderId);
+
+      await apiAuthFetch(
+        `/api/seller/orders/${orderId}/shipping`,
+        {
+          method: "PATCH",
+        }
+      );
+
+      setConfirmShippingId(null);
+
+      await mutate();
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  /* ======================================================
+     LOADING
+  ====================================================== */
+
+  if (authLoading || isLoading) {
+    return (
+      <main className="min-h-screen bg-gray-100 p-4 space-y-4">
+        {Array.from({ length: 5 }).map(
+          (_, i) => (
+            <div
+              key={i}
+              className="h-28 rounded-2xl bg-white animate-pulse"
+            />
+          )
+        )}
+      </main>
+    );
+  }
+
+  /* ======================================================
+     LABEL
+  ====================================================== */
+
+  const titleMap: Record<TabType, string> =
+    {
+      all:
+        t.all_orders ??
+        "All Orders",
+      pending:
+        t.pending_orders ??
+        "Pending",
+      confirmed:
+        t.confirmed_orders ??
+        "Confirmed",
+      shipping:
+        t.shipping_orders ??
+        "Shipping",
+      completed:
+        t.completed_orders ??
+        "Completed",
+      returned:
+        t.returned_orders ??
+        "Returned",
+      cancelled:
+        t.cancelled_orders ??
+        "Cancelled",
+    };
+
+  /* ======================================================
+     UI
+  ====================================================== */
+
+  return (
+    <main className="min-h-screen bg-gray-100 pb-28">
+      {/* HEADER */}
+      <header className="bg-gray-700 text-white px-4 py-4 shadow">
+        <div className="bg-gray-600 rounded-2xl p-4">
+          <p className="text-sm font-medium">
+            {titleMap[currentTab]}
+          </p>
+
+          <p className="text-xs mt-1 opacity-90">
+            {tabOrders.length} · π
+            {formatPi(headerTotal)}
+          </p>
+        </div>
+      </header>
+
+      {/* SEARCH / FILTER */}
+      <OrderFilterBar
+        orders={orders}
+        onFiltered={() => {
+          /* giữ nguyên component cũ */
+        }}
+      />
+
+      {/* LIST */}
       <OrdersList
-        orders={filteredOrders.length ? filteredOrders : orders}
-        onClick={() => {}}
+        orders={tabOrders}
         initialTab={currentTab}
-       onTabChange={(tab) => setCurrentTab(tab)}
-        renderActions={(o) => (
+        onTabChange={(tab) =>
+          setCurrentTab(tab as TabType)
+        }
+        onClick={() => {}}
+        renderActions={(order) => (
           <OrderActions
-            status={o.status}
-            loading={processingId === o.id}
-
-            onDetail={() =>
-              router.push(`/seller/orders/${o.id}`)
+            status={order.status}
+            loading={
+              processingId === order.id
             }
-
+            onDetail={() =>
+              router.push(
+                `/seller/orders/${order.id}`
+              )
+            }
             onConfirm={() => {
-      setSellerMessage(
-    t.order_thank_you_message ??
-    "Thank you for your order ❤️"
-  );
+              setSellerMessage(
+                t.order_thank_you_message ??
+                  "Thank you for your order ❤️"
+              );
 
-    setShowConfirmFor(o.id);
-    setShowCancelFor(null);
-   }}
-
-            onCancel={() => {
-  setSelectedReason("");
-  setCustomReason("");
-
-  setShowCancelFor(o.id);
-  setShowConfirmFor(null);
-}}
-
-            onShipping={() => {
-              setConfirmShippingId(o.id);
+              setShowConfirmFor(
+                order.id
+              );
+              setShowCancelFor(
+                null
+              );
             }}
+            onCancel={() => {
+              setSelectedReason(
+                ""
+              );
+              setCustomReason(
+                ""
+              );
+
+              setShowCancelFor(
+                order.id
+              );
+              setShowConfirmFor(
+                null
+              );
+            }}
+            onShipping={() =>
+              setConfirmShippingId(
+                order.id
+              )
+            }
           />
         )}
-
-        renderExtra={(o) => (
+        renderExtra={(order) => (
           <>
             {/* CONFIRM */}
-            {showConfirmFor === o.id && (
- <div
-  className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-4"
-  onClick={(e) => e.stopPropagation()}
->
+            {showConfirmFor ===
+              order.id && (
+              <div className="bg-white border rounded-2xl p-4 mt-3 space-y-4 shadow-sm">
+                <p className="text-sm font-medium">
+                  {t.confirm_order ??
+                    "Confirm order"}
+                </p>
 
-    <p className="text-sm font-medium">
-      {t.confirm_order ?? "Confirm order"}
-    </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    t.quick_thank_you ??
+                      "Thank you ❤️",
+                    t.quick_ship_soon ??
+                      "We will ship soon 🚚",
+                    t.quick_have_nice_day ??
+                      "Have a nice day 🌟",
+                  ].map((msg) => (
+                    <button
+                      key={msg}
+                      type="button"
+                      onClick={() =>
+                        setSellerMessage(
+                          msg
+                        )
+                      }
+                      className="px-3 py-1.5 text-xs rounded-lg border active:scale-95"
+                    >
+                      {msg}
+                    </button>
+                  ))}
+                </div>
 
-    {/* QUICK MESSAGE */}
-    <div className="flex gap-2 flex-wrap">
-      {[
-        t.quick_thank_you ?? "Thank you ❤️",
-        t.quick_ship_soon ?? "We will ship soon 🚚",
-        t.quick_have_nice_day ?? "Have a nice day 🌟",
-      ].map((msg) => (
-        <button
-          key={msg}
-          onClick={() => setSellerMessage(msg)}
-          className="text-xs border px-2 py-1 rounded-lg active:scale-95"
-        >
-          {msg}
-        </button>
-      ))}
-    </div>
+                <textarea
+                  rows={3}
+                  value={
+                    sellerMessage
+                  }
+                  onChange={(e) =>
+                    setSellerMessage(
+                      e.target.value
+                    )
+                  }
+                  className="w-full border rounded-xl p-3 text-sm"
+                  placeholder={
+                    t.enter_message ??
+                    "Enter message"
+                  }
+                />
 
-    {/* TEXTAREA */}
-    <textarea
-      value={sellerMessage}
-      onChange={(e) => setSellerMessage(e.target.value)}
-      className="w-full border rounded-lg p-2 text-sm"
-      rows={3}
-      placeholder={t.enter_message ?? "Enter message to customer"}
-    />
-
-    {/* BUTTON */}
-    <button
-      onClick={() => handleConfirm(o.id)}
-      className="w-full bg-green-600 text-white py-2 rounded-lg active:scale-95 disabled:opacity-50"
-      disabled={!sellerMessage.trim()}
-    >
-      {t.confirm ?? "Confirm"}
-    </button>
-  </div>
-)}
-            
+                <button
+                  type="button"
+                  disabled={
+                    !sellerMessage.trim()
+                  }
+                  onClick={() =>
+                    handleConfirm(
+                      order.id
+                    )
+                  }
+                  className="w-full py-3 rounded-xl bg-green-600 text-white disabled:opacity-50"
+                >
+                  {t.confirm ??
+                    "Confirm"}
+                </button>
+              </div>
+            )}
 
             {/* CANCEL */}
-            {showCancelFor === o.id && (
- <div
-  className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-4"
-  onClick={(e) => e.stopPropagation()}
->
+            {showCancelFor ===
+              order.id && (
+              <div className="bg-white border rounded-2xl p-4 mt-3 space-y-4 shadow-sm">
+                <p className="text-sm font-medium">
+                  {t.cancel_order ??
+                    "Cancel order"}
+                </p>
 
-    {/* TITLE */}
-    <p className="text-sm font-medium">
-      {t.cancel_order ?? "Cancel order"}
-    </p>
+                <div className="space-y-2">
+                  {sellerCancelReasons.map(
+                    (reason) => (
+                      <label
+                        key={
+                          reason
+                        }
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="radio"
+                          checked={
+                            selectedReason ===
+                            reason
+                          }
+                          onChange={() =>
+                            setSelectedReason(
+                              reason
+                            )
+                          }
+                        />
+                        {reason}
+                      </label>
+                    )
+                  )}
+                </div>
 
-    {/* REASONS */}
-    <div className="space-y-2">
-      {SELLER_CANCEL_REASONS.map((r) => (
-        <label key={r} className="flex items-center gap-2 text-sm">
-          <input
-            type="radio"
-            value={r}
-            checked={selectedReason === r}
-            onChange={(e) => setSelectedReason(e.target.value)}
-          />
-          {r}
-        </label>
-      ))}
-    </div>
+                {selectedReason ===
+                  (t.cancel_reason_other ??
+                    "Other") && (
+                  <input
+                    value={
+                      customReason
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setCustomReason(
+                        e.target.value
+                      )
+                    }
+                    className="w-full border rounded-xl p-3 text-sm"
+                    placeholder={
+                      t.enter_reason ??
+                      "Enter reason"
+                    }
+                  />
+                )}
 
-    {/* CUSTOM */}
-    {selectedReason === (t.cancel_reason_other ?? "Other") && (
-      <input
-        value={customReason}
-        onChange={(e) => setCustomReason(e.target.value)}
-        placeholder={t.enter_reason ?? "Enter reason"}
-        className="w-full border rounded-lg p-2 text-sm"
-      />
-    )}
-
-    {/* ✅ ACTION BUTTONS */}
-    <div className="flex gap-2">
-
-      {/* CANCEL BUTTON */}
-      <button
-        onClick={() => setShowCancelFor(null)}
-        className="flex-1 py-2 border rounded-lg active:scale-95"
-      >
-        {t.close ?? "Cancel"}
-      </button>
-
-      {/* OK BUTTON */}
-      <button
-        onClick={() => handleCancel(o.id)}
-        className="flex-1 py-2 bg-red-500 text-white rounded-lg active:scale-95"
-      >
-        {t.ok ?? "OK"}
-      </button>
-
-    </div>
-
-  </div>
-)}
-
-            {/* SHIPPING */}
-            {confirmShippingId === o.id && (
-              <div className="bg-white p-3 rounded border mt-2">
-                <p>Confirm shipping?</p>
-
-                <div className="flex gap-2 mt-2">
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => setConfirmShippingId(null)}
-                    className="flex-1 border rounded"
+                    type="button"
+                    onClick={() =>
+                      setShowCancelFor(
+                        null
+                      )
+                    }
+                    className="py-3 border rounded-xl"
                   >
-                    {t.cancel ?? "Cancel"}
+                    {t.close ??
+                      "Close"}
                   </button>
 
                   <button
-                    onClick={() => handleShipping(o.id)}
-                    className="flex-1 bg-gray-800 text-white rounded"
+                    type="button"
+                    onClick={() =>
+                      handleCancel(
+                        order.id
+                      )
+                    }
+                    className="py-3 rounded-xl bg-red-500 text-white"
+                  >
+                    {t.ok ?? "OK"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SHIPPING */}
+            {confirmShippingId ===
+              order.id && (
+              <div className="bg-white border rounded-2xl p-4 mt-3 shadow-sm">
+                <p className="text-sm font-medium">
+                  {t.confirm_shipping ??
+                    "Confirm shipping?"}
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfirmShippingId(
+                        null
+                      )
+                    }
+                    className="py-3 border rounded-xl"
+                  >
+                    {t.cancel ??
+                      "Cancel"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleShipping(
+                        order.id
+                      )
+                    }
+                    className="py-3 rounded-xl bg-gray-800 text-white"
                   >
                     {t.ok ?? "OK"}
                   </button>
