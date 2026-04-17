@@ -6,12 +6,19 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type Props = {
   orders: any[];
+
   onDetail: (id: string) => void;
+  onCancel?: (id: string) => void;
+  onReceived?: (id: string) => void;
+  onBuyAgain?: (id: string) => void;
 };
 
 export default function CustomerOrdersList({
   orders,
   onDetail,
+  onCancel,
+  onReceived,
+  onBuyAgain,
 }: Props) {
   const { t } = useTranslation();
 
@@ -19,32 +26,14 @@ export default function CustomerOrdersList({
 
   const tabs = [
     ["all", t.all ?? "All"],
-    [
-      "pending",
-      t.order_pending ?? "Pending",
-    ],
-    [
-      "confirmed",
-      t.order_confirmed ??
-        "Confirmed",
-    ],
-    [
-      "shipping",
-      t.order_shipping ??
-        "Shipping",
-    ],
-    [
-      "completed",
-      t.order_completed ??
-        "Completed",
-    ],
-    [
-      "cancelled",
-      t.order_cancelled ??
-        "Cancelled",
-    ],
+    ["pending", t.order_pending ?? "Pending"],
+    ["confirmed", t.order_confirmed ?? "Confirmed"],
+    ["shipping", t.order_shipping ?? "Shipping"],
+    ["completed", t.order_completed ?? "Completed"],
+    ["cancelled", t.order_cancelled ?? "Cancelled"],
   ];
 
+  /* COUNT */
   const counts = useMemo(() => {
     const map: any = {
       all: orders.length,
@@ -56,14 +45,18 @@ export default function CustomerOrdersList({
     };
 
     for (const o of orders) {
-      map[o.status]++;
+      if (map[o.status] !== undefined) {
+        map[o.status]++;
+      }
     }
 
     return map;
   }, [orders]);
 
+  /* FILTER */
   const filtered = useMemo(() => {
     if (tab === "all") return orders;
+
     return orders.filter(
       (o) => o.status === tab
     );
@@ -77,17 +70,14 @@ export default function CustomerOrdersList({
           {tabs.map(([key, label]) => (
             <button
               key={key}
-              onClick={() =>
-                setTab(key)
-              }
-              className={`px-4 py-3 border-b-2 text-sm ${
+              onClick={() => setTab(key)}
+              className={`px-4 py-3 border-b-2 text-sm transition ${
                 tab === key
                   ? "border-orange-500 text-orange-500 font-semibold"
                   : "border-transparent text-gray-500"
               }`}
             >
-              {label} (
-              {counts[key]})
+              {label} ({counts[key]})
             </button>
           ))}
         </div>
@@ -97,8 +87,7 @@ export default function CustomerOrdersList({
       <div className="p-4 space-y-4">
         {filtered.length === 0 ? (
           <div className="bg-white rounded-xl p-8 text-center text-gray-400 text-sm">
-            {t.no_orders ??
-              "No orders"}
+            {t.no_orders ?? "No orders"}
           </div>
         ) : (
           filtered.map((order) => (
@@ -107,6 +96,15 @@ export default function CustomerOrdersList({
               order={order}
               onDetail={() =>
                 onDetail(order.id)
+              }
+              onCancel={() =>
+                onCancel?.(order.id)
+              }
+              onReceived={() =>
+                onReceived?.(order.id)
+              }
+              onBuyAgain={() =>
+                onBuyAgain?.(order.id)
               }
             />
           ))
