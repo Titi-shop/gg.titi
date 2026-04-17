@@ -1,16 +1,27 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 
-/* ========================= TYPES ========================= */
+/* ================= TYPES ================= */
+
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "shipping"
+  | "completed"
+  | "cancelled";
+
+type OrderTab = "all" | OrderStatus;
 
 interface OrderItem {
   product_id: number;
@@ -28,52 +39,50 @@ interface Order {
   id: string;
   order_number: string;
   total: number;
-  status: string;
+  status: OrderStatus;
   created_at: string;
   order_items?: OrderItem[];
 }
 
-type OrderTab =
-  | "all"
-  | "pending"
-  | "confirmed"
-  | "shipping"
-  | "completed"
-  | "cancelled";
+/* ================= FETCHER ================= */
 
-/* ========================= FETCHER (AUTH) ========================= */
+const fetcher = async (): Promise<Order[]> => {
+  try {
+    const token = await getPiAccessToken();
 
-const fetcher = async (url: string) => {
-  const token = await getPiAccessToken();
+    if (!token) return [];
 
-  if (!token) return [];
+    const res = await fetch("/api/orders", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
 
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    cache: "no-store",
-  });
+    if (!res.ok) return [];
 
-  if (!res.ok) return [];
-
-  const data = await res.json();
-  return data.orders ?? [];
+    const data = await res.json();
+    return Array.isArray(data?.orders)
+      ? data.orders
+      : [];
+  } catch {
+    return [];
+  }
 };
 
-/* ========================= PAGE ========================= */
+/* ================= PAGE ================= */
 
 export default function CustomerOrdersPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<OrderTab>("all");
-  const [paying, setPaying] = useState(false);
+  const [tab, setTab] = useState<OrderTab>("all");
 
-  /* ========================= SWR ========================= */
-
-  const { data: orders = [], isLoading } = useSWR(
+  const {
+    data: orders = [],
+    isLoading,
+  } = useSWR(
     user ? "/api/orders" : null,
     fetcher,
     {
@@ -83,181 +92,340 @@ export default function CustomerOrdersPage() {
     }
   );
 
-  /* ========================= FILTER ========================= */
+  /* ================= COUNTS ================= */
 
-  const filteredOrders = useMemo(() => {
-    if (activeTab === "all") return orders;
-    return orders.filter((o: Order) => o.status === activeTab);
-  }, [orders, activeTab]);
+  const counts = useMemo(() => {
+    const map: Record<OrderTab, number> = {
+      all: orders.length,
+      pending: 0,
+      confirmed: 0,
+      shipping: 0,
+      completed: 0,
+      cancelled: 0,
+    };
 
-  /* ========================= REBUY ========================= */
-
-  async function handleRebuy(order: Order) {
-    if (paying) return;
-    setPaying(true);
-
-    try {
-      if (!window.Pi || !user) return;
-      const item = order.order_items?.[0];
-      if (!item) return;
-      const total = Number(order.total);
-      await window.Pi.createPayment(
-        {
-          amount: Number(total.toFixed(6)),
-          memo: "Thanh toán đơn hàng TiTi",
-          metadata: {
-            product: {
-              id: item.product_id,
-              name: item.product_name,
-              image: item.thumbnail || item.images?.[0] || "",
-              price: item.unit_price,
-            },
-            quantity: item.quantity,
-          },
-        },
-        {
-          onReadyForServerApproval: async (paymentId, callback) => {
-            const token = await getPiAccessToken();
-
-            await fetch("/api/pi/approve", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ paymentId }),
-            });
-
-            callback();
-          },
-
-          onReadyForServerCompletion: async (paymentId, txid) => {
-            const token = await getPiAccessToken();
-
-            await fetch("/api/pi/complete", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentId,
-                txid,
-                product_id: item.product_id,
-                quantity: item.quantity,
-                total,
-                user: { pi_uid: user.pi_uid },
-              }),
-            });
-
-            router.push("/customer/pending");
-          },
-
-          onCancel: () => {},
-          onError: () => alert("Thanh toán lỗi"),
-        }
-      );
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setPaying(false);
+    for (const o of orders) {
+      if (map[o.status] !== undefined) {
+        map[o.status]++;
+      }
     }
+
+    return map;
+  }, [orders]);
+
+  /* ================= FILTER ================= */
+
+  const filtered = useMemo(() => {
+    if (tab === "all") return orders;
+    return orders.filter((o) => o.status === tab);
+  }, [orders, tab]);
+
+  /* ================= TOTAL ================= */
+
+  const totalPi = useMemo(
+    () =>
+      filtered.reduce(
+        (sum, o) => sum + Number(o.total ?? 0),
+        0
+      ),
+    [filtered]
+  );
+
+  /* ================= LABEL ================= */
+
+  const tabLabel =
+    {
+      all: t.all_orders ?? "All Orders",
+      pending: t.order_pending ?? "Pending",
+      confirmed:
+        t.order_confirmed ?? "Confirmed",
+      shipping:
+        t.order_shipping ?? "Shipping",
+      completed:
+        t.order_completed ?? "Completed",
+      cancelled:
+        t.order_cancelled ?? "Cancelled",
+    }[tab] ?? "Orders";
+
+  /* ================= LOADING ================= */
+
+  if (isLoading || authLoading) {
+    return (
+      <main className="min-h-screen bg-gray-100 p-4 space-y-4">
+        {Array.from({ length: 4 }).map(
+          (_, i) => (
+            <div
+              key={i}
+              className="h-28 bg-white rounded-xl animate-pulse"
+            />
+          )
+        )}
+      </main>
+    );
   }
 
-  /* ========================= UI ========================= */
+  /* ================= UI ================= */
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
+
       {/* HEADER */}
-      <header className="bg-orange-500 text-white px-4 py-4">
-        <div className="bg-orange-400 rounded-lg p-4">
-          <p className="text-sm">{t.orders}</p>
-          <p className="text-xs mt-1">{filteredOrders.length}</p>
+      <header className="sticky top-0 z-20 bg-orange-500 text-white shadow">
+
+        <div className="px-4 py-4">
+          <div className="bg-orange-400 rounded-xl px-4 py-3">
+            <p className="text-sm font-medium">
+              {tabLabel}
+            </p>
+
+            <p className="text-xs mt-1 opacity-90">
+              {filtered.length} · π
+              {formatPi(totalPi)}
+            </p>
+          </div>
+        </div>
+
+        {/* TABS */}
+        <div className="bg-white text-sm text-gray-700 border-b overflow-x-auto whitespace-nowrap">
+          <div className="flex min-w-max px-2">
+
+            {[
+              ["all", t.all ?? "All"],
+              [
+                "pending",
+                t.order_pending ?? "Pending",
+              ],
+              [
+                "confirmed",
+                t.order_confirmed ??
+                  "Confirmed",
+              ],
+              [
+                "shipping",
+                t.order_shipping ??
+                  "Shipping",
+              ],
+              [
+                "completed",
+                t.order_completed ??
+                  "Completed",
+              ],
+              [
+                "cancelled",
+                t.order_cancelled ??
+                  "Cancelled",
+              ],
+            ].map(([key, label]) => {
+              const active = tab === key;
+
+              return (
+                <button
+                  key={key}
+                  onClick={() =>
+                    setTab(
+                      key as OrderTab
+                    )
+                  }
+                  className={`px-4 py-3 border-b-2 transition relative ${
+                    active
+                      ? "border-orange-500 text-orange-500 font-semibold"
+                      : "border-transparent"
+                  }`}
+                >
+                  {label}
+
+                  <span className="ml-1 text-[11px]">
+                    (
+                    {
+                      counts[
+                        key as OrderTab
+                      ]
+                    }
+                    )
+                  </span>
+                </button>
+              );
+            })}
+
+          </div>
         </div>
       </header>
 
-      {/* TABS */}
-      <div className="bg-white border-b">
-        <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto">
-          {[
-            ["all", t.all],
-            ["pending", t.order_pending],
-            ["confirmed", t.order_confirmed],
-            ["shipping", t.order_shipping],
-            ["completed", t.order_completed],
-            ["cancelled", t.order_cancelled],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key as OrderTab)}
-              className={`pb-2 border-b-2 ${
-                activeTab === key
-                  ? "border-orange-500 text-orange-500"
-                  : "text-gray-500"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* CONTENT */}
-      <section className="px-4 mt-4 space-y-4">
-        {isLoading || authLoading ? (
-          <div className="space-y-3 animate-pulse">
-            <div className="h-20 bg-gray-200 rounded" />
-            <div className="h-20 bg-gray-200 rounded" />
+      <section className="p-4 space-y-4">
+
+        {filtered.length === 0 ? (
+          <div className="bg-white rounded-xl p-8 text-center text-gray-400 text-sm">
+            {t.no_orders ??
+              "No orders"}
           </div>
-        ) : filteredOrders.length === 0 ? (
-          <p className="text-center text-gray-400">{t.no_orders}</p>
         ) : (
-          filteredOrders.map((o: Order) => (
-            <div key={o.id} className="bg-white rounded-lg shadow-sm">
-              <div className="flex justify-between px-4 py-3 border-b text-sm">
-                <span>#{o.order_number}</span>
-                <span className="text-orange-500">
-                  {t[`order_${o.status}`] ?? o.status}
+          filtered.map((o) => (
+            <div
+              key={o.id}
+              className="bg-white rounded-xl shadow-sm border overflow-hidden"
+            >
+
+              {/* TOP */}
+              <div className="flex justify-between items-center px-4 py-3 border-b bg-gray-50 text-sm">
+
+                <span className="font-medium">
+                  #
+                  {
+                    o.order_number
+                  }
                 </span>
+
+                <span className="text-orange-500 font-medium">
+                  {t[
+                    `order_${o.status}` as keyof typeof t
+                  ] ??
+                    o.status}
+                </span>
+
               </div>
 
-              {o.order_items?.map((item, idx) => (
-                <div key={idx} className="flex gap-3 p-4 border-b">
-                  <img
-                    src={item.thumbnail}
-                    loading="lazy"
-                    className="w-14 h-14 object-cover rounded"
-                  />
+              {/* ITEMS */}
+              <div className="divide-y">
+                {o.order_items?.map(
+                  (
+                    item,
+                    idx
+                  ) => (
+                    <div
+                      key={
+                        idx
+                      }
+                      className="flex gap-3 p-4"
+                    >
+                      <img
+                        src={
+                          item.thumbnail ||
+                          item
+                            .images?.[0] ||
+                          "/placeholder.png"
+                        }
+                        alt={
+                          item.product_name
+                        }
+                        className="w-16 h-16 rounded-lg object-cover bg-gray-100"
+                      />
 
-                  <div className="flex-1">
-                    <p className="text-sm line-clamp-2">
-                      {item.product_name}
-                    </p>
+                      <div className="flex-1 min-w-0">
 
-                    <p className="text-xs text-gray-500">
-                      x{item.quantity} · π
-                      {formatPi(item.unit_price)}
-                    </p>
+                        <p className="text-sm line-clamp-2">
+                          {
+                            item.product_name
+                          }
+                        </p>
+
+                        <p className="text-xs text-gray-500 mt-1">
+                          x
+                          {
+                            item.quantity
+                          }{" "}
+                          · π
+                          {formatPi(
+                            item.unit_price
+                          )}
+                        </p>
+
+                        {item.seller_message && (
+                          <p className="text-xs text-green-600 mt-1 line-clamp-2">
+                            💌{" "}
+                            {
+                              item.seller_message
+                            }
+                          </p>
+                        )}
+
+                        {item.seller_cancel_reason &&
+                          o.status ===
+                            "cancelled" && (
+                            <p className="text-xs text-red-500 mt-1 line-clamp-2">
+                              {
+                                item.seller_cancel_reason
+                              }
+                            </p>
+                          )}
+
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* FOOTER */}
+              <div className="px-4 py-3 border-t bg-gray-50">
+
+                <div className="flex justify-between items-center gap-3">
+
+                  <span className="text-sm">
+                    {t.total ??
+                      "Total"}
+                    :{" "}
+                    <b>
+                      π
+                      {formatPi(
+                        o.total
+                      )}
+                    </b>
+                  </span>
+
+                  <div className="flex gap-2">
+
+                    <button
+                      onClick={() =>
+                        router.push(
+                          `/customer/orders/${o.id}`
+                        )
+                      }
+                      className="px-3 py-1.5 text-sm border rounded-lg active:scale-95 transition"
+                    >
+                      {t.detail ??
+                        "Detail"}
+                    </button>
+
+                    {o.status ===
+                      "shipping" && (
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/customer/orders/${o.id}`
+                          )
+                        }
+                        className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg active:scale-95 transition"
+                      >
+                        {t.received ??
+                          "Received"}
+                      </button>
+                    )}
+
+                    {o.status ===
+                      "completed" && (
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/customer/orders/${o.id}`
+                          )
+                        }
+                        className="px-3 py-1.5 text-sm border border-orange-500 text-orange-500 rounded-lg active:scale-95 transition"
+                      >
+                        {t.buy_again ??
+                          "Buy Again"}
+                      </button>
+                    )}
+
                   </div>
+
                 </div>
-              ))}
 
-              <div className="flex justify-between px-4 py-3 text-sm">
-                <span>
-                  {t.total}: <b>π{formatPi(o.total)}</b>
-                </span>
-
-                <button
-                  disabled={paying}
-                  onClick={() => handleRebuy(o)}
-                  className="border px-3 py-1 rounded text-orange-500 disabled:opacity-50"
-                >
-                  {paying ? "Processing..." : t.buy_now}
-                </button>
               </div>
+
             </div>
           ))
         )}
+
       </section>
     </main>
   );
