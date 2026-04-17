@@ -67,7 +67,17 @@ export default function CustomerOrdersPage() {
   const [customReason, setCustomReason] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+ const [activeReviewId, setActiveReviewId] =
+  useState<string | null>(null);
 
+  const [rating, setRating] =
+  useState(5);
+
+  const [comment, setComment] =
+  useState("");
+
+  const [reviewedMap, setReviewedMap] =
+  useState<Record<string, boolean>>({});
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
