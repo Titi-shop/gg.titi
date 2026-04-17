@@ -4,11 +4,6 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
-import { useMemo, useState } from "react";
-import {
-  useRouter,
-  useSearchParams,
-} from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
@@ -64,11 +59,6 @@ const fetcher = async () => {
 export default function CustomerOrdersPage() {
   const { t } = useTranslation();
   const router = useRouter();
-   const searchParams =
-  useSearchParams();
-
-const tabFromUrl =
-  searchParams.get("tab") || "all";
   const { user, loading } = useAuth();
 
   const {
