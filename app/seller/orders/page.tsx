@@ -117,7 +117,7 @@ export default function SellerOrdersPage() {
 const [customReason, setCustomReason] = useState("");
   const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
   const [sellerMessage, setSellerMessage] = useState("");
-
+ const [currentTab, setCurrentTab] = useState<OrderStatus | "all">("pending");
   const [showCancelFor, setShowCancelFor] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState("");
 
@@ -134,6 +134,29 @@ const SELLER_CANCEL_REASONS = [
     () => orders.reduce((s, o) => s + o.total, 0),
     [orders]
   );
+  const statsByStatus = useMemo(() => {
+  const map: Record<OrderStatus | "all", { count: number; total: number }> = {
+    all: { count: 0, total: 0 },
+    pending: { count: 0, total: 0 },
+    confirmed: { count: 0, total: 0 },
+    shipping: { count: 0, total: 0 },
+    completed: { count: 0, total: 0 },
+    returned: { count: 0, total: 0 },
+    cancelled: { count: 0, total: 0 },
+  };
+
+  for (const o of orders) {
+    map.all.count++;
+    map.all.total += o.total;
+
+    if (map[o.status]) {
+      map[o.status].count++;
+      map[o.status].total += o.total;
+    }
+  }
+
+  return map;
+}, [orders]);
 
   /* ================= ACTIONS ================= */
 
@@ -202,10 +225,15 @@ const SELLER_CANCEL_REASONS = [
       {/* HEADER */}
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
-          <p>{t.orders ?? "Orders"}</p>
-          <p className="text-xs">
-            {orders.length} · π{formatPi(totalPi)}
-          </p>
+          <p>
+       {t[currentTab + "_orders"] ??
+    currentTab.toUpperCase()}
+     </p>
+
+      <p className="text-xs">
+  {statsByStatus[currentTab].count} · π
+  {formatPi(statsByStatus[currentTab].total)}
+       </p>
         </div>
       </header>
 
@@ -213,7 +241,7 @@ const SELLER_CANCEL_REASONS = [
         orders={orders}
         onClick={() => {}}
         initialTab="pending"
-
+       onTabChange={(tab) => setCurrentTab(tab)}
         renderActions={(o) => (
           <OrderActions
             status={o.status}
