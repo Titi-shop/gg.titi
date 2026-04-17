@@ -180,15 +180,35 @@ export default function CustomerOrdersPage() {
       </header>
 
       {/* LIST */}
-      <CustomerOrdersList
-        orders={orders}
-        onDetail={(id) =>
-          router.push(`/customer/orders/${id}`)
+<CustomerOrdersList
+  orders={orders}
+  onDetail={(id) =>
+    router.push(`/customer/orders/${id}`)
+  }
+
+  onCancel={(id) =>
+    setShowCancelFor(id)
+  }
+
+  onReceived={async (id) => {
+    try {
+      const token =
+        await getPiAccessToken();
+
+      await fetch(
+        `/api/orders/${id}/complete`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-        onCancel={(id) =>
-          setShowCancelFor(id)
-        }
-      />
+      );
+
+      mutate();
+    } catch {}
+  }}
+/>
 
       {/* PREMIUM POPUP */}
       {showCancelFor && (
