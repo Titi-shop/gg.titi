@@ -5,7 +5,7 @@ export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
 import { useMemo, useState } from "react";
-import { useRouter ,useSearchParams} from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
@@ -328,6 +328,7 @@ const tabFromUrl =
 
       {/* LIST */}
       <CustomerOrdersList
+  initialTab="all"
          initialTab={tabFromUrl}
         orders={orders}
         reviewedMap={reviewedMap}
