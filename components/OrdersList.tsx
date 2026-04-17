@@ -1,10 +1,17 @@
 "use client";
 
-import { useMemo, useState ,useEffect} from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import OrderCard from "./OrderCard";
 
-/* ================= TYPES ================= */
+/* ======================================================
+   TYPES
+====================================================== */
 
 export type OrderStatus =
   | "pending"
@@ -14,7 +21,9 @@ export type OrderStatus =
   | "returned"
   | "cancelled";
 
-export type OrderTab = "all" | OrderStatus;
+export type OrderTab =
+  | "all"
+  | OrderStatus;
 
 export interface OrderItem {
   id: string;
@@ -42,45 +51,105 @@ export interface Order {
   order_items: OrderItem[];
 }
 
-/* ================= PROPS ================= */
+/* ======================================================
+   PROPS
+====================================================== */
 
 type Props = {
   orders: Order[];
   onClick: (id: string) => void;
-  initialTab?: OrderTab;
 
-  renderActions?: (order: Order) => React.ReactNode;
-  renderExtra?: (order: Order) => React.ReactNode; // ✅ THÊM DÒNG NÀY
+  initialTab?: OrderTab;
   onTabChange?: (tab: OrderTab) => void;
+
+  renderActions?: (
+    order: Order
+  ) => React.ReactNode;
+
+  renderExtra?: (
+    order: Order
+  ) => React.ReactNode;
 };
 
-/* ================= COMPONENT ================= */
+/* ======================================================
+   COMPONENT
+====================================================== */
 
 export default function OrdersList({
   orders,
   onClick,
   initialTab = "all",
+  onTabChange,
   renderActions,
   renderExtra,
-  onTabChange,
 }: Props) {
   const { t } = useTranslation();
 
-  const [tab, setTab] = useState<OrderTab>(initialTab);
-useEffect(() => {
-  setTab(initialTab);
-}, [initialTab]);
-  /* ================= FILTER ================= */
+  /* ======================================================
+     TAB STATE
+  ====================================================== */
 
-  const filtered = useMemo(() => {
-    if (tab === "all") return orders;
-    return orders.filter((o) => o.status === tab);
-  }, [orders, tab]);
+  const [tab, setTab] =
+    useState<OrderTab>(
+      initialTab
+    );
 
-  /* ================= COUNT ================= */
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
+  /* ======================================================
+     TABS
+  ====================================================== */
+
+  const tabs: Array<
+    [OrderTab, string]
+  > = [
+    [
+      "all",
+      t.all ?? "All",
+    ],
+    [
+      "pending",
+      t.pending_orders ??
+        "Pending",
+    ],
+    [
+      "confirmed",
+      t.confirmed_orders ??
+        "Confirmed",
+    ],
+    [
+      "shipping",
+      t.shipping_orders ??
+        "Shipping",
+    ],
+    [
+      "completed",
+      t.completed_orders ??
+        "Completed",
+    ],
+    [
+      "returned",
+      t.returned_orders ??
+        "Returned",
+    ],
+    [
+      "cancelled",
+      t.cancelled_orders ??
+        "Cancelled",
+    ],
+  ];
+
+  /* ======================================================
+     COUNTS
+  ====================================================== */
 
   const counts = useMemo(() => {
-    const map: Record<OrderTab, number> = {
+    const map: Record<
+      OrderTab,
+      number
+    > = {
       all: orders.length,
       pending: 0,
       confirmed: 0,
@@ -90,80 +159,133 @@ useEffect(() => {
       cancelled: 0,
     };
 
-    for (const o of orders) {
-      if (map[o.status] !== undefined) {
-        map[o.status]++;
+    for (const order of orders) {
+      if (
+        typeof map[
+          order.status
+        ] === "number"
+      ) {
+        map[
+          order.status
+        ] += 1;
       }
     }
 
     return map;
   }, [orders]);
 
-  /* ================= TABS ================= */
+  /* ======================================================
+     FILTERED
+  ====================================================== */
 
-  const tabs: [OrderTab, string][] = [
-    ["all", t.all ?? "All"],
-    ["pending", t.pending_orders ?? "Pending"],
-    ["confirmed", t.confirmed_orders ?? "Confirmed"],
-    ["shipping", t.shipping_orders ?? "Shipping"],
-    ["completed", t.completed_orders ?? "Completed"],
-    ["returned", t.returned_orders ?? "Returned"],
-    ["cancelled", t.cancelled_orders ?? "Cancelled"],
-  ];
+  const filtered = useMemo(() => {
+    if (tab === "all") {
+      return orders;
+    }
 
-  /* ================= UI ================= */
+    return orders.filter(
+      (order) =>
+        order.status === tab
+    );
+  }, [orders, tab]);
+
+  /* ======================================================
+     HANDLER
+  ====================================================== */
+
+  function handleTabChange(
+    nextTab: OrderTab
+  ) {
+    setTab(nextTab);
+    onTabChange?.(nextTab);
+  }
+
+  /* ======================================================
+     UI
+  ====================================================== */
 
   return (
-    <div>
-
+    <section className="w-full">
       {/* TABS */}
-      <div className="bg-white border-b">
-        <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
-          {tabs.map(([key, label]) => (
-            <button
-  key={key}
-  onClick={() => {
-    setTab(key);
-    onTabChange?.(key);
-  }}
-  className={`pb-2 border-b-2 transition ${
-    tab === key
-      ? "border-black font-semibold"
-      : "border-transparent text-gray-400"
-  }`}
->
-              {label}
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
+        <div className="flex gap-5 px-4 py-3 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {tabs.map(
+            ([key, label]) => {
+              const active =
+                tab === key;
 
-              <div className="text-xs text-center mt-1">
-                {counts[key]}
-              </div>
-            </button>
-          ))}
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    handleTabChange(
+                      key
+                    )
+                  }
+                  className={`min-w-fit pb-2 border-b-2 transition text-sm ${
+                    active
+                      ? "border-black text-black font-semibold"
+                      : "border-transparent text-gray-400"
+                  }`}
+                >
+                  <div>
+                    {label}
+                  </div>
+
+                  <div className="text-[11px] mt-1 text-center">
+                    {
+                      counts[
+                        key
+                      ]
+                    }
+                  </div>
+                </button>
+              );
+            }
+          )}
         </div>
       </div>
 
       {/* LIST */}
       <div className="p-4 space-y-4">
-        {filtered.length === 0 ? (
-          <p className="text-center text-gray-400">
-            {t.no_orders ?? "No orders"}
-          </p>
+        {filtered.length ===
+        0 ? (
+          <div className="bg-white rounded-2xl border p-8 text-center text-sm text-gray-400">
+            {t.no_orders ??
+              "No orders"}
+          </div>
         ) : (
-          filtered.map((order) => (
-  <div key={order.id}>
-    <OrderCard
-      order={order}
-      onClick={() => onClick(order.id)}
-      actions={renderActions?.(order)}
-    />
+          filtered.map(
+            (order) => (
+              <div
+                key={
+                  order.id
+                }
+                className="space-y-3"
+              >
+                <OrderCard
+                  order={
+                    order
+                  }
+                  onClick={() =>
+                    onClick(
+                      order.id
+                    )
+                  }
+                  actions={renderActions?.(
+                    order
+                  )}
+                />
 
-    {/* ✅ THÊM DÒNG NÀY */}
-    {renderExtra?.(order)}
-  </div>
-))
+                {renderExtra?.(
+                  order
+                )}
+              </div>
+            )
+          )
         )}
       </div>
-
-    </div>
+    </section>
   );
 }
