@@ -3,7 +3,12 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 import useSWR from "swr";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
@@ -22,7 +27,7 @@ import {
 
 /* ================= PAGE ================= */
 
-export default function SellerPage() {
+function SellerOrdersContent() {
   const { t } = useTranslation();
   const { user, loading, piReady } = useAuth();
 
@@ -237,5 +242,23 @@ function StatusCard({
         </span>
       </div>
     </Link>
+  );
+}
+export default function SellerOrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gray-100 p-4 space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-28 rounded-xl bg-white animate-pulse"
+            />
+          ))}
+        </main>
+      }
+    >
+      <SellerOrdersContent />
+    </Suspense>
   );
 }
