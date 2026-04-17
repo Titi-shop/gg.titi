@@ -4,13 +4,15 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 import useSWR from "swr";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { useAuth } from "@/context/AuthContext";
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 import CustomerOrdersList from "@/components/CustomerOrdersList";
-
 /* =======================================================
    CANCEL REASONS
 ======================================================= */
@@ -320,23 +322,25 @@ export default function CustomerOrdersPage() {
       </header>
 
       {/* LIST */}
-      <CustomerOrdersList
-         initialTab="all"
-        orders={orders}
-        reviewedMap={reviewedMap}
-        onDetail={(id) =>
-          router.push(`/customer/orders/${id}`)
-        }
-        onCancel={(id) =>
-          setShowCancelFor(id)
-        }
-        onReceived={(id) =>
-          setConfirmReceivedFor(id)
-        }
-        onReview={(id) =>
-          setActiveReviewId(id)
-        }
-      />
+      <Suspense fallback={<div className="p-4">Loading...</div>}>
+  <CustomerOrdersList
+    initialTab="all"
+    orders={orders}
+    reviewedMap={reviewedMap}
+    onDetail={(id) =>
+      router.push(`/customer/orders/${id}`)
+    }
+    onCancel={(id) =>
+      setShowCancelFor(id)
+    }
+    onReceived={(id) =>
+      setConfirmReceivedFor(id)
+    }
+    onReview={(id) =>
+      setActiveReviewId(id)
+    }
+  />
+</Suspense>
 
       {/* =======================================================
           CANCEL POPUP
