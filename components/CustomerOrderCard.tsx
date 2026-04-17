@@ -89,11 +89,12 @@ export default function CustomerOrderCard({
         </span>
 
         <CustomerOrderActions
-          status={order.status}
-          onDetail={onDetail}
-          onReceived={onDetail}
-          onBuyAgain={onDetail}
-        />
+  status={order.status}
+  onDetail={onDetail}
+  onCancel={onDetail}
+  onReceived={onDetail}
+  onBuyAgain={onDetail}
+/>
       </div>
     </div>
   );
