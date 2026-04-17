@@ -7,7 +7,6 @@ type Props = {
   onDetail: () => void;
   onCancel?: () => void;
   onReceived?: () => void;
-  onBuyAgain?: () => void;
 };
 
 export default function CustomerOrderActions({
@@ -15,7 +14,6 @@ export default function CustomerOrderActions({
   onDetail,
   onCancel,
   onReceived,
-  onBuyAgain,
 }: Props) {
   const { t } = useTranslation();
 
@@ -26,39 +24,41 @@ export default function CustomerOrderActions({
     >
       {/* DETAIL */}
       <button
-        onClick={onDetail}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDetail();
+        }}
         className="px-3 py-1.5 border rounded-lg text-sm active:scale-95"
       >
         {t.detail ?? "Detail"}
       </button>
 
-      {/* PENDING => CANCEL */}
+      {/* PENDING */}
       {status === "pending" && onCancel && (
         <button
-          onClick={onCancel}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancel();
+          }}
           className="px-3 py-1.5 border border-red-500 text-red-500 rounded-lg text-sm active:scale-95"
         >
           {t.cancel_order ?? "Cancel"}
         </button>
       )}
 
-      {/* SHIPPING => RECEIVED */}
+      {/* SHIPPING */}
       {status === "shipping" && onReceived && (
         <button
-          onClick={onReceived}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onReceived();
+          }}
           className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm active:scale-95"
         >
           {t.received ?? "Received"}
-        </button>
-      )}
-
-      {/* COMPLETED => BUY AGAIN */}
-      {status === "completed" && onBuyAgain && (
-        <button
-          onClick={onBuyAgain}
-          className="px-3 py-1.5 border border-orange-500 text-orange-500 rounded-lg text-sm active:scale-95"
-        >
-          {t.buy_again ?? "Buy Again"}
         </button>
       )}
     </div>
