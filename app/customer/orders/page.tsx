@@ -105,48 +105,65 @@ export default function CustomerOrdersPage() {
 
   /* ================= CANCEL ================= */
 
-  async function handleCancel(orderId: string) {
-    const reason =
-      selectedReason === "cancel_reason_other"
-        ? customReason
-        : selectedReason;
+  async function handleReview(order: any) {
+  try {
+    setProcessingId(order.id);
 
-    if (!reason.trim()) {
-      showToast(
-        t.select_cancel_reason ??
-          "Please select reason"
-      );
-      return;
-    }
+    const token =
+      await getPiAccessToken();
 
-    try {
-      setProcessingId(orderId);
+    const productId =
+      order.order_items?.[0]?.product_id;
 
-      const token = await getPiAccessToken();
-
-      await fetch(`/api/orders/${orderId}/cancel`, {
-        method: "PATCH",
+    const res = await fetch(
+      "/api/reviews",
+      {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
         body: JSON.stringify({
-          cancel_reason: reason,
+          order_id: order.id,
+          product_id: productId,
+          rating,
+          comment:
+            comment.trim() ||
+            t.default_review_comment ||
+            "Good product",
         }),
-      });
+      }
+    );
 
-      await mutate();
-
-      resetCancel();
-
-      showToast(
-        t.cancel_success ??
-          "Order cancelled successfully"
-      );
-    } finally {
-      setProcessingId(null);
+    if (!res.ok) {
+      throw new Error();
     }
+
+    /* đánh dấu đã review */
+    setReviewedMap((prev) => ({
+      ...prev,
+      [order.id]: true,
+    }));
+
+    /* reset popup */
+    setActiveReviewId(null);
+    setRating(5);
+    setComment("");
+
+    showToast(
+      t.review_success ??
+        "Review success"
+    );
+  } catch {
+    showToast(
+      t.review_failed ??
+        "Review failed"
+    );
+  } finally {
+    setProcessingId(null);
   }
+}
 
   /* ================= LOADING ================= */
 
