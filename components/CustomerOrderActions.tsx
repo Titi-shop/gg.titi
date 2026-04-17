@@ -4,23 +4,22 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type Props = {
   status: string;
-
+  reviewed?: boolean;
   onDetail: () => void;
-
   onCancel?: () => void;
   onReceived?: () => void;
+  onBuyAgain?: () => void;
   onReview?: () => void;
-
-  reviewed?: boolean;
 };
 
 export default function CustomerOrderActions({
   status,
+  reviewed,
   onDetail,
   onCancel,
   onReceived,
+  onBuyAgain,
   onReview,
-  reviewed,
 }: Props) {
   const { t } = useTranslation();
 
