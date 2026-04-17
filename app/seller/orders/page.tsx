@@ -163,7 +163,11 @@ const SELLER_CANCEL_REASONS = [
       ? customReason
       : selectedReason;
 
-  if (!reason.trim()) return;
+  // ✅ THÊM ĐOẠN NÀY Ở ĐÂY
+  if (!reason.trim()) {
+    alert(t.select_reason ?? "Please select reason");
+    return;
+  }
 
   try {
     setProcessingId(id);
@@ -183,21 +187,6 @@ const SELLER_CANCEL_REASONS = [
     setProcessingId(null);
   }
 }
-
-  async function handleShipping(id: string) {
-    try {
-      setProcessingId(id);
-
-      await apiAuthFetch(`/api/seller/orders/${id}/shipping`, {
-        method: "PATCH",
-      });
-
-      setConfirmShippingId(null);
-      mutate();
-    } finally {
-      setProcessingId(null);
-    }
-  }
 
   /* ================= LOADING ================= */
 
