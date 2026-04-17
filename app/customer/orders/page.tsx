@@ -351,9 +351,9 @@ const [confirmReceivedFor, setConfirmReceivedFor] =
         onCancel={(id) =>
           setShowCancelFor(id)
         }
-        onReceived={
-          handleReceived
-        }
+        onReceived={(id) =>
+       setConfirmReceivedFor(id)
+      }
         onReview={(id) =>
           setActiveReviewId(id)
         }
