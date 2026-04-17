@@ -7,11 +7,17 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 type Props = {
   order: any;
   onDetail: () => void;
+  onCancel?: () => void;
+  onReceived?: () => void;
+  onBuyAgain?: () => void;
 };
 
 export default function CustomerOrderCard({
   order,
   onDetail,
+  onCancel,
+  onReceived,
+  onBuyAgain,
 }: Props) {
   const { t } = useTranslation();
 
@@ -25,8 +31,7 @@ export default function CustomerOrderCard({
         </span>
 
         <span className="text-orange-500 font-medium">
-          {t[`order_${order.status}`] ??
-            order.status}
+          {t[`order_${order.status}`] ?? order.status}
         </span>
       </div>
 
@@ -64,12 +69,9 @@ export default function CustomerOrderCard({
                 )}
 
                 {item.seller_cancel_reason &&
-                  order.status ===
-                    "cancelled" && (
+                  order.status === "cancelled" && (
                     <p className="text-xs text-red-500 mt-1">
-                      {
-                        item.seller_cancel_reason
-                      }
+                      {item.seller_cancel_reason}
                     </p>
                   )}
               </div>
@@ -79,22 +81,22 @@ export default function CustomerOrderCard({
       </div>
 
       {/* FOOTER */}
-      <div className="px-4 py-3 border-t bg-gray-50 flex justify-between items-center gap-3">
-
+      <div
+        className="px-4 py-3 border-t bg-gray-50 flex justify-between items-center gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
         <span className="text-sm">
           {t.total ?? "Total"}:{" "}
-          <b>
-            π{formatPi(order.total)}
-          </b>
+          <b>π{formatPi(order.total)}</b>
         </span>
 
         <CustomerOrderActions
-  status={order.status}
-  onDetail={onDetail}
-  onCancel={onDetail}
-  onReceived={onDetail}
-  onBuyAgain={onDetail}
-/>
+          status={order.status}
+          onDetail={onDetail}
+          onCancel={onCancel}
+          onReceived={onReceived}
+          onBuyAgain={onBuyAgain}
+        />
       </div>
     </div>
   );
