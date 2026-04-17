@@ -77,7 +77,9 @@ export default function OrderSummary() {
       {/* HEADER */}
       <button
         type="button"
-        onClick={() => router.push("/customer/orders")}
+        onClick={() =>
+          router.push("/customer/orders")
+        }
         className="w-full px-5 py-4 flex items-center justify-between active:bg-gray-50 transition"
       >
         <div className="text-left">
@@ -97,10 +99,9 @@ export default function OrderSummary() {
         />
       </button>
 
-      {/* DIVIDER */}
       <div className="h-px bg-gray-100" />
 
-      {/* MAIN GRID */}
+      {/* GRID */}
       <div className="grid grid-cols-4 gap-y-5 px-3 py-5">
         <Item
           icon={<Clock3 size={20} />}
@@ -110,11 +111,15 @@ export default function OrderSummary() {
           }
           count={counts.pending}
           loading={isLoading}
-          onClick={() => go("pending")}
+          onClick={() =>
+            go("pending")
+          }
         />
 
         <Item
-          icon={<PackageCheck size={20} />}
+          icon={
+            <PackageCheck size={20} />
+          }
           label={
             t.confirmed_orders ??
             "Confirmed"
@@ -134,7 +139,9 @@ export default function OrderSummary() {
           }
           count={counts.shipping}
           loading={isLoading}
-          onClick={() => go("shipping")}
+          onClick={() =>
+            go("shipping")
+          }
         />
 
         <Item
@@ -165,6 +172,7 @@ export default function OrderSummary() {
           }
         />
 
+        {/* RETURNS => PAGE RIÊNG */}
         <Item
           icon={
             <RotateCcw size={20} />
@@ -176,7 +184,9 @@ export default function OrderSummary() {
           count={counts.returns}
           loading={isLoading}
           onClick={() =>
-            go("returns")
+            router.push(
+              "/customer/returns"
+            )
           }
         />
       </div>
