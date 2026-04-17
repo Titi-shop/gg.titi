@@ -139,9 +139,10 @@ export default function SellerOrdersPage() {
       setProcessingId(id);
 
       await apiAuthFetch(`/api/seller/orders/${id}/confirm`, {
-        method: "PATCH",
-        body: JSON.stringify({ seller_message: sellerMessage }),
-      });
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ seller_message: sellerMessage }),
+});
 
       setShowConfirmFor(null);
       mutate();
@@ -219,9 +220,14 @@ export default function SellerOrdersPage() {
             }
 
             onConfirm={() => {
-              setShowConfirmFor(o.id);
-              setShowCancelFor(null);
-            }}
+      setSellerMessage(
+    t.order_thank_you_message ??
+    "Thank you for your order ❤️"
+  );
+
+    setShowConfirmFor(o.id);
+    setShowCancelFor(null);
+   }}
 
             onCancel={() => {
               setShowCancelFor(o.id);
@@ -238,20 +244,49 @@ export default function SellerOrdersPage() {
           <>
             {/* CONFIRM */}
             {showConfirmFor === o.id && (
-              <div className="bg-white p-3 rounded border mt-2">
-                <textarea
-                  value={sellerMessage}
-                  onChange={(e) => setSellerMessage(e.target.value)}
-                  className="w-full border p-2"
-                />
-                <button
-                  onClick={() => handleConfirm(o.id)}
-                  className="mt-2 bg-green-600 text-white px-3 py-1 rounded"
-                >
-                  OK
-                </button>
-              </div>
-            )}
+  <div className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-3">
+
+    <p className="text-sm font-medium">
+      {t.confirm_order ?? "Confirm order"}
+    </p>
+
+    {/* QUICK MESSAGE */}
+    <div className="flex gap-2 flex-wrap">
+      {[
+        t.quick_thank_you ?? "Thank you ❤️",
+        t.quick_ship_soon ?? "We will ship soon 🚚",
+        t.quick_have_nice_day ?? "Have a nice day 🌟",
+      ].map((msg) => (
+        <button
+          key={msg}
+          onClick={() => setSellerMessage(msg)}
+          className="text-xs border px-2 py-1 rounded-lg active:scale-95"
+        >
+          {msg}
+        </button>
+      ))}
+    </div>
+
+    {/* TEXTAREA */}
+    <textarea
+      value={sellerMessage}
+      onChange={(e) => setSellerMessage(e.target.value)}
+      className="w-full border rounded-lg p-2 text-sm"
+      rows={3}
+      placeholder={t.enter_message ?? "Enter message to customer"}
+    />
+
+    {/* BUTTON */}
+    <button
+      onClick={() => handleConfirm(o.id)}
+      className="w-full bg-green-600 text-white py-2 rounded-lg active:scale-95 disabled:opacity-50"
+      disabled={!sellerMessage.trim()}
+    >
+      {t.confirm ?? "Confirm"}
+    </button>
+  </div>
+)}
+            
 
             {/* CANCEL */}
             {showCancelFor === o.id && (
