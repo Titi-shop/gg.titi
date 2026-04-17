@@ -293,7 +293,10 @@ currentTab.toUpperCase()
           <>
             {/* CONFIRM */}
             {showConfirmFor === o.id && (
-  <div className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-3">
+ <div
+  className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-4"
+  onClick={(e) => e.stopPropagation()}
+>
 
     <p className="text-sm font-medium">
       {t.confirm_order ?? "Confirm order"}
@@ -339,7 +342,10 @@ currentTab.toUpperCase()
 
             {/* CANCEL */}
             {showCancelFor === o.id && (
-  <div className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-4">
+ <div
+  className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-4"
+  onClick={(e) => e.stopPropagation()}
+>
 
     {/* TITLE */}
     <p className="text-sm font-medium">
