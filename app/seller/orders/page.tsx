@@ -76,9 +76,17 @@ const fetcher = async (): Promise<Order[]> => {
   if (!Array.isArray(data)) return [];
 
   return data.map((o: RawOrder) => {
-    const status =
-      (o.order_items?.[0]?.status as OrderStatus) ??
-      "pending";
+    const itemStatuses = (o.order_items ?? []).map((i) =>
+  String(i.status ?? "").toLowerCase().trim()
+);
+
+let status: OrderStatus = "pending";
+
+if (itemStatuses.includes("shipping")) status = "shipping";
+else if (itemStatuses.includes("completed")) status = "completed";
+else if (itemStatuses.includes("returned")) status = "returned";
+else if (itemStatuses.includes("confirmed")) status = "confirmed";
+else if (itemStatuses.includes("cancelled")) status = "cancelled";
 
     return {
       id: o.id,
@@ -247,12 +255,21 @@ const headerTotal = headerStats.reduce(
     <main className="min-h-screen bg-gray-100 pb-24">
 
       {/* HEADER */}
-      <header className="bg-gray-600 text-white px-4 py-4">
+     <header className="bg-gray-600 text-white px-4 py-4">
   <div className="bg-gray-500 rounded-lg p-4">
-    
+
     <p>
-      {t[`${currentTab}_orders` as keyof typeof t] ??
-        currentTab.toUpperCase()}
+      {
+        {
+          all: t.all_orders ?? "All orders",
+          pending: t.pending_orders ?? "Pending",
+          confirmed: t.confirmed_orders ?? "Confirmed",
+          shipping: t.shipping_orders ?? "Shipping",
+          completed: t.completed_orders ?? "Completed",
+          returned: t.returned_orders ?? "Returned",
+          cancelled: t.cancelled_orders ?? "Cancelled",
+        }[currentTab]
+      }
     </p>
 
     <p className="text-xs">
