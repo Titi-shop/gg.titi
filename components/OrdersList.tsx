@@ -118,15 +118,17 @@ export default function OrdersList({
         <div className="flex gap-6 px-4 py-3 text-sm overflow-x-auto whitespace-nowrap">
           {tabs.map(([key, label]) => (
             <button
-              key={key}
-              onClick={() => setTab(key)}
-              onTabChange?.(key);
-              className={`pb-2 border-b-2 transition ${
-                tab === key
-                  ? "border-black font-semibold"
-                  : "border-transparent text-gray-400"
-              }`}
-            >
+  key={key}
+  onClick={() => {
+    setTab(key);
+    onTabChange?.(key);
+  }}
+  className={`pb-2 border-b-2 transition ${
+    tab === key
+      ? "border-black font-semibold"
+      : "border-transparent text-gray-400"
+  }`}
+>
               {label}
 
               <div className="text-xs text-center mt-1">
