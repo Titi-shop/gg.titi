@@ -211,6 +211,20 @@ const SELLER_CANCEL_REASONS = [
   }
 }
 
+  async function handleShipping(id: string) {
+  try {
+    setProcessingId(id);
+
+    await apiAuthFetch(`/api/seller/orders/${id}/shipping`, {
+      method: "PATCH",
+    });
+
+    setConfirmShippingId(null);
+    mutate();
+  } finally {
+    setProcessingId(null);
+  }
+}
   /* ================= LOADING ================= */
 
   if (isLoading || authLoading) {
@@ -226,8 +240,8 @@ const SELLER_CANCEL_REASONS = [
       <header className="bg-gray-600 text-white px-4 py-4">
         <div className="bg-gray-500 rounded-lg p-4">
           <p>
-       {t[currentTab + "_orders"] ??
-    currentTab.toUpperCase()}
+       t[`${currentTab}_orders` as keyof typeof t] ??
+currentTab.toUpperCase()
      </p>
 
       <p className="text-xs">
