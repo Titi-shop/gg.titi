@@ -1,9 +1,22 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
+/* =======================================================
+   TYPES
+======================================================= */
+
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "shipping"
+  | "completed"
+  | "cancelled"
+  | string;
+
 type Props = {
-  status: string;
+  status: OrderStatus;
   reviewed?: boolean;
 
   onDetail: () => void;
@@ -12,9 +25,13 @@ type Props = {
   onReview?: () => void;
 };
 
+/* =======================================================
+   COMPONENT
+======================================================= */
+
 export default function CustomerOrderActions({
   status,
-  reviewed,
+  reviewed = false,
   onDetail,
   onCancel,
   onReceived,
@@ -22,11 +39,11 @@ export default function CustomerOrderActions({
 }: Props) {
   const { t } = useTranslation();
 
-  function btnStop(
+  function stopAndRun(
     fn?: () => void
   ) {
     return (
-      e: React.MouseEvent<HTMLButtonElement>
+      e: MouseEvent<HTMLButtonElement>
     ) => {
       e.preventDefault();
       e.stopPropagation();
@@ -34,71 +51,85 @@ export default function CustomerOrderActions({
     };
   }
 
+  const baseBtn =
+    "px-3 py-2 rounded-xl text-sm font-medium transition active:scale-95";
+
   return (
     <div
-      className="flex gap-2 flex-wrap justify-end"
-      onClick={(e) => e.stopPropagation()}
+      className="flex flex-wrap justify-end gap-2"
+      onClick={(e) =>
+        e.stopPropagation()
+      }
     >
       {/* DETAIL */}
       <button
         type="button"
-        onClick={btnStop(onDetail)}
-        className="px-3 py-1.5 rounded-lg border text-sm font-medium bg-white active:scale-95 transition"
+        onClick={stopAndRun(
+          onDetail
+        )}
+        className={`${baseBtn} border border-gray-300 bg-white text-gray-700`}
       >
-        {t.detail ?? "Detail"}
+        {t.detail ??
+          "Detail"}
       </button>
 
-      {/* PENDING */}
-      {status === "pending" &&
+      {/* PENDING -> CANCEL */}
+      {status ===
+        "pending" &&
         onCancel && (
           <button
             type="button"
-            onClick={btnStop(onCancel)}
-            className="px-3 py-1.5 rounded-lg border border-red-500 text-red-500 text-sm font-medium active:scale-95 transition"
+            onClick={stopAndRun(
+              onCancel
+            )}
+            className={`${baseBtn} border border-red-500 bg-white text-red-500`}
           >
             {t.cancel_order ??
               "Cancel"}
           </button>
         )}
 
-      {/* SHIPPING */}
-      {status === "shipping" &&
+      {/* SHIPPING -> RECEIVED */}
+      {status ===
+        "shipping" &&
         onReceived && (
           <button
             type="button"
-            onClick={btnStop(
+            onClick={stopAndRun(
               onReceived
             )}
-            className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium active:scale-95 transition"
+            className={`${baseBtn} bg-green-600 text-white`}
           >
             {t.received ??
               "Received"}
           </button>
         )}
 
-      {/* COMPLETED */}
+      {/* COMPLETED -> REVIEW */}
       {status ===
         "completed" &&
-        onReview &&
-        !reviewed && (
+        !reviewed &&
+        onReview && (
           <button
             type="button"
-            onClick={btnStop(onReview)}
-            className="px-3 py-1.5 rounded-lg border border-orange-500 text-orange-500 text-sm font-medium active:scale-95 transition"
+            onClick={stopAndRun(
+              onReview
+            )}
+            className={`${baseBtn} border border-orange-500 bg-white text-orange-500`}
           >
             {t.review_orders ??
               "Review"}
           </button>
         )}
 
-      {/* REVIEWED */}
+      {/* COMPLETED -> REVIEWED */}
       {status ===
         "completed" &&
         reviewed && (
           <button
             type="button"
             disabled
-            className="px-3 py-1.5 rounded-lg bg-green-100 text-green-600 text-sm font-medium cursor-default"
+            className={`${baseBtn} cursor-default bg-green-100 text-green-600`}
           >
             {t.order_review ??
               "Reviewed"}
