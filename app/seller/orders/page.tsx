@@ -114,7 +114,7 @@ export default function SellerOrdersPage() {
   /* ================= STATE ================= */
 
   const [processingId, setProcessingId] = useState<string | null>(null);
-
+const [customReason, setCustomReason] = useState("");
   const [showConfirmFor, setShowConfirmFor] = useState<string | null>(null);
   const [sellerMessage, setSellerMessage] = useState("");
 
@@ -122,7 +122,12 @@ export default function SellerOrdersPage() {
   const [selectedReason, setSelectedReason] = useState("");
 
   const [confirmShippingId, setConfirmShippingId] = useState<string | null>(null);
-
+const SELLER_CANCEL_REASONS = [
+  t.cancel_reason_out_of_stock ?? "Out of stock",
+  t.cancel_reason_discontinued ?? "Discontinued",
+  t.cancel_reason_wrong_price ?? "Wrong price",
+  t.cancel_reason_other ?? "Other",
+];
   /* ================= TOTAL ================= */
 
   const totalPi = useMemo(
@@ -153,22 +158,31 @@ export default function SellerOrdersPage() {
   }
 
   async function handleCancel(id: string) {
-    if (!selectedReason) return;
+  const reason =
+    selectedReason === (t.cancel_reason_other ?? "Other")
+      ? customReason
+      : selectedReason;
 
-    try {
-      setProcessingId(id);
+  if (!reason.trim()) return;
 
-      await apiAuthFetch(`/api/seller/orders/${id}/cancel`, {
-        method: "PATCH",
-        body: JSON.stringify({ cancel_reason: selectedReason }),
-      });
+  try {
+    setProcessingId(id);
 
-      setShowCancelFor(null);
-      mutate();
-    } finally {
-      setProcessingId(null);
-    }
+    await apiAuthFetch(`/api/seller/orders/${id}/cancel`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cancel_reason: reason }),
+    });
+
+    setShowCancelFor(null);
+    setSelectedReason("");
+    setCustomReason("");
+
+    mutate();
+  } finally {
+    setProcessingId(null);
   }
+}
 
   async function handleShipping(id: string) {
     try {
@@ -231,9 +245,12 @@ export default function SellerOrdersPage() {
    }}
 
             onCancel={() => {
-              setShowCancelFor(o.id);
-              setShowConfirmFor(null);
-            }}
+  setSelectedReason("");
+  setCustomReason("");
+
+  setShowCancelFor(o.id);
+  setShowConfirmFor(null);
+}}
 
             onShipping={() => {
               setConfirmShippingId(o.id);
@@ -291,23 +308,48 @@ export default function SellerOrdersPage() {
 
             {/* CANCEL */}
             {showCancelFor === o.id && (
-              <div className="bg-white p-3 rounded border mt-2">
-                <label>
-                  <input
-                    type="radio"
-                    onChange={() => setSelectedReason("Out of stock")}
-                  />
-                  Out of stock
-                </label>
+  <div className="bg-white p-4 rounded-xl border mt-2 shadow-sm space-y-3">
 
-                <button
-                  onClick={() => handleCancel(o.id)}
-                  className="mt-2 bg-red-500 text-white px-3 py-1 rounded"
-                >
-                  OK
-                </button>
-              </div>
-            )}
+    <p className="text-sm font-medium">
+      {t.cancel_order ?? "Cancel order"}
+    </p>
+
+    {/* REASONS */}
+    <div className="space-y-2">
+      {SELLER_CANCEL_REASONS.map((r) => (
+        <label key={r} className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            value={r}
+            checked={selectedReason === r}
+            onChange={(e) => setSelectedReason(e.target.value)}
+          />
+          {r}
+        </label>
+      ))}
+    </div>
+
+    {/* CUSTOM INPUT */}
+    {selectedReason === (t.cancel_reason_other ?? "Other") && (
+      <input
+        value={customReason}
+        onChange={(e) => setCustomReason(e.target.value)}
+        placeholder={t.enter_reason ?? "Enter reason"}
+        className="w-full border rounded-lg p-2 text-sm"
+      />
+    )}
+
+    {/* BUTTON */}
+    <button
+      onClick={() => handleCancel(o.id)}
+      disabled={!selectedReason}
+      className="w-full bg-red-500 text-white py-2 rounded-lg active:scale-95 disabled:opacity-50"
+    >
+      {t.cancel ?? "Cancel"}
+    </button>
+
+  </div>
+)}
 
             {/* SHIPPING */}
             {confirmShippingId === o.id && (
