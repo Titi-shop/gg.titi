@@ -442,14 +442,14 @@ const headerTotal = headerStats.reduce(
                     onClick={() => setConfirmShippingId(null)}
                     className="flex-1 border rounded"
                   >
-                    Cancel
+                    {t.cancel ?? "Cancel"}
                   </button>
 
                   <button
                     onClick={() => handleShipping(o.id)}
                     className="flex-1 bg-gray-800 text-white rounded"
                   >
-                    OK
+                    {t.ok ?? "OK"}
                   </button>
                 </div>
               </div>
