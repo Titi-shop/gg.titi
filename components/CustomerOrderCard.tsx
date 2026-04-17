@@ -6,10 +6,13 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 type Props = {
   order: any;
+
   onDetail: () => void;
   onCancel?: () => void;
   onReceived?: () => void;
   onBuyAgain?: () => void;
+  onReview?: () => void;
+  reviewed?: boolean;
 };
 
 export default function CustomerOrderCard({
@@ -91,12 +94,14 @@ export default function CustomerOrderCard({
         </span>
 
         <CustomerOrderActions
-          status={order.status}
-          onDetail={onDetail}
-          onCancel={onCancel}
-          onReceived={onReceived}
-          onBuyAgain={onBuyAgain}
-        />
+  status={order.status}
+  reviewed={reviewed}
+  onDetail={onDetail}
+  onCancel={onCancel}
+  onReceived={onReceived}
+  onBuyAgain={onBuyAgain}
+  onReview={onReview}
+/>
       </div>
     </div>
   );
