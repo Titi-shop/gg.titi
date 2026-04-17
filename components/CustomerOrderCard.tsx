@@ -21,6 +21,8 @@ export default function CustomerOrderCard({
   onCancel,
   onReceived,
   onBuyAgain,
+  onReview,
+  reviewed,
 }: Props) {
   const { t } = useTranslation();
 
