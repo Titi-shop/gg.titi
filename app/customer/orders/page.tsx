@@ -67,7 +67,8 @@ export default function CustomerOrdersPage() {
   );
 
   /* ================= STATE ================= */
-
+const [confirmReceivedFor, setConfirmReceivedFor] =
+  useState<string | null>(null);
   const [toast, setToast] =
     useState("");
 
@@ -368,7 +369,7 @@ export default function CustomerOrdersPage() {
             className="absolute inset-0 bg-black/40"
           />
 
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5">
+          className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-5 pb-[max(24px,env(safe-area-inset-bottom))] max-h-[88vh] overflow-y-auto"
 
             <div className="w-14 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
 
