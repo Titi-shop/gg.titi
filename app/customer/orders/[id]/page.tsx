@@ -261,35 +261,58 @@ export default function OrderDetailPage() {
         ))}
       </div>
 
-      {/* TOTAL */}
-      <div className="mt-3 bg-white p-4 flex justify-between font-semibold">
-        <span>{t.total ?? "Tổng tiền"}</span>
-        <span className="text-orange-600">
-          π{formatPi(order.total)}
-        </span>
-      </div>
+    {/* ACTION */}
+<div className="p-4 space-y-3">
 
-      {/* ACTION */}
-      <div className="p-4 space-y-3">
+  {/* ================= COMPLETED ================= */}
+  {order.status === "completed" && (
+    <div className="space-y-2">
 
-        {order.status === "cancelled" && (
-  <div className="space-y-2">
-    <button className="w-full py-2 border rounded-lg">
-      {t.view_cancel_detail ?? "Xem chi tiết huỷ"}
-    </button>
+      {/* RETURN */}
+      <button
+        onClick={() =>
+          router.push(`/customer/orders/${order.id}/return`)
+        }
+        className="w-full py-2 rounded-lg border border-orange-500 text-orange-500 font-medium active:scale-95 transition"
+      >
+        ↩ {t.request_return ?? "Trả hàng / Hoàn tiền"}
+      </button>
 
-    {order.order_items?.length > 0 && (
-  <button
-    onClick={() =>
-      router.push(`/product/${order.order_items[0]?.product_id}`)
-    }
-    className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg"
-  >
-    {t.buy_again ?? "Mua lại"}
-  </button>
-)}
-  </div>
-)}
+      {/* BUY AGAIN */}
+      {order.order_items?.length > 0 && (
+        <button
+          onClick={() =>
+            router.push(`/product/${order.order_items[0]?.product_id}`)
+          }
+          className="w-full py-2 rounded-lg border border-gray-300 text-gray-700 active:scale-95 transition"
+        >
+          {t.buy_again ?? "Mua lại"}
+        </button>
+      )}
+    </div>
+  )}
+
+  {/* ================= CANCELLED ================= */}
+  {order.status === "cancelled" && (
+    <div className="space-y-2">
+      <button className="w-full py-2 border rounded-lg">
+        {t.view_cancel_detail ?? "Xem chi tiết huỷ"}
+      </button>
+
+      {order.order_items?.length > 0 && (
+        <button
+          onClick={() =>
+            router.push(`/product/${order.order_items[0]?.product_id}`)
+          }
+          className="w-full py-2 border border-orange-500 text-orange-500 rounded-lg"
+        >
+          {t.buy_again ?? "Mua lại"}
+        </button>
+      )}
+    </div>
+  )}
+
+</div>
 
       </div>
 
