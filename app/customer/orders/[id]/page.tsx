@@ -314,8 +314,6 @@ export default function OrderDetailPage() {
 
 </div>
 
-      </div>
-
     </main>
   );
 }
