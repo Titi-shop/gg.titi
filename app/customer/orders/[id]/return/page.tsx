@@ -1,10 +1,10 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+
 import useSWR from "swr";
-import { useState, ChangeEvent, useEffect } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
@@ -20,12 +20,22 @@ type OrderStatus =
 type OrderItem = {
   id: string;
   product_name: string;
+  thumbnail?: string;
+  unit_price?: number;
 };
 
 type OrderDetail = {
   id: string;
   status: OrderStatus;
   order_items: OrderItem[];
+};
+
+type ReturnItemState = {
+  orderItemId: string;
+  selected: boolean;
+  reason: string;
+  files: File[];
+  previews: string[];
 };
 
 /* ================= FETCHER ================= */
@@ -41,7 +51,6 @@ const fetcher = async (url: string): Promise<OrderDetail | null> => {
 export default function OrderReturnPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
 
   const orderId =
@@ -51,13 +60,7 @@ export default function OrderReturnPage() {
       ? params.id[0]
       : "";
 
-  const [orderItemId, setOrderItemId] = useState("");
-  const [reason, setReason] = useState("");
-  const [description, setDescription] = useState("");
-
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-
+  const [items, setItems] = useState<ReturnItemState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -66,7 +69,7 @@ export default function OrderReturnPage() {
     fetcher
   );
 
-  /* ================= VALIDATE ================= */
+  /* ================= INIT ================= */
 
   useEffect(() => {
     if (!order) return;
@@ -76,17 +79,28 @@ export default function OrderReturnPage() {
       return;
     }
 
-    if (order.order_items?.length > 0) {
-      setOrderItemId(order.order_items[0].id);
-    }
+    const mapped = order.order_items.map((i) => ({
+      orderItemId: i.id,
+      selected: false,
+      reason: "",
+      files: [],
+      previews: [],
+    }));
+
+    setItems(mapped);
   }, [order]);
 
   /* ================= IMAGE ================= */
 
-  function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
+  function handleImageChange(
+    e: ChangeEvent<HTMLInputElement>,
+    index: number
+  ) {
     const list = e.target.files;
     if (!list) return;
+
     const selected = Array.from(list).slice(0, 3);
+
     for (const f of selected) {
       if (f.size > 2 * 1024 * 1024) {
         setError("Max 2MB/image");
@@ -94,100 +108,116 @@ export default function OrderReturnPage() {
       }
     }
 
-    setFiles(selected);
-    setPreviews(selected.map((f) => URL.createObjectURL(f)));
-  }
+    const updated = [...items];
 
-  useEffect(() => {
-    return () => {
-      previews.forEach((u) => URL.revokeObjectURL(u));
-    };
-  }, [previews]);
+    // cleanup old preview
+    updated[index].previews.forEach((u) =>
+      URL.revokeObjectURL(u)
+    );
+
+    updated[index].files = selected;
+    updated[index].previews = selected.map((f) =>
+      URL.createObjectURL(f)
+    );
+
+    setItems(updated);
+  }
 
   /* ================= UPLOAD ================= */
 
-  async function uploadImages(): Promise<string[]> {
-  const urls: string[] = [];
+  async function uploadImages(files: File[]): Promise<string[]> {
+    const urls: string[] = [];
 
-  for (const file of files) {
-    /* 1. lấy signed url */
-    const res = await apiAuthFetch("/api/returns/upload-url", {
-      method: "POST",
-    });
+    for (const file of files) {
+      const res = await apiAuthFetch("/api/returns/upload-url", {
+        method: "POST",
+      });
 
-    if (!res.ok) {
-      throw new Error("SIGNED_URL_FAILED");
+      if (!res.ok) throw new Error("UPLOAD_URL_FAILED");
+
+      const { uploadUrl, publicUrl } = await res.json();
+
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) throw new Error("UPLOAD_FAILED");
+
+      urls.push(publicUrl);
     }
-    const data = await res.json();
-    const { uploadUrl, publicUrl } = data;
 
-    /* 2. upload trực tiếp */
-    const uploadRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": file.type,
-      },
-      body: file,
-    });
-    if (!uploadRes.ok) {
-      throw new Error("UPLOAD_FAILED");
-    }
-    /* 3. lưu public url */
-    urls.push(publicUrl);
+    return urls;
   }
-  return urls;
-}
 
   /* ================= SUBMIT ================= */
 
   async function handleSubmit() {
-  if (!orderItemId) {
-    setError("Order item not found");
-    return;
+    if (!order || order.status !== "completed") {
+      setError("Order not returnable");
+      return;
+    }
+
+    const selectedItems = items.filter((i) => i.selected);
+
+    if (selectedItems.length === 0) {
+      setError("Select at least 1 item");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      for (const item of selectedItems) {
+        if (!item.reason.trim()) {
+          setError("Reason required");
+          return;
+        }
+
+        if (item.files.length === 0) {
+          setError("Please upload images");
+          return;
+        }
+
+        const imageUrls = await uploadImages(item.files);
+
+        console.log("[RETURN SUBMIT]", {
+          orderId,
+          orderItemId: item.orderItemId,
+          imageUrls,
+        });
+
+        const res = await apiAuthFetch("/api/returns", {
+          method: "POST",
+          body: JSON.stringify({
+            orderId,
+            orderItemId: item.orderItemId,
+            reason: item.reason,
+            description: "",
+            images: imageUrls,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "Submit failed");
+        }
+      }
+
+      router.push("/customer/returns");
+
+    } catch (err: any) {
+      console.error("RETURN ERROR:", err);
+      setError(err.message || "System error");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  if (!reason.trim()) {
-    setError("Reason required");
-    return;
-  }
-
-  try {
-    setSubmitting(true);
-    setError(null);
-
-    /* upload ảnh trước */
-    const imageUrls = await uploadImages();
-
-    /* gửi JSON */
-    const res = await apiAuthFetch("/api/returns", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        orderId,
-        orderItemId,
-        reason,
-        description,
-        images: imageUrls,
-      }),
-    });
-
-    if (!res.ok) {
-  const data = await res.json().catch(() => null);
-  console.error("RETURN ERROR:", data);
-  setError(data?.error ?? "Submit failed");
-  return;
-}
-
-    router.push("/customer/returns");
-
-  } catch {
-    setError("System error");
-  } finally {
-    setSubmitting(false);
-  }
-}
   /* ================= UI ================= */
 
   if (isLoading || authLoading) {
@@ -200,51 +230,90 @@ export default function OrderReturnPage() {
 
   return (
     <main className="p-4 max-w-xl mx-auto space-y-4">
-      <h1 className="text-xl font-bold">
+
+      <h1 className="text-lg font-bold">
         🔄 Return request
       </h1>
 
-      {/* REASON */}
-      <input
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        className="w-full border p-2"
-        placeholder="Reason"
-      />
+      {/* ITEM LIST */}
+      {order.order_items.map((item, index) => {
+        const state = items[index];
 
-      {/* DESC */}
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        className="w-full border p-2"
-      />
+        return (
+          <div
+            key={item.id}
+            className="bg-white p-3 rounded-xl border space-y-2"
+          >
+            {/* SELECT */}
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={state?.selected || false}
+                onChange={(e) => {
+                  const updated = [...items];
+                  updated[index].selected = e.target.checked;
+                  setItems(updated);
+                }}
+              />
+              <span className="text-sm font-medium">
+                {item.product_name}
+              </span>
+            </label>
 
-      {/* IMAGE */}
-      <input
-        type="file"
-        multiple
-        onChange={handleImageChange}
-      />
+            {/* REASON */}
+            {state?.selected && (
+              <input
+                value={state.reason}
+                onChange={(e) => {
+                  const updated = [...items];
+                  updated[index].reason = e.target.value;
+                  setItems(updated);
+                }}
+                placeholder="Reason"
+                className="w-full border p-2 text-sm rounded"
+              />
+            )}
 
-      {previews.length > 0 && (
-        <div className="flex gap-2">
-          {previews.map((src, i) => (
-            <img key={i} src={src} className="w-20 h-20 object-cover" />
-          ))}
-        </div>
-      )}
+            {/* IMAGE */}
+            {state?.selected && (
+              <>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) =>
+                    handleImageChange(e, index)
+                  }
+                />
 
+                <div className="flex gap-2">
+                  {state.previews.map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      className="w-16 h-16 object-cover rounded"
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      {/* ERROR */}
       {error && (
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-500 text-sm">{error}</p>
       )}
 
+      {/* SUBMIT */}
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="w-full bg-black text-white p-2"
+        className="w-full bg-black text-white p-3 rounded-lg disabled:opacity-50"
       >
-        Submit
+        {submitting ? "Submitting..." : "Submit return"}
       </button>
+
     </main>
   );
 }
