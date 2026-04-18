@@ -17,7 +17,7 @@ type DbOrderItem = {
   product_name: string;
   product_slug: string;
   thumbnail: string;
-  unit_price: string; // ⚠️ numeric từ PG = string
+  unit_price: string; // numeric → string từ PG
   quantity: number;
 };
 
@@ -57,7 +57,7 @@ function error(message: string): never {
 }
 
 /* =====================================================
-   GET RETURNS BY BUYER
+   GET RETURNS
 ===================================================== */
 
 export async function getReturnsByBuyer(
@@ -69,13 +69,7 @@ export async function getReturnsByBuyer(
 
   const { rows } = await query<DbReturn>(
     `
-    SELECT
-      id,
-      return_number,
-      status,
-      refund_amount,
-      currency,
-      created_at
+    SELECT id, return_number, status, refund_amount, currency, created_at
     FROM returns
     WHERE buyer_id = $1
       AND deleted_at IS NULL
@@ -88,7 +82,7 @@ export async function getReturnsByBuyer(
 }
 
 /* =====================================================
-   GET RETURN DETAIL
+   GET DETAIL
 ===================================================== */
 
 export async function getReturnByIdForBuyer(
@@ -139,19 +133,27 @@ export async function createReturn(
   }
 
   return withTransaction(async (client) => {
+    console.log("🚀 [RETURN] START", {
+      buyerId,
+      orderId,
+      orderItemId,
+    });
+
     /* ================= ORDER ================= */
+
     const { rows: orderRows } = await client.query<DbOrder>(
       `
       SELECT id, seller_id, status
       FROM orders
-      WHERE id = $1
-        AND buyer_id = $2
+      WHERE id = $1 AND buyer_id = $2
       LIMIT 1
       `,
       [orderId, buyerId]
     );
 
     const order = orderRows[0];
+
+    console.log("📦 [RETURN] ORDER:", order);
 
     if (!order) error("ORDER_NOT_FOUND");
 
@@ -160,6 +162,7 @@ export async function createReturn(
     }
 
     /* ================= ITEM ================= */
+
     const { rows: itemRows } = await client.query<DbOrderItem>(
       `
       SELECT
@@ -172,8 +175,7 @@ export async function createReturn(
         unit_price,
         quantity
       FROM order_items
-      WHERE id = $1
-        AND order_id = $2
+      WHERE id = $1 AND order_id = $2
       LIMIT 1
       `,
       [orderItemId, orderId]
@@ -181,9 +183,12 @@ export async function createReturn(
 
     const item = itemRows[0];
 
+    console.log("📦 [RETURN] ITEM RAW:", item);
+
     if (!item) error("ITEM_NOT_FOUND");
 
     /* ================= DUPLICATE ================= */
+
     const { rows: existing } = await client.query(
       `
       SELECT 1
@@ -201,7 +206,8 @@ export async function createReturn(
       error("RETURN_EXISTS");
     }
 
-    /* ================= PARSE NUMERIC ================= */
+    /* ================= PARSE ================= */
+
     const unitPrice = toNumberSafe(item.unit_price, "unit_price");
     const quantity = toNumberSafe(item.quantity, "quantity");
 
@@ -216,6 +222,7 @@ export async function createReturn(
     });
 
     /* ================= CREATE RETURN ================= */
+
     const returnNumber = `RET-${Date.now()}`;
 
     const { rows: returnRows } = await client.query<{ id: string }>(
@@ -231,11 +238,7 @@ export async function createReturn(
         evidence_images,
         refund_amount
       )
-      VALUES (
-        $1,$2,$3,$4,
-        'pending',
-        $5,$6,$7,$8
-      )
+      VALUES ($1,$2,$3,$4,'pending',$5,$6,$7,$8)
       RETURNING id
       `,
       [
@@ -252,76 +255,68 @@ export async function createReturn(
 
     const returnId = returnRows[0].id;
 
-    /* ================= INSERT ITEM ================= */
-    console.log("🧪 PARAM ARRAY", [
-  returnId,
-  orderItemId,
-  item.product_id,
-  item.variant_id,
-  item.product_name,
-  item.product_slug,
-  item.thumbnail,
-  unitPrice,
-  quantity,
-  totalPrice,
-  quantity,
-  refundAmount,
-  reason,
-]);
+    console.log("🟢 [RETURN] CREATED RETURN:", returnId);
 
-    await client.query(`
-  INSERT INTO return_items (
-    return_id,
-    order_item_id,
-    product_id,
-    variant_id,
-    product_name,
-    product_slug,
-    thumbnail,
-    unit_price,
-    quantity,
-    total_price,
-    return_quantity,
-    refund_amount,
-    reason
-  )
-  VALUES (
-    $1,$2,$3,$4,$5,$6,$7,
-    $8::numeric,
-    $9::integer,
-    $10::numeric,
-    $11::integer,
-    $12::numeric,
-    $13
-  )
-`, [
-  returnId,          // 1
-  orderItemId,       // 2
-  item.product_id,   // 3
-  item.variant_id,   // 4
-  item.product_name, // 5
-  item.product_slug, // 6
-  item.thumbnail,    // 7
-  unitPrice,         // 8
-  quantity,          // 9
-  totalPrice,        // 10
-  quantity,          // 11
-  refundAmount,      // 12
-  reason,            // 13
-]);
+    /* ================= DEBUG PARAM ================= */
 
-    console.log("🟢 [RETURN] CREATED", {
+    const params = [
       returnId,
-      orderId,
       orderItemId,
-    });
+      item.product_id,
+      item.variant_id,
+      item.product_name,
+      item.product_slug,
+      item.thumbnail,
+      unitPrice,
+      quantity,
+      totalPrice,
+      quantity,
+      refundAmount,
+      reason,
+    ];
+
+    console.log("🧪 [RETURN] PARAM ARRAY:", params);
+
+    /* ================= INSERT ITEM ================= */
+
+    await client.query(
+      `
+      INSERT INTO return_items (
+        return_id,
+        order_item_id,
+        product_id,
+        variant_id,
+        product_name,
+        product_slug,
+        thumbnail,
+        unit_price,
+        quantity,
+        total_price,
+        return_quantity,
+        refund_amount,
+        reason
+      )
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,
+        $8::numeric,
+        $9::integer,
+        $10::numeric,
+        $11::integer,
+        $12::numeric,
+        $13
+      )
+      `,
+      params
+    );
+
+    console.log("🟢 [RETURN] ITEM INSERTED SUCCESS");
 
     return returnId;
   });
 }
 
 /* =====================================================
-   CANCEL RETURN (BUYER)
+   CANCEL RETURN
 ===================================================== */
 
 export async function cancelReturnByBuyer(
