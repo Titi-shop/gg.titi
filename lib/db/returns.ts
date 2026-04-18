@@ -253,12 +253,21 @@ export async function createReturn(
     const returnId = returnRows[0].id;
 
     /* ================= INSERT ITEM ================= */
-    console.log("🟡 [RETURN][INSERT_ITEM]", {
-      unitPrice,
-      quantity,
-      totalPrice,
-      refundAmount,
-    });
+    console.log("🧪 PARAM ARRAY", [
+  returnId,
+  orderItemId,
+  item.product_id,
+  item.variant_id,
+  item.product_name,
+  item.product_slug,
+  item.thumbnail,
+  unitPrice,
+  quantity,
+  totalPrice,
+  quantity,
+  refundAmount,
+  reason,
+]);
 
     await client.query(`
   INSERT INTO return_items (
