@@ -260,44 +260,46 @@ export async function createReturn(
       refundAmount,
     });
 
-    await client.query(
-      `
-      INSERT INTO return_items (
-        return_id,
-        order_item_id,
-        product_id,
-        variant_id,
-        product_name,
-        product_slug,
-        thumbnail,
-        unit_price,
-        quantity,
-        total_price,
-        return_quantity,
-        refund_amount,
-        reason
-      )
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,
-        $8,$9,$10,$11,$12,$13
-      )
-      `,
-      [
-        returnId,
-        orderItemId,
-        item.product_id,
-        item.variant_id,
-        item.product_name,
-        item.product_slug,
-        item.thumbnail,
-        unitPrice,
-        quantity,
-        totalPrice,
-        quantity,
-        refundAmount,
-        reason,
-      ]
-    );
+    await client.query(`
+  INSERT INTO return_items (
+    return_id,
+    order_item_id,
+    product_id,
+    variant_id,
+    product_name,
+    product_slug,
+    thumbnail,
+    unit_price,
+    quantity,
+    total_price,
+    return_quantity,
+    refund_amount,
+    reason
+  )
+  VALUES (
+    $1,$2,$3,$4,$5,$6,$7,
+    $8::numeric,
+    $9::integer,
+    $10::numeric,
+    $11::integer,
+    $12::numeric,
+    $13
+  )
+`, [
+  returnId,          // 1
+  orderItemId,       // 2
+  item.product_id,   // 3
+  item.variant_id,   // 4
+  item.product_name, // 5
+  item.product_slug, // 6
+  item.thumbnail,    // 7
+  unitPrice,         // 8
+  quantity,          // 9
+  totalPrice,        // 10
+  quantity,          // 11
+  refundAmount,      // 12
+  reason,            // 13
+]);
 
     console.log("🟢 [RETURN] CREATED", {
       returnId,
