@@ -2,9 +2,10 @@
 
 export const dynamic = "force-dynamic";
 
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState, useRef } from "react";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
 /* ================= TYPES ================= */
 
@@ -18,127 +19,100 @@ type Tx = {
 
 /* ================= UTILS ================= */
 
-function formatPi(n: number) {
-  return Number(n).toFixed(2);
+function formatPi(value: number): string {
+  return Number(value).toFixed(2);
 }
 
-function formatTime(date: string) {
-  return new Date(date).toLocaleString();
+function formatTime(value: string): string {
+  return new Date(value).toLocaleString();
 }
 
 /* ================= PAGE ================= */
 
 export default function WalletPage() {
-  const [balance, setBalance] = useState<number>(0);
-  const [txs, setTxs] = useState<Tx[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // 🔥 deposit state
-  const [depositOpen, setDepositOpen] = useState(false);
-  const [depositAmount, setDepositAmount] = useState("");
-  const [depositing, setDepositing] = useState(false);
+  const { t } = useTranslation();
 
   const { loading: authLoading } = useAuth();
-  const hasLoaded = useRef(false);
+
+  const [balance, setBalance] = useState<number>(0);
+  const [txs, setTxs] = useState<Tx[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  const hasLoaded = useRef<boolean>(false);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
-    if (authLoading || hasLoaded.current) return;
+    if (authLoading) return;
+    if (hasLoaded.current) return;
 
     hasLoaded.current = true;
     load();
   }, [authLoading]);
 
-  async function load() {
+  async function load(): Promise<void> {
     try {
-      const [w, t] = await Promise.all([
+      console.log("🟡 [WALLET][LOAD]");
+
+      const [walletRes, txRes] = await Promise.all([
         apiAuthFetch("/api/wallet", { cache: "no-store" }),
         apiAuthFetch("/api/wallet/transactions", { cache: "no-store" }),
       ]);
 
-      if (w.ok) {
-        const wJson = await w.json();
-        setBalance(Number(wJson.balance) || 0);
+      /* ================= WALLET ================= */
+
+      if (walletRes.ok) {
+        const walletJson: unknown = await walletRes.json();
+
+        if (
+          typeof walletJson === "object" &&
+          walletJson !== null &&
+          "balance" in walletJson
+        ) {
+          const balanceValue = Number(
+            (walletJson as { balance: unknown }).balance
+          );
+
+          setBalance(Number.isNaN(balanceValue) ? 0 : balanceValue);
+        }
       }
 
-      if (t.ok) {
-        const tJson = await t.json();
-        setTxs(Array.isArray(tJson) ? tJson : []);
+      /* ================= TRANSACTIONS ================= */
+
+      if (txRes.ok) {
+        const txJson: unknown = await txRes.json();
+
+        if (Array.isArray(txJson)) {
+          const safeTx: Tx[] = txJson.filter(
+            (t): t is Tx =>
+              typeof t === "object" &&
+              t !== null &&
+              typeof t.id === "string" &&
+              (t.type === "credit" || t.type === "debit") &&
+              typeof t.amount !== "undefined" &&
+              typeof t.reference_type === "string" &&
+              typeof t.created_at === "string"
+          );
+
+          setTxs(safeTx);
+        }
       }
+
+      console.log("🟢 [WALLET][LOAD_SUCCESS]");
     } catch (err) {
-      console.error("🔥 wallet load error", err);
+      console.error("❌ [WALLET][LOAD_ERROR]", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }
 
-  async function refresh() {
+  async function refresh(): Promise<void> {
+    if (refreshing) return;
+
     setRefreshing(true);
     await load();
-  }
-
-  /* ================= DEPOSIT ================= */
-
-  async function handleDeposit() {
-    const amount = Number(depositAmount);
-
-    if (!amount || amount <= 0) {
-      alert("Invalid amount");
-      return;
-    }
-
-    try {
-      setDepositing(true);
-
-      const Pi = (window as any).Pi;
-
-      if (!Pi) {
-        alert("Pi SDK not available");
-        return;
-      }
-
-      await Pi.createPayment(
-        {
-          amount,
-          memo: "Deposit to wallet",
-          metadata: { type: "deposit" },
-        },
-        {
-          onReadyForServerApproval: async (paymentId: string) => {
-            const res = await apiAuthFetch("/api/pi/deposit/complete", {
-              method: "POST",
-              body: JSON.stringify({ paymentId }),
-            });
-
-            if (!res.ok) {
-              alert("Deposit failed");
-              return;
-            }
-
-            setDepositOpen(false);
-            setDepositAmount("");
-
-            await load();
-          },
-
-          onCancel: () => {
-            console.log("User cancelled payment");
-          },
-
-          onError: (err: any) => {
-            console.error("Pi payment error", err);
-            alert("Payment error");
-          },
-        }
-      );
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setDepositing(false);
-    }
   }
 
   /* ================= UI ================= */
@@ -159,13 +133,17 @@ export default function WalletPage() {
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-5 rounded-b-2xl shadow">
 
         <div className="flex justify-between items-center">
-          <p className="text-sm opacity-80">Your Balance</p>
+          <p className="text-sm opacity-80">
+            {t("wallet.balance")}
+          </p>
 
           <button
             onClick={refresh}
             className="text-xs bg-white/20 px-3 py-1 rounded-full"
           >
-            {refreshing ? "..." : "Refresh"}
+            {refreshing
+              ? "..."
+              : t("wallet.refresh")}
           </button>
         </div>
 
@@ -176,45 +154,48 @@ export default function WalletPage() {
         {/* ACTIONS */}
         <div className="flex gap-3 mt-5">
 
-          <button
-            onClick={() => setDepositOpen(true)}
-            className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold"
-          >
-            Deposit
+          <button className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold">
+            {t("wallet.deposit")}
           </button>
 
           <button className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold">
-            Withdraw
+            {t("wallet.withdraw")}
           </button>
 
           <button className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold">
-            Pay
+            {t("wallet.pay")}
           </button>
 
         </div>
       </div>
 
-      {/* QUICK INFO */}
+      {/* QUICK STATS */}
       <div className="p-4 grid grid-cols-2 gap-3">
 
         <div className="bg-white p-4 rounded-xl shadow">
-          <p className="text-xs text-gray-400">Total In</p>
+          <p className="text-xs text-gray-400">
+            {t("wallet.total_in")}
+          </p>
           <p className="text-green-600 font-semibold">
-            +π {formatPi(
+            +π{" "}
+            {formatPi(
               txs
                 .filter((t) => t.type === "credit")
-                .reduce((a, b) => a + Number(b.amount), 0)
+                .reduce((sum, t) => sum + Number(t.amount), 0)
             )}
           </p>
         </div>
 
         <div className="bg-white p-4 rounded-xl shadow">
-          <p className="text-xs text-gray-400">Total Out</p>
+          <p className="text-xs text-gray-400">
+            {t("wallet.total_out")}
+          </p>
           <p className="text-red-500 font-semibold">
-            -π {formatPi(
+            -π{" "}
+            {formatPi(
               txs
                 .filter((t) => t.type === "debit")
-                .reduce((a, b) => a + Number(b.amount), 0)
+                .reduce((sum, t) => sum + Number(t.amount), 0)
             )}
           </p>
         </div>
@@ -225,94 +206,48 @@ export default function WalletPage() {
       <div className="px-4 mt-2">
 
         <p className="text-sm font-semibold mb-2">
-          Transactions
+          {t("wallet.transactions")}
         </p>
 
         <div className="bg-white rounded-xl shadow divide-y">
 
           {txs.length === 0 && (
             <div className="p-6 text-center text-gray-400 text-sm">
-              No transactions yet
+              {t("wallet.no_transactions")}
             </div>
           )}
 
-          {txs.map((t) => (
-            <div key={t.id} className="p-4 flex justify-between items-center">
+          {txs.map((tItem) => (
+            <div
+              key={tItem.id}
+              className="p-4 flex justify-between items-center"
+            >
 
               <div>
                 <p className="text-sm font-medium capitalize">
-                  {t.reference_type}
+                  {t(`wallet.ref.${tItem.reference_type}`)}
                 </p>
 
                 <p className="text-xs text-gray-400">
-                  {formatTime(t.created_at)}
+                  {formatTime(tItem.created_at)}
                 </p>
               </div>
 
               <p
                 className={`text-sm font-semibold ${
-                  t.type === "credit"
+                  tItem.type === "credit"
                     ? "text-green-600"
                     : "text-red-500"
                 }`}
               >
-                {t.type === "credit" ? "+" : "-"}π
-                {formatPi(t.amount)}
+                {tItem.type === "credit" ? "+" : "-"}π
+                {formatPi(tItem.amount)}
               </p>
 
             </div>
           ))}
         </div>
       </div>
-
-      {/* DEPOSIT MODAL */}
-      {depositOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end">
-
-          <div className="bg-white w-full p-5 rounded-t-2xl space-y-4">
-
-            <h2 className="text-lg font-semibold">
-              Deposit Pi
-            </h2>
-
-            <input
-              type="number"
-              placeholder="Enter amount (π)"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              className="w-full border p-3 rounded-lg text-lg"
-            />
-
-            <div className="flex gap-2">
-              {[1, 5, 10, 20].map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setDepositAmount(String(v))}
-                  className="flex-1 bg-gray-100 py-2 rounded-lg text-sm"
-                >
-                  {v}π
-                </button>
-              ))}
-            </div>
-
-            <button
-              disabled={depositing}
-              onClick={handleDeposit}
-              className="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold"
-            >
-              {depositing ? "Processing..." : "Confirm Deposit"}
-            </button>
-
-            <button
-              onClick={() => setDepositOpen(false)}
-              className="w-full text-gray-500 text-sm"
-            >
-              Cancel
-            </button>
-
-          </div>
-        </div>
-      )}
 
     </main>
   );
