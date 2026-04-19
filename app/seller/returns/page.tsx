@@ -14,6 +14,7 @@ type ReturnStatus =
   | "approved"
   | "shipping_back"
   | "received"
+  | "refund_pending"
   | "refunded"
   | "rejected";
 
@@ -78,24 +79,26 @@ export default function SellerReturnsPage() {
 
   /* ================= STATUS ================= */
 
-  function getColor(status: ReturnStatus) {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-700";
-      case "approved":
-        return "bg-blue-100 text-blue-700";
-      case "shipping_back":
-        return "bg-indigo-100 text-indigo-700";
-      case "received":
-        return "bg-purple-100 text-purple-700";
-      case "refunded":
-        return "bg-green-100 text-green-700";
-      case "rejected":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-600";
-    }
+  function getStatusLabel(status: string) {
+  switch (status) {
+    case "pending":
+      return "Waiting approval";
+    case "approved":
+      return "Approved";
+    case "shipping_back":
+      return "Buyer returning";
+    case "received":
+      return "Received";
+    case "refund_pending":
+      return "Waiting refund confirm";
+    case "refunded":
+      return "Refunded";
+    case "rejected":
+      return "Rejected";
+    default:
+      return status;
   }
+}
 
   /* ================= TABS ================= */
 
