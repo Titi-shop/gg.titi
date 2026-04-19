@@ -15,6 +15,11 @@ type ReturnRecord = {
   order_id: string;
   status: string;
   created_at: string;
+
+  /* NEW (API cần trả) */
+  product_name?: string;
+  thumbnail?: string;
+  quantity?: number;
 };
 
 /* ================= PAGE ================= */
@@ -30,16 +35,17 @@ export default function SellerReturnsPage() {
 
   useEffect(() => {
     if (authLoading || !user) return;
-
     load();
   }, [authLoading, user]);
 
   async function load() {
     try {
+      console.log("🚀 [SELLER RETURNS] LOAD");
+
       const res = await apiAuthFetch("/api/seller/returns");
 
       if (!res.ok) {
-        console.error("❌ LOAD RETURNS FAIL");
+        console.error("❌ [SELLER RETURNS] API FAIL:", res.status);
         return;
       }
 
@@ -49,12 +55,12 @@ export default function SellerReturnsPage() {
         ? json
         : json.items ?? [];
 
-      console.log("📦 SELLER RETURNS:", list);
+      console.log("📦 [SELLER RETURNS] DATA:", list);
 
       setData(list);
 
     } catch (err) {
-      console.error("💥 LOAD ERROR:", err);
+      console.error("💥 [SELLER RETURNS] ERROR:", err);
     } finally {
       setLoading(false);
     }
@@ -66,24 +72,37 @@ export default function SellerReturnsPage() {
     switch (status) {
       case "pending":
         return "text-yellow-600";
-
       case "approved":
         return "text-blue-600";
-
       case "shipping_back":
         return "text-indigo-600";
-
       case "received":
         return "text-purple-600";
-
       case "refunded":
         return "text-green-600";
-
       case "rejected":
         return "text-red-600";
-
       default:
         return "text-gray-500";
+    }
+  }
+
+  function getStatusText(status: string) {
+    switch (status) {
+      case "pending":
+        return "Pending";
+      case "approved":
+        return "Approved";
+      case "shipping_back":
+        return "Returning";
+      case "received":
+        return "Received";
+      case "refunded":
+        return "Refunded";
+      case "rejected":
+        return "Rejected";
+      default:
+        return status;
     }
   }
 
@@ -94,7 +113,7 @@ export default function SellerReturnsPage() {
   }
 
   return (
-    <main className="p-4 max-w-xl mx-auto space-y-4">
+    <main className="p-4 max-w-xl mx-auto space-y-4 bg-gray-100 min-h-screen">
 
       <h1 className="text-lg font-bold">
         🔄 Seller Returns
@@ -109,31 +128,48 @@ export default function SellerReturnsPage() {
       {data.map((r) => (
         <div
           key={r.id}
-          onClick={() =>
-            router.push(`/seller/returns/${r.id}`)
-          }
-          className="bg-white p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition"
+          onClick={() => router.push(`/seller/returns/${r.id}`)}
+          className="bg-white p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition flex gap-3"
         >
-          <div className="flex justify-between">
-
-            <div>
-              <p className="text-sm font-semibold">
-                #{r.return_number}
-              </p>
-
-              <p className="text-xs text-gray-400">
-                Order: {r.order_id?.slice(0, 8)}
-              </p>
-            </div>
-
-            <span className={`text-sm ${getColor(r.status)}`}>
-              {r.status}
-            </span>
+          {/* IMAGE */}
+          <div className="w-20 h-20 bg-gray-100 rounded overflow-hidden flex-shrink-0">
+            <img
+              src={r.thumbnail || "/placeholder.png"}
+              alt="product"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                console.error("❌ IMAGE FAIL:", r.thumbnail);
+                e.currentTarget.src = "/placeholder.png";
+              }}
+            />
           </div>
 
-          <p className="text-xs text-gray-400 mt-2">
-            {new Date(r.created_at).toLocaleString()}
-          </p>
+          {/* INFO */}
+          <div className="flex-1 space-y-1">
+
+            <div className="flex justify-between">
+              <p className="text-sm font-semibold line-clamp-1">
+                {r.product_name || "Product"}
+              </p>
+
+              <span className={`text-xs font-medium ${getColor(r.status)}`}>
+                {getStatusText(r.status)}
+              </span>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              Qty: {r.quantity ?? 1}
+            </p>
+
+            <p className="text-[11px] text-gray-400">
+              #{r.return_number}
+            </p>
+
+            <p className="text-[10px] text-gray-400">
+              {new Date(r.created_at).toLocaleString()}
+            </p>
+
+          </div>
 
         </div>
       ))}
