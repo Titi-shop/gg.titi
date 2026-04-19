@@ -60,7 +60,9 @@ export default function ReturnDetailPage() {
 
   const [data, setData] = useState<ReturnRecord | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const [trackingCode, setTrackingCode] = useState("");
+const [shippingProvider, setShippingProvider] = useState("");
+const [sending, setSending] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   /* ================= LOAD ================= */
@@ -99,7 +101,40 @@ export default function ReturnDetailPage() {
       setLoading(false);
     }
   }
+async function handleShip() {
+  if (!trackingCode) {
+    alert("Nhập mã vận đơn");
+    return;
+  }
 
+  try {
+    setSending(true);
+
+    const res = await fetch(`/api/returns/${returnId}/ship`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        tracking_code: trackingCode,
+        shipping_provider: shippingProvider,
+      }),
+    });
+
+    if (!res.ok) {
+      alert("Gửi thất bại");
+      return;
+    }
+
+    alert("Đã gửi hàng");
+    window.location.reload();
+
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setSending(false);
+  }
+}
   /* ================= HELPERS ================= */
 
   function getImage(src?: string | null) {
@@ -227,7 +262,48 @@ export default function ReturnDetailPage() {
             {data.status}
           </span>
         </div>
+        {data.return_tracking_code && (
+  <div className="bg-white p-4 rounded-xl text-xs text-blue-600">
+    Tracking: {data.return_tracking_code}
+  </div>
+)}
+{data.status === "approved" && (
+  <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
 
+    <p className="text-sm font-semibold">
+      📦 Gửi hàng trả
+    </p>
+
+    {/* ADDRESS (tạm hardcode, sau này lấy DB) */}
+    <div className="text-xs text-gray-600">
+      <p>Nguyễn Văn A</p>
+      <p>0123456789</p>
+      <p>123 Lê Lợi, Q1, HCM</p>
+    </div>
+
+    <input
+      value={trackingCode}
+      onChange={(e) => setTrackingCode(e.target.value)}
+      placeholder="Mã vận đơn"
+      className="w-full border rounded px-3 py-2 text-sm"
+    />
+
+    <input
+      value={shippingProvider}
+      onChange={(e) => setShippingProvider(e.target.value)}
+      placeholder="Đơn vị vận chuyển"
+      className="w-full border rounded px-3 py-2 text-sm"
+    />
+
+    <button
+      onClick={handleShip}
+      disabled={sending}
+      className="w-full bg-orange-500 text-white py-3 rounded-lg"
+    >
+      {sending ? "Đang gửi..." : "Xác nhận đã gửi hàng"}
+    </button>
+  </div>
+)}
         {/* REFUND */}
         <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
           <span>Refund</span>
