@@ -19,7 +19,15 @@ type ReturnRecord = {
   created_at: string;
   return_tracking_code?: string | null;
   refunded_at?: string | null;
+
+  thumbnail?: string; // ✅ quan trọng
 };
+
+/* ================= CONST ================= */
+
+const BASE_STORAGE =
+  process.env.NEXT_PUBLIC_SUPABASE_URL +
+  "/storage/v1/object/public/";
 
 /* ================= PAGE ================= */
 
@@ -38,16 +46,16 @@ export default function ReturnsPage() {
 
     async function load() {
       try {
+        console.log("🚀 [RETURNS] LOAD");
+
         const res = await apiAuthFetch("/api/returns");
 
         if (!res.ok) {
-          console.error("❌ RETURNS API ERROR:", res.status);
+          console.error("❌ [RETURNS] API ERROR:", res.status);
           return;
         }
 
         const data = await res.json();
-
-        console.log("📦 RETURNS RAW:", data);
 
         const list = Array.isArray(data)
           ? data
@@ -55,9 +63,11 @@ export default function ReturnsPage() {
           ? data.items
           : [];
 
+        console.log("📦 [RETURNS] COUNT:", list.length);
+
         setReturns(list);
       } catch (err) {
-        console.error("💥 Load returns error:", err);
+        console.error("💥 [RETURNS] LOAD ERROR");
       } finally {
         setLoading(false);
       }
@@ -66,7 +76,15 @@ export default function ReturnsPage() {
     load();
   }, [authLoading, user]);
 
-  /* ================= STATUS ================= */
+  /* ================= HELPERS ================= */
+
+  function getImage(src?: string) {
+    if (!src) return "/placeholder.png";
+
+    if (src.startsWith("http")) return src;
+
+    return BASE_STORAGE + "products/" + src;
+  }
 
   function getStatusColor(status: string) {
     switch (status) {
@@ -96,34 +114,68 @@ export default function ReturnsPage() {
   function getStatusText(status: string) {
     switch (status) {
       case "pending":
-        return t.return_pending ?? "Pending";
+        return "Pending";
 
       case "approved":
-        return t.return_approved ?? "Approved";
+        return "Approved";
 
       case "shipping_back":
-        return t.return_shipping ?? "Return Shipping";
+        return "Shipping Back";
 
       case "received":
-        return t.return_received ?? "Received";
+        return "Received";
 
       case "refunded":
-        return t.return_refunded ?? "Refunded";
+        return "Refunded";
 
       case "rejected":
-        return t.return_rejected ?? "Rejected";
+        return "Rejected";
 
       default:
         return status;
     }
   }
 
+  function renderTimeline(status: string) {
+    const steps = [
+      "pending",
+      "approved",
+      "shipping_back",
+      "received",
+      "refunded",
+    ];
+
+    return (
+      <div className="flex items-center gap-1 text-[10px]">
+        {steps.map((s, i) => {
+          const active = steps.indexOf(status) >= i;
+
+          return (
+            <div key={s} className="flex items-center gap-1">
+              <span
+                className={
+                  active ? "text-green-600" : "text-gray-300"
+                }
+              >
+                ●
+              </span>
+
+              {i !== steps.length - 1 && (
+                <span className="text-gray-300">—</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   /* ================= LOADING ================= */
 
   if (loading) {
     return (
-      <div className="p-6 text-center">
-        {t.loading ?? "Loading..."}
+      <div className="p-6 text-center text-gray-500">
+        Loading...
       </div>
     );
   }
@@ -140,12 +192,12 @@ export default function ReturnsPage() {
 
         {returns.length === 0 && (
           <div className="bg-white p-6 rounded-xl shadow-sm text-center text-gray-500">
-            {t.no_returns ?? "No return requests yet"}
+            No return requests
           </div>
         )}
 
         {returns.map((r) => {
-          if (!r || !r.id) return null;
+          if (!r?.id) return null;
 
           return (
             <div
@@ -153,56 +205,64 @@ export default function ReturnsPage() {
               onClick={() =>
                 router.push(`/customer/returns/${r.id}`)
               }
-              className="bg-white rounded-xl shadow-sm p-4 cursor-pointer hover:shadow-md transition space-y-3"
+              className="bg-white rounded-xl shadow-sm p-3 cursor-pointer active:scale-[0.98] transition"
             >
-              {/* HEADER */}
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-medium text-sm">
-                    #{r.return_number ?? r.id.slice(0, 8)}
-                  </p>
+              <div className="flex gap-3">
 
-                  <p className="text-xs text-gray-400">
-                    {t.order ?? "Order"}:{" "}
-                    {r.order_id?.slice(0, 8) ?? "N/A"}
-                  </p>
+                {/* IMAGE */}
+                <img
+                  src={getImage(r.thumbnail)}
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder.png";
+                  }}
+                  className="w-16 h-16 rounded-lg object-cover border"
+                />
+
+                {/* CONTENT */}
+                <div className="flex-1 space-y-2">
+
+                  {/* HEADER */}
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        #{r.return_number ?? r.id.slice(0, 8)}
+                      </p>
+
+                      <p className="text-[11px] text-gray-400">
+                        Order: {r.order_id?.slice(0, 8)}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`px-2 py-1 text-[10px] rounded-full ${getStatusColor(
+                        r.status
+                      )}`}
+                    >
+                      {getStatusText(r.status)}
+                    </span>
+                  </div>
+
+                  {/* TIMELINE */}
+                  {renderTimeline(r.status)}
+
+                  {/* EXTRA INFO */}
+                  {r.return_tracking_code && (
+                    <p className="text-[11px] text-blue-600">
+                      Tracking: {r.return_tracking_code}
+                    </p>
+                  )}
+
+                  {r.refunded_at && (
+                    <p className="text-[11px] text-green-600">
+                      Refunded:{" "}
+                      {new Date(
+                        r.refunded_at
+                      ).toLocaleString()}
+                    </p>
+                  )}
+
                 </div>
-
-                <span
-                  className={`px-3 py-1 text-xs rounded-full ${getStatusColor(
-                    r.status
-                  )}`}
-                >
-                  {getStatusText(r.status)}
-                </span>
               </div>
-
-              {/* TIMELINE */}
-              <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                <span>Pending</span>
-                <span>→</span>
-                <span>Approved</span>
-                <span>→</span>
-                <span>Shipping</span>
-                <span>→</span>
-                <span>Refunded</span>
-              </div>
-
-              {/* TRACKING */}
-              {r.return_tracking_code && (
-                <div className="text-xs text-blue-600">
-                  {t.tracking ?? "Tracking"}:{" "}
-                  {r.return_tracking_code}
-                </div>
-              )}
-
-              {/* REFUND */}
-              {r.refunded_at && (
-                <div className="text-xs text-green-600">
-                  {t.refunded_at ?? "Refunded at"}:{" "}
-                  {new Date(r.refunded_at).toLocaleString()}
-                </div>
-              )}
             </div>
           );
         })}
