@@ -41,7 +41,7 @@ export default function SellerReturnDetail() {
 
   const [data, setData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
-const [zoomImage, setZoomImage] = useState<string | null>(null);
+const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 const [scale, setScale] = useState(1);
 const [position, setPosition] = useState({ x: 0, y: 0 });
 const [dragging, setDragging] = useState(false);
@@ -108,7 +108,7 @@ const [initialScale, setInitialScale] = useState(1);
   const allImages: string[] = [
     ...(data?.items?.map((i) => i.thumbnail) ?? []),
     ...(data?.evidence_images ?? []),
-  ].filter((i) => typeof i === "string" && i.startsWith("http"));
+  ].filter((i) => typeof i === "string" && i.length > 5),
 
   /* ================= UI ================= */
 
@@ -193,10 +193,10 @@ const [initialScale, setInitialScale] = useState(1);
                 key={i}
                 src={src}
                 onClick={() => {
-            setZoomImage(src);
-           setScale(1);
-            setPosition({ x: 0, y: 0 });
-              }}
+            setPreviewIndex(i);
+         setScale(1);
+           setPosition({ x: 0, y: 0 });
+             }}
                 onError={(e) => (e.currentTarget.src = "/placeholder.png")}
                 className="w-24 h-24 object-cover rounded border cursor-pointer"
               />
@@ -227,90 +227,132 @@ const [initialScale, setInitialScale] = useState(1);
 
       {/* ================= PREVIEW ================= */}
 
-      {zoomImage && (
-  <div
-    className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center"
-    onClick={() => setZoomImage(null)}
-  >
-    <img
-      src={zoomImage}
-      onClick={(e) => e.stopPropagation()}
+     {previewIndex !== null && (
+  <div className="fixed inset-0 z-[999] bg-black flex flex-col">
 
-      /* DOUBLE TAP */
-      onTouchEnd={(e) => {
-        const now = Date.now();
-        if (!window.__lastTap) window.__lastTap = 0;
+    {/* HEADER */}
+    <div className="flex justify-between items-center p-4 text-white z-10">
+      <button
+        onClick={() => setPreviewIndex(null)}
+        className="text-xl"
+      >
+        ✕
+      </button>
 
-        if (now - window.__lastTap < 300) {
-          setScale((prev) => (prev === 1 ? 2 : 1));
-          setPosition({ x: 0, y: 0 });
-        }
+      <span className="text-sm">
+        {previewIndex + 1}/{allImages.length}
+      </span>
 
-        window.__lastTap = now;
+      <div />
+    </div>
+
+    {/* SWIPER */}
+    <Swiper
+      modules={[Pagination]}
+      pagination={{ clickable: true }}
+      initialSlide={previewIndex}
+      allowTouchMove={scale === 1} // 🔥 quan trọng
+      onSlideChange={(swiper) => {
+        setPreviewIndex(swiper.activeIndex);
+
+        // reset zoom
+        setScale(1);
+        setPosition({ x: 0, y: 0 });
       }}
+      className="flex-1"
+    >
+      {allImages.map((src, i) => (
+        <SwiperSlide key={i}>
+          <div className="flex items-center justify-center h-full overflow-hidden">
 
-      /* TOUCH START */
-      onTouchStart={(e) => {
-        if (e.touches.length === 2) {
-          const dx =
-            e.touches[0].clientX - e.touches[1].clientX;
-          const dy =
-            e.touches[0].clientY - e.touches[1].clientY;
+            <img
+              src={src}
+              draggable={false}
 
-          const distance = Math.sqrt(dx * dx + dy * dy);
+              /* DOUBLE TAP */
+              onTouchEnd={(e) => {
+                const now = Date.now();
+                if (!window.__lastTap) window.__lastTap = 0;
 
-          setInitialDistance(distance);
-          setInitialScale(scale);
-        }
-        if (e.touches.length === 1) {
-          const touch = e.touches[0];
-          setDragging(true);
-          setStart({
-            x: touch.clientX - position.x,
-            y: touch.clientY - position.y,
-          });
-        }
-      }}
+                if (now - window.__lastTap < 300) {
+                  setScale((prev) => (prev === 1 ? 2 : 1));
+                  setPosition({ x: 0, y: 0 });
+                }
 
-      /* TOUCH MOVE */
-      onTouchMove={(e) => {
-        /* PINCH */
-        if (e.touches.length === 2) {
-          const dx =
-            e.touches[0].clientX - e.touches[1].clientX;
-          const dy =
-            e.touches[0].clientY - e.touches[1].clientY;
+                window.__lastTap = now;
+                setDragging(false);
+              }}
 
-          const distance = Math.sqrt(dx * dx + dy * dy);
+              /* TOUCH START */
+              onTouchStart={(e) => {
+                if (e.touches.length === 2) {
+                  const dx =
+                    e.touches[0].clientX - e.touches[1].clientX;
+                  const dy =
+                    e.touches[0].clientY - e.touches[1].clientY;
 
-          let newScale =
-            initialScale * (distance / initialDistance);
+                  const dist = Math.sqrt(dx * dx + dy * dy);
 
-          newScale = Math.max(1, Math.min(newScale, 6));
+                  setInitialDistance(dist);
+                  setInitialScale(scale);
+                }
 
-          setScale(newScale);
-        }
+                if (e.touches.length === 1) {
+                  const touch = e.touches[0];
 
-        /* DRAG */
-        if (e.touches.length === 1 && dragging && scale > 1) {
-          const touch = e.touches[0];
+                  setDragging(true);
+                  setStart({
+                    x: touch.clientX - position.x,
+                    y: touch.clientY - position.y,
+                  });
+                }
+              }}
 
-          setPosition({
-            x: touch.clientX - start.x,
-            y: touch.clientY - start.y,
-          });
-        }
-      }}
+              /* TOUCH MOVE */
+              onTouchMove={(e) => {
+                /* PINCH */
+                if (e.touches.length === 2) {
+                  const dx =
+                    e.touches[0].clientX - e.touches[1].clientX;
+                  const dy =
+                    e.touches[0].clientY - e.touches[1].clientY;
 
-      onTouchEnd={() => setDragging(false)}
+                  const dist = Math.sqrt(dx * dx + dy * dy);
 
-      style={{
-        transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-        transformOrigin: "center center",
-      }}
+                  let newScale =
+                    initialScale * (dist / initialDistance);
 
-      className="max-w-full max-h-full object-contain"
-    />
+                  newScale = Math.max(1, Math.min(newScale, 6));
+
+                  setScale(newScale);
+                }
+
+                /* DRAG */
+                if (e.touches.length === 1 && dragging && scale > 1) {
+                  const touch = e.touches[0];
+
+                  const newX = touch.clientX - start.x;
+                  const newY = touch.clientY - start.y;
+
+                  setPosition({
+                    x: newX,
+                    y: newY,
+                  });
+                }
+              }}
+
+              onTouchEnd={() => setDragging(false)}
+
+              style={{
+                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                transition: dragging ? "none" : "transform 0.2s ease",
+              }}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        </SwiperSlide>
+      ))}
+    </Swiper>
   </div>
 )}
 
