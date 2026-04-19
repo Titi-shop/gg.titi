@@ -112,9 +112,24 @@ export async function getReturnByIdForBuyer(
     error("INVALID_INPUT");
   }
 
-  const { rows } = await query(
+  console.log("🚀 [DB][BUYER RETURN DETAIL]", {
+    returnId,
+    buyerId,
+  });
+
+  /* ================= RETURN ================= */
+
+  const { rows: returnRows } = await query(
     `
-    SELECT *
+    SELECT
+      id,
+      return_number,
+      status,
+      reason,
+      description,
+      evidence_images,
+      refund_amount,
+      created_at
     FROM returns
     WHERE id = $1
       AND buyer_id = $2
@@ -124,7 +139,68 @@ export async function getReturnByIdForBuyer(
     [returnId, buyerId]
   );
 
-  return rows[0] ?? null;
+  const ret = returnRows[0];
+
+  if (!ret) return null;
+
+  /* ================= ITEMS ================= */
+
+  const { rows: itemRows } = await query(
+    `
+    SELECT
+      product_name,
+      thumbnail,
+      quantity,
+      unit_price
+    FROM return_items
+    WHERE return_id = $1
+    `,
+    [returnId]
+  );
+
+  /* ================= FIX IMAGES ================= */
+
+  let evidenceImages: string[] = [];
+
+  if (Array.isArray(ret.evidence_images)) {
+    evidenceImages = ret.evidence_images.filter(
+      (url) =>
+        typeof url === "string" &&
+        url.length > 5
+    );
+  }
+
+  /* ================= MAIN THUMBNAIL ================= */
+
+  const firstItem = itemRows[0];
+
+  /* ================= RESPONSE ================= */
+
+  return {
+    id: ret.id,
+    return_number: ret.return_number,
+    status: ret.status,
+    reason: ret.reason,
+    description: ret.description,
+
+    refund_amount: Number(ret.refund_amount),
+    created_at: ret.created_at,
+
+    // ✅ QUAN TRỌNG
+    product_name: firstItem?.product_name ?? "",
+    product_thumbnail: firstItem?.thumbnail ?? "",
+
+    // ✅ MULTI IMAGE
+    evidence_images: evidenceImages,
+
+    // ✅ FUTURE SCALE
+    items: itemRows.map((i) => ({
+      product_name: i.product_name,
+      thumbnail: i.thumbnail,
+      quantity: Number(i.quantity),
+      unit_price: Number(i.unit_price),
+    })),
+  };
 }
 
 /* =====================================================
