@@ -456,3 +456,37 @@ export async function updateReturnStatusBySeller(
     });
   });
 }
+export async function getReturnsBySeller(
+  sellerId: string
+) {
+  if (!sellerId || typeof sellerId !== "string") {
+    throw new Error("INVALID_SELLER");
+  }
+
+  const { rows } = await query(
+    `
+    SELECT
+      r.id,
+      r.return_number,
+      r.order_id,
+      r.status,
+      r.created_at,
+
+      ri.product_name,
+      ri.thumbnail,
+      ri.quantity
+
+    FROM returns r
+    LEFT JOIN return_items ri
+      ON ri.return_id = r.id
+
+    WHERE r.seller_id = $1
+      AND r.deleted_at IS NULL
+
+    ORDER BY r.created_at DESC
+    `,
+    [sellerId]
+  );
+
+  return rows;
+}
