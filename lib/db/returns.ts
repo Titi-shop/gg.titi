@@ -775,31 +775,49 @@ async function refundPiPayment(params: {
   amount: number;
 }): Promise<string> {
   const { paymentId, amount } = params;
+
   const apiKey = process.env.PI_API_KEY;
   const baseUrl = process.env.PI_API_URL;
+
   if (!apiKey || !baseUrl) {
     throw new Error("PI_CONFIG_MISSING");
   }
+
+  if (!paymentId) {
+    throw new Error("MISSING_PAYMENT_ID");
+  }
+
+  if (!amount || amount <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
+
+  const url = `${baseUrl}/payments/${paymentId}/refund`;
+
   console.log("💰 [PI][REFUND REQUEST]", {
     paymentId,
     amount,
   });
 
-  const res = await fetch(`${baseUrl}/payments/${paymentId}/refund`, {
+  console.log("🔗 [PI][REFUND URL]", url);
+
+  const res = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Key ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      amount,
-    }),
+    body: JSON.stringify({ amount }),
   });
+
+  /* ================= HANDLE ERROR ================= */
 
   if (!res.ok) {
     const text = await res.text();
 
-    console.error("❌ [PI REFUND ERROR]", text);
+    console.error("❌ [PI REFUND ERROR]", {
+      status: res.status,
+      body: text,
+    });
 
     throw new Error("REFUND_FAILED");
   }
@@ -808,6 +826,5 @@ async function refundPiPayment(params: {
 
   console.log("🟢 [PI REFUND SUCCESS]", data);
 
-  // ⚠️ tuỳ Pi trả gì (txid / identifier)
   return data?.identifier || data?.txid || "unknown";
 }
