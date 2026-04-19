@@ -660,3 +660,59 @@ export async function getReturnsBySeller(
 
   return rows;
 }
+export async function shipReturnByBuyer(params: {
+  returnId: string;
+  buyerId: string;
+  trackingCode: string;
+  shippingProvider: string | null;
+}): Promise<void> {
+  const { returnId, buyerId, trackingCode, shippingProvider } = params;
+
+  if (!returnId || !buyerId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  /* ================= CHECK ================= */
+
+  const { rows } = await query<{ status: string }>(
+    `
+    SELECT status
+    FROM returns
+    WHERE id = $1
+      AND buyer_id = $2
+      AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [returnId, buyerId]
+  );
+
+  const item = rows[0];
+
+  if (!item) {
+    throw new Error("NOT_FOUND");
+  }
+
+  if (item.status !== "approved") {
+    throw new Error("INVALID_STATE");
+  }
+
+  /* ================= UPDATE ================= */
+
+  await query(
+    `
+    UPDATE returns
+    SET
+      status = 'shipping_back',
+      return_tracking_code = $1,
+      return_shipping_provider = $2,
+      shipped_back_at = now(),
+      updated_at = now()
+    WHERE id = $3
+    `,
+    [trackingCode, shippingProvider, returnId]
+  );
+
+  console.log("🟢 [RETURN][SHIP SUCCESS]", {
+    returnId,
+  });
+}
