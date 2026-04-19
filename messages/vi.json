@@ -556,7 +556,21 @@
   "detail": "Chi tiết",
   "completed_orders": "Đơn đã hoàn thành",
   "no_completed_orders": "Không có đơn hoàn thành",
-  "search_order": "Tìm mã đơn"
+  "search_order": "Tìm mã đơn",
+  "wallet_balance": "Số dư",
+  "wallet_refresh": "Làm mới",
+  "wallet_deposit": "Nạp tiền",
+  "wallet_withdraw": "Rút tiền",
+  "wallet_pay": "Thanh toán",
+  "wallet_total_in": "Tổng vào",
+  "wallet_total_out": "Tổng ra",
+  "wallet_transactions": "Giao dịch",
+  "wallet_no_transactions": "Chưa có giao dịch",
+
+  "wallet_ref_order": "Đơn hàng",
+  "wallet_ref_refund": "Hoàn tiền",
+  "wallet_ref_withdraw": "Rút tiền",
+  "wallet_ref_deposit": "Nạp tiền"
 
 
       
