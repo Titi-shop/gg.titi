@@ -1,6 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState, useRef } from "react";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
@@ -32,15 +33,23 @@ export default function WalletPage() {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // 🔥 deposit state
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositing, setDepositing] = useState(false);
+
   const { loading: authLoading } = useAuth();
   const hasLoaded = useRef(false);
 
-useEffect(() => {
-  if (authLoading || hasLoaded.current) return;
-  console.log("🟢 LOAD WALLET");
-  hasLoaded.current = true;
-  load();
-}, [authLoading]);
+  /* ================= LOAD ================= */
+
+  useEffect(() => {
+    if (authLoading || hasLoaded.current) return;
+
+    hasLoaded.current = true;
+    load();
+  }, [authLoading]);
 
   async function load() {
     try {
@@ -51,7 +60,6 @@ useEffect(() => {
 
       if (w.ok) {
         const wJson = await w.json();
-        console.log("🧪 wallet:", wJson);
         setBalance(Number(wJson.balance) || 0);
       }
 
@@ -59,7 +67,6 @@ useEffect(() => {
         const tJson = await t.json();
         setTxs(Array.isArray(tJson) ? tJson : []);
       }
-
     } catch (err) {
       console.error("🔥 wallet load error", err);
     } finally {
@@ -71,6 +78,67 @@ useEffect(() => {
   async function refresh() {
     setRefreshing(true);
     await load();
+  }
+
+  /* ================= DEPOSIT ================= */
+
+  async function handleDeposit() {
+    const amount = Number(depositAmount);
+
+    if (!amount || amount <= 0) {
+      alert("Invalid amount");
+      return;
+    }
+
+    try {
+      setDepositing(true);
+
+      const Pi = (window as any).Pi;
+
+      if (!Pi) {
+        alert("Pi SDK not available");
+        return;
+      }
+
+      await Pi.createPayment(
+        {
+          amount,
+          memo: "Deposit to wallet",
+          metadata: { type: "deposit" },
+        },
+        {
+          onReadyForServerApproval: async (paymentId: string) => {
+            const res = await apiAuthFetch("/api/pi/deposit/complete", {
+              method: "POST",
+              body: JSON.stringify({ paymentId }),
+            });
+
+            if (!res.ok) {
+              alert("Deposit failed");
+              return;
+            }
+
+            setDepositOpen(false);
+            setDepositAmount("");
+
+            await load();
+          },
+
+          onCancel: () => {
+            console.log("User cancelled payment");
+          },
+
+          onError: (err: any) => {
+            console.error("Pi payment error", err);
+            alert("Payment error");
+          },
+        }
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDepositing(false);
+    }
   }
 
   /* ================= UI ================= */
@@ -108,7 +176,10 @@ useEffect(() => {
         {/* ACTIONS */}
         <div className="flex gap-3 mt-5">
 
-          <button className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold">
+          <button
+            onClick={() => setDepositOpen(true)}
+            className="flex-1 bg-white text-orange-600 py-2 rounded-xl text-sm font-semibold"
+          >
             Deposit
           </button>
 
@@ -166,10 +237,7 @@ useEffect(() => {
           )}
 
           {txs.map((t) => (
-            <div
-              key={t.id}
-              className="p-4 flex justify-between items-center"
-            >
+            <div key={t.id} className="p-4 flex justify-between items-center">
 
               <div>
                 <p className="text-sm font-medium capitalize">
@@ -191,10 +259,61 @@ useEffect(() => {
                 {t.type === "credit" ? "+" : "-"}π
                 {formatPi(t.amount)}
               </p>
+
             </div>
           ))}
         </div>
       </div>
+
+      {/* DEPOSIT MODAL */}
+      {depositOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end">
+
+          <div className="bg-white w-full p-5 rounded-t-2xl space-y-4">
+
+            <h2 className="text-lg font-semibold">
+              Deposit Pi
+            </h2>
+
+            <input
+              type="number"
+              placeholder="Enter amount (π)"
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              className="w-full border p-3 rounded-lg text-lg"
+            />
+
+            <div className="flex gap-2">
+              {[1, 5, 10, 20].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setDepositAmount(String(v))}
+                  className="flex-1 bg-gray-100 py-2 rounded-lg text-sm"
+                >
+                  {v}π
+                </button>
+              ))}
+            </div>
+
+            <button
+              disabled={depositing}
+              onClick={handleDeposit}
+              className="w-full bg-orange-500 text-white py-3 rounded-lg font-semibold"
+            >
+              {depositing ? "Processing..." : "Confirm Deposit"}
+            </button>
+
+            <button
+              onClick={() => setDepositOpen(false)}
+              className="w-full text-gray-500 text-sm"
+            >
+              Cancel
+            </button>
+
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
