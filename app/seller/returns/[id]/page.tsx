@@ -228,51 +228,44 @@ export default function SellerReturnDetail() {
 
       {/* ================= PREVIEW + ZOOM ================= */}
 
-      {previewIndex !== null && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+{previewIndex !== null && allImages.length > 0 && (
+  <div className="fixed inset-0 bg-black z-50 flex flex-col h-screen">
 
-          {/* HEADER */}
-          <div className="flex justify-between p-3 text-white">
-            <button onClick={() => setPreviewIndex(null)}>←</button>
-            <span>{previewIndex + 1}/{allImages.length}</span>
-            <span />
+    {/* HEADER */}
+    <div className="flex justify-between p-3 text-white">
+      <button onClick={() => setPreviewIndex(null)}>←</button>
+      <span>{previewIndex + 1}/{allImages.length}</span>
+      <span />
+    </div>
+
+    {/* SWIPER */}
+    <Swiper
+      modules={[Pagination]}
+      pagination={{ clickable: true }}
+      onSwiper={(swiper) => {
+        // 🔥 FIX QUAN TRỌNG
+        swiper.slideTo(previewIndex, 0);
+      }}
+      className="flex-1 h-full"
+    >
+      {allImages.map((src, i) => (
+        <SwiperSlide key={i}>
+          <div className="flex items-center justify-center h-full">
+            <img
+              src={src}
+              onError={(e) => {
+                console.error("❌ IMG FAIL:", src);
+                e.currentTarget.src = "/placeholder.png";
+              }}
+              className="max-h-full max-w-full object-contain"
+            />
           </div>
+        </SwiperSlide>
+      ))}
+    </Swiper>
 
-          <Swiper
-            modules={[Pagination]}
-            pagination={{ clickable: true }}
-            onSwiper={setSwiperRef}
-            className="flex-1"
-          >
-            {allImages.map((src, i) => (
-              <SwiperSlide key={i}>
-                <div
-                  className="flex items-center justify-center h-full"
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={resetZoom}
-                  onDoubleClick={() => {
-                    scaleRef.current =
-                      scaleRef.current === 1 ? 2 : 1;
-
-                    const img = document.getElementById("zoom-img");
-                    if (img) {
-                      img.style.transform = `scale(${scaleRef.current})`;
-                    }
-                  }}
-                >
-                  <img
-                    id="zoom-img"
-                    src={src}
-                    className="max-h-full max-w-full object-contain transition-transform"
-                  />
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-
-        </div>
-      )}
+  </div>
+)}
 
       {/* ACTION */}
       <div className="p-4 space-y-2">
