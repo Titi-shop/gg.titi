@@ -22,6 +22,7 @@ import {
   PackageCheck,
   RotateCcw,
   XCircle,
+  RefreshCcw, 
 } from "lucide-react";
 
 /* ================= PAGE ================= */
@@ -115,6 +116,12 @@ function SellerOrdersContent() {
           icon={<ClipboardList size={18} />}
           label={t.all_orders ?? "All Orders"}
           badge={stats.total}
+        />
+        <MainCard
+           href="/seller/returns"
+          icon={<RefreshCcw size={18} />}
+          label={t.returns ?? "Returns"}
+          badge={stats.returned}
         />
       </section>
 
