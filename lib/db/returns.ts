@@ -607,19 +607,13 @@ export async function updateReturnStatusBySeller(
 
     /* ================= REJECT ================= */
 
-    if (action === "reject") {
-      if (ret.status !== "pending") {
-        throw new Error("INVALID_STATE");
-      }
-
-      nextStatus = "rejected";
-    }
-
-    /* ================= RECEIVED → REFUND ================= */
-
     if (action === "received") {
   if (ret.status !== "shipping_back") {
     throw new Error("INVALID_STATE");
+  }
+
+  if (ret.refunded_at) {
+    throw new Error("ALREADY_REFUNDED");
   }
 
   const amount = Number(ret.refund_amount);
@@ -641,9 +635,8 @@ export async function updateReturnStatusBySeller(
 
   if (!buyerId) throw new Error("BUYER_NOT_FOUND");
 
-  /* ================= WALLET UPDATE ================= */
+  /* ================= CREATE WALLET IF NOT EXISTS ================= */
 
-  // 1. đảm bảo wallet tồn tại
   await client.query(
     `
     INSERT INTO wallets (user_id, balance)
@@ -653,7 +646,8 @@ export async function updateReturnStatusBySeller(
     [buyerId]
   );
 
-  // 2. cộng tiền
+  /* ================= UPDATE BALANCE ================= */
+
   await client.query(
     `
     UPDATE wallets
@@ -664,7 +658,8 @@ export async function updateReturnStatusBySeller(
     [amount, buyerId]
   );
 
-  // 3. log transaction
+  /* ================= LOG TRANSACTION ================= */
+
   await client.query(
     `
     INSERT INTO wallet_transactions (
@@ -700,7 +695,7 @@ export async function updateReturnStatusBySeller(
     amount,
   });
 
-  return;
+  return; // 🔥 giữ return ở đây
 }
 
     /* ================= NORMAL UPDATE ================= */
