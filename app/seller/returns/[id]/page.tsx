@@ -3,9 +3,6 @@
 
 export const dynamic = "force-dynamic";
 
-import "swiper/css";
-import "swiper/css/pagination";
-
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
@@ -33,8 +30,6 @@ type ReturnDetail = {
   evidence_images?: string[];
   timeline?: TimelineItem[];
   items: ReturnItem[];
-
-  // ✅ thêm để tránh crash
   return_tracking_code?: string;
 };
 
@@ -48,15 +43,24 @@ export default function SellerReturnDetail() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
 
+  /* ================= ZOOM STATE ================= */
+
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const [dragging, setDragging] = useState(false);
+  const [start, setStart] = useState({ x: 0, y: 0 });
+
+  const [initialDistance, setInitialDistance] = useState(0);
+  const [initialScale, setInitialScale] = useState(1);
+
+  const [swipeDownStart, setSwipeDownStart] = useState<number | null>(null);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
     load();
-
     const i = setInterval(load, 10000);
     return () => clearInterval(i);
   }, []);
@@ -64,9 +68,7 @@ export default function SellerReturnDetail() {
   async function load() {
     try {
       const res = await apiAuthFetch(`/api/seller/returns/${id}`);
-
       if (!res.ok) return;
-
       const json = await res.json();
       setData(json);
     } catch (err) {
@@ -95,8 +97,6 @@ export default function SellerReturnDetail() {
       }
 
       await load();
-    } catch (err) {
-      console.error(err);
     } finally {
       setActing(false);
     }
@@ -160,30 +160,24 @@ export default function SellerReturnDetail() {
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
+
       {/* HEADER */}
       <div className="bg-white p-4 border-b space-y-2">
         <p className="text-sm text-gray-500">
           Return #{data.return_number || data.id.slice(0, 8)}
         </p>
 
-        <div className="flex justify-between items-center">
-          <h1 className="font-semibold text-lg">
-            Return Request
-          </h1>
-
-          <span
-            className={`px-3 py-1 text-xs rounded-full ${getStatusColor(
-              data.status
-            )}`}
-          >
+        <div className="flex justify-between">
+          <h1 className="font-semibold text-lg">Return Request</h1>
+          <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(data.status)}`}>
             {getStatusLabel(data.status)}
           </span>
         </div>
 
         {data.return_tracking_code && (
-          <div className="text-xs text-blue-600">
+          <p className="text-xs text-blue-600">
             Tracking: {data.return_tracking_code}
-          </div>
+          </p>
         )}
       </div>
 
@@ -192,122 +186,41 @@ export default function SellerReturnDetail() {
         {data.items.map((item, i) => (
           <div key={i} className="flex gap-3 p-4">
             <img
-              src={item.thumbnail || "/placeholder.png"}
-              onError={(e) =>
-                (e.currentTarget.src = "/placeholder.png")
-              }
+              src={item.thumbnail}
               className="w-20 h-20 object-cover rounded border"
             />
-
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">
-                {item.product_name}
-              </p>
-
-              <p className="text-xs text-gray-500 mt-1">
-                Qty: {item.quantity}
-              </p>
-
-              <p className="text-sm font-semibold mt-2">
-                π{item.unit_price}
-              </p>
+            <div>
+              <p>{item.product_name}</p>
+              <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+              <p className="font-semibold">π{item.unit_price}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* REASON */}
-      <div className="bg-white p-4 space-y-2">
-        <p className="text-sm font-semibold">Reason</p>
-        <p className="text-sm text-gray-600">{data.reason}</p>
-
-        {data.description && (
-          <p className="text-xs text-gray-500">
-            {data.description}
-          </p>
-        )}
-      </div>
-
       {/* IMAGES */}
       <div className="bg-white p-4">
-        <p className="text-sm font-semibold mb-2">
-          Product & Evidence Images
-        </p>
+        <p className="text-sm font-semibold mb-2">Images</p>
 
-        {allImages.length === 0 ? (
-          <p className="text-xs text-gray-400">
-            No images
-          </p>
-        ) : (
-          <div className="flex gap-2 overflow-x-auto">
-            {allImages.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                onClick={() => {
-                  setZoomImage(src);
-                  setScale(1);
-                  setPosition({ x: 0, y: 0 });
-                }}
-                className="w-24 h-24 object-cover rounded border cursor-pointer"
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* TIMELINE */}
-      {data.timeline && (
-        <div className="bg-white p-4 space-y-3">
-          <p className="text-sm font-semibold">Timeline</p>
-
-          {data.timeline.map((t, i) => (
-            <div key={i} className="flex gap-3 text-sm">
-              <div className="w-2 h-2 mt-2 rounded-full bg-black" />
-              <div>
-                <p className="font-medium">{t.label}</p>
-
-                {t.time && (
-                  <p className="text-xs text-gray-400">
-                    {new Date(t.time).toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
+        <div className="flex gap-2 overflow-x-auto">
+          {allImages.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              onClick={() => {
+                setZoomImage(src);
+                setScale(1);
+                setPosition({ x: 0, y: 0 });
+              }}
+              className="w-24 h-24 object-cover rounded cursor-pointer"
+            />
           ))}
         </div>
-      )}
+      </div>
 
-      {/* REFUND NOTICE */}
-      {data.status === "refund_pending" && (
-        <div className="bg-yellow-50 text-yellow-700 text-sm p-3 mx-4 rounded">
-          Waiting for buyer to confirm refund in Pi Wallet
-        </div>
-      )}
-
-      {/* ACTIONS */}
-      <div className="p-4 space-y-2">
-        {data.status === "pending" && (
-          <div className="flex gap-2">
-            <button
-              disabled={acting}
-              onClick={() => action("approve")}
-              className="flex-1 bg-green-500 text-white py-3 rounded-lg"
-            >
-              Approve
-            </button>
-
-            <button
-              disabled={acting}
-              onClick={() => action("reject")}
-              className="flex-1 bg-red-500 text-white py-3 rounded-lg"
-            >
-              Reject
-            </button>
-          </div>
-        )}
-
-        {data.status === "shipping_back" && (
+      {/* ACTION */}
+      {data.status === "shipping_back" && (
+        <div className="p-4">
           <button
             disabled={acting}
             onClick={() => action("received")}
@@ -315,22 +228,105 @@ export default function SellerReturnDetail() {
           >
             Mark as Received
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* IMAGE ZOOM */}
+      {/* ================= ZOOM VIEW ================= */}
+
       {zoomImage && (
         <div
-          className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center"
+          className="fixed inset-0 bg-black/95 z-[999] flex items-center justify-center"
           onClick={() => setZoomImage(null)}
         >
           <img
             src={zoomImage}
             onClick={(e) => e.stopPropagation()}
+
+            /* DOUBLE TAP */
+            onTouchEnd={(e) => {
+              const now = Date.now();
+              if (!(window as any).__tap) (window as any).__tap = 0;
+
+              if (now - (window as any).__tap < 300) {
+                setScale((s) => (s === 1 ? 2 : 1));
+                setPosition({ x: 0, y: 0 });
+              }
+
+              (window as any).__tap = now;
+            }}
+
+            /* TOUCH START */
+            onTouchStart={(e) => {
+              if (e.touches.length === 2) {
+                const dx =
+                  e.touches[0].clientX - e.touches[1].clientX;
+                const dy =
+                  e.touches[0].clientY - e.touches[1].clientY;
+
+                setInitialDistance(Math.sqrt(dx * dx + dy * dy));
+                setInitialScale(scale);
+              }
+
+              if (e.touches.length === 1) {
+                const t = e.touches[0];
+
+                setDragging(true);
+                setStart({
+                  x: t.clientX - position.x,
+                  y: t.clientY - position.y,
+                });
+
+                setSwipeDownStart(t.clientY);
+              }
+            }}
+
+            /* TOUCH MOVE */
+            onTouchMove={(e) => {
+              if (e.touches.length === 2) {
+                const dx =
+                  e.touches[0].clientX - e.touches[1].clientX;
+                const dy =
+                  e.touches[0].clientY - e.touches[1].clientY;
+
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                let newScale =
+                  initialScale * (dist / initialDistance);
+
+                newScale = Math.max(1, Math.min(newScale, 6));
+                setScale(newScale);
+              }
+
+              if (e.touches.length === 1 && dragging) {
+                const t = e.touches[0];
+
+                /* swipe down close */
+                if (scale === 1 && swipeDownStart) {
+                  if (t.clientY - swipeDownStart > 120) {
+                    setZoomImage(null);
+                    return;
+                  }
+                }
+
+                if (scale > 1) {
+                  setPosition({
+                    x: t.clientX - start.x,
+                    y: t.clientY - start.y,
+                  });
+                }
+              }
+            }}
+
+            onTouchEnd={() => {
+              setDragging(false);
+              setSwipeDownStart(null);
+            }}
+
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
             }}
-            className="max-w-full max-h-full object-contain"
+
+            className="max-w-full max-h-full object-contain transition-transform"
           />
         </div>
       )}
