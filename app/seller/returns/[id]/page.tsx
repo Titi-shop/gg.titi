@@ -108,7 +108,7 @@ const [initialScale, setInitialScale] = useState(1);
   const allImages: string[] = [
     ...(data?.items?.map((i) => i.thumbnail) ?? []),
     ...(data?.evidence_images ?? []),
-  ].filter((i) => typeof i === "string" && i.length > 5),
+  ].filter((i) => typeof i === "string" && i.length > 5);
 
   /* ================= UI ================= */
 
