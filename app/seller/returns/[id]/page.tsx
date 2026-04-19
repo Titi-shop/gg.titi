@@ -8,6 +8,11 @@ import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 /* ================= TYPES ================= */
 
+type TimelineItem = {
+  label: string;
+  time: string;
+};
+
 type ReturnItem = {
   product_name: string;
   thumbnail: string;
@@ -22,6 +27,7 @@ type ReturnDetail = {
   reason: string;
   description?: string;
   evidence_images?: string[];
+  timeline?: TimelineItem[];
   items: ReturnItem[];
 };
 
@@ -34,7 +40,7 @@ export default function SellerReturnDetail() {
   const [data, setData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [previewImg, setPreviewImg] = useState<string | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   useEffect(() => {
     load();
@@ -93,15 +99,18 @@ export default function SellerReturnDetail() {
     }
   }
 
+  /* ================= IMAGE LIST ================= */
+
+  const allImages: string[] = [
+    ...(data?.items?.map((i) => i.thumbnail) ?? []),
+    ...(data?.evidence_images ?? []),
+  ].filter((i) => typeof i === "string" && i.startsWith("http"));
+
   /* ================= UI ================= */
 
-  if (loading) {
-    return <p className="p-4">Loading...</p>;
-  }
+  if (loading) return <p className="p-4">Loading...</p>;
 
-  if (!data) {
-    return <p className="p-4 text-red-500">Not found</p>;
-  }
+  if (!data) return <p className="p-4 text-red-500">Not found</p>;
 
   return (
     <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
@@ -125,14 +134,12 @@ export default function SellerReturnDetail() {
 
       {/* PRODUCTS */}
       <div className="bg-white divide-y">
-        {data.items?.map((item, i) => (
+        {data.items.map((item, i) => (
           <div key={i} className="flex gap-3 p-4">
 
             <img
               src={item.thumbnail || "/placeholder.png"}
-              onError={(e) => {
-                e.currentTarget.src = "/placeholder.png";
-              }}
+              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
               className="w-20 h-20 object-cover rounded border"
             />
 
@@ -166,50 +173,90 @@ export default function SellerReturnDetail() {
         )}
       </div>
 
-      {/* ================= EVIDENCE IMAGES ================= */}
+      {/* ================= IMAGES ================= */}
 
       <div className="bg-white p-4">
         <p className="text-sm font-semibold mb-2">
-          Evidence Images
+          Product & Evidence Images
         </p>
 
-        {!data.evidence_images || data.evidence_images.length === 0 ? (
+        {allImages.length === 0 ? (
           <p className="text-xs text-gray-400">
-            No evidence images
+            No images
           </p>
         ) : (
           <div className="flex gap-2 overflow-x-auto">
-            {data.evidence_images.map((src, i) => {
-              console.log("🖼 IMAGE:", src);
-
-              return (
-                <img
-                  key={i}
-                  src={src}
-                  onClick={() => setPreviewImg(src)}
-                  onError={(e) => {
-                    console.error("❌ IMAGE LOAD FAIL:", src);
-                    e.currentTarget.src = "/placeholder.png";
-                  }}
-                  className="w-20 h-20 object-cover rounded border cursor-pointer"
-                />
-              );
-            })}
+            {allImages.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                onClick={() => setPreviewIndex(i)}
+                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                className="w-24 h-24 object-cover rounded border cursor-pointer"
+              />
+            ))}
           </div>
         )}
       </div>
 
-      {/* ================= FULLSCREEN PREVIEW ================= */}
+      {/* ================= TIMELINE ================= */}
 
-      {previewImg && (
-        <div
-          className="fixed inset-0 bg-black z-50 flex items-center justify-center"
-          onClick={() => setPreviewImg(null)}
-        >
-          <img
-            src={previewImg}
-            className="max-w-full max-h-full object-contain"
-          />
+      {data.timeline && (
+        <div className="bg-white p-4 space-y-3">
+          <p className="text-sm font-semibold">Timeline</p>
+
+          {data.timeline.map((t, i) => (
+            <div key={i} className="flex gap-3 text-sm">
+              <div className="w-2 h-2 mt-2 rounded-full bg-black" />
+              <div>
+                <p className="font-medium">{t.label}</p>
+                <p className="text-xs text-gray-400">
+                  {new Date(t.time).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ================= PREVIEW ================= */}
+
+      {previewIndex !== null && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+
+          {/* HEADER */}
+          <div className="flex justify-between p-3 text-white">
+            <button onClick={() => setPreviewIndex(null)}>←</button>
+            <span>{previewIndex + 1}/{allImages.length}</span>
+            <span />
+          </div>
+
+          {/* IMAGE */}
+          <div className="flex-1 flex items-center justify-center relative">
+
+            <img
+              src={allImages[previewIndex]}
+              className="max-h-full max-w-full object-contain"
+            />
+
+            {previewIndex > 0 && (
+              <button
+                onClick={() => setPreviewIndex(previewIndex - 1)}
+                className="absolute left-2 text-white text-2xl"
+              >
+                ‹
+              </button>
+            )}
+
+            {previewIndex < allImages.length - 1 && (
+              <button
+                onClick={() => setPreviewIndex(previewIndex + 1)}
+                className="absolute right-2 text-white text-2xl"
+              >
+                ›
+              </button>
+            )}
+          </div>
         </div>
       )}
 
