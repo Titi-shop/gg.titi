@@ -6,9 +6,9 @@ export const fetchCache = "force-no-store";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-import { getPiAccessToken } from "@/lib/piAuth";
 import { useAuth } from "@/context/AuthContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
 import "swiper/css";
 import "swiper/css/pagination";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -36,7 +36,9 @@ interface ReturnRecord {
   reason?: string;
   created_at: string;
 
-  evidence_images?: string[]; // ✅ thêm
+  evidence_images?: string[];
+  return_tracking_code?: string | null;
+  shipping_provider?: string | null;
 }
 
 /* ================= CONST ================= */
@@ -60,30 +62,23 @@ export default function ReturnDetailPage() {
 
   const [data, setData] = useState<ReturnRecord | null>(null);
   const [loading, setLoading] = useState(true);
+
   const [trackingCode, setTrackingCode] = useState("");
-const [shippingProvider, setShippingProvider] = useState("");
-const [sending, setSending] = useState(false);
+  const [shippingProvider, setShippingProvider] = useState("");
+  const [sending, setSending] = useState(false);
+
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
     if (authLoading || !user || !returnId) return;
-    void loadReturn();
+    loadReturn();
   }, [authLoading, user, returnId]);
 
-  async function loadReturn(): Promise<void> {
+  async function loadReturn() {
     try {
-      const token = await getPiAccessToken();
-      if (!token) return;
-
-      const res = await fetch(`/api/returns/${returnId}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
+      const res = await apiAuthFetch(`/api/returns/${returnId}`);
 
       if (!res.ok) {
         setData(null);
@@ -91,55 +86,60 @@ const [sending, setSending] = useState(false);
       }
 
       const record: ReturnRecord = await res.json();
-
-      console.log("📦 RETURN DETAIL:", record);
-
       setData(record);
-    } catch {
+
+    } catch (err) {
+      console.error("LOAD ERROR", err);
       setData(null);
     } finally {
       setLoading(false);
     }
   }
-async function handleShip() {
-  if (!trackingCode) {
-    alert("Nhập mã vận đơn");
-    return;
-  }
 
-  try {
-    setSending(true);
+  /* ================= SHIP ================= */
 
-    const res = await apiAuthFetch(`/api/returns/${returnId}/ship`, {
-  method: "PATCH",
-  body: JSON.stringify({
-    tracking_code: trackingCode,
-    shipping_provider: shippingProvider,
-  }),
-
-});
-
-    if (!res.ok) {
-      alert("Gửi thất bại");
+  async function handleShip() {
+    if (!trackingCode.trim()) {
+      alert("Nhập mã vận đơn");
       return;
     }
 
-    alert("Đã gửi hàng");
-    window.location.reload();
+    try {
+      setSending(true);
 
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setSending(false);
+      const res = await apiAuthFetch(`/api/returns/${returnId}/ship`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          tracking_code: trackingCode,
+          shipping_provider: shippingProvider,
+        }),
+      });
+
+      if (!res.ok) {
+        alert("Gửi thất bại");
+        return;
+      }
+
+      alert("Đã gửi hàng");
+
+      // ✅ reload đúng chuẩn
+      await loadReturn();
+
+      setTrackingCode("");
+      setShippingProvider("");
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSending(false);
+    }
   }
-}
+
   /* ================= HELPERS ================= */
 
   function getImage(src?: string | null) {
     if (!src) return "/placeholder.png";
-
     if (src.startsWith("http")) return src;
-
     return BASE_STORAGE + src;
   }
 
@@ -162,14 +162,14 @@ async function handleShip() {
     }
   }
 
-  /* ================= IMAGE LIST ================= */
+  /* ================= IMAGES ================= */
 
   const allImages: string[] = [
     data?.product_thumbnail ?? "",
     ...(data?.evidence_images ?? []),
   ].filter((i) => typeof i === "string" && i.length > 5);
 
-  /* ================= LOADING ================= */
+  /* ================= STATE ================= */
 
   if (loading) {
     return (
@@ -197,21 +197,17 @@ async function handleShip() {
       {/* HEADER */}
       <header className="bg-orange-500 text-white px-4 py-4">
         <div className="bg-orange-400 rounded-lg p-4">
-          <p className="text-sm opacity-90">
-            {t.return_detail ?? "Return Detail"}
-          </p>
-
-          <p className="text-xs opacity-80 mt-1">
+          <p className="text-sm">{t.return_detail ?? "Return Detail"}</p>
+          <p className="text-xs mt-1">
             Order: #{data.order_id}
           </p>
         </div>
       </header>
 
-      {/* CONTENT */}
       <section className="mt-6 px-4 space-y-4">
 
         {/* PRODUCT */}
-        <div className="bg-white rounded-xl shadow-sm p-4 flex gap-3">
+        <div className="bg-white rounded-xl p-4 flex gap-3">
           <img
             src={getImage(data.product_thumbnail)}
             onClick={() => setPreviewIndex(0)}
@@ -219,7 +215,7 @@ async function handleShip() {
           />
 
           <div className="flex-1">
-            <p className="font-medium text-sm">
+            <p className="text-sm font-medium">
               {data.product_name}
             </p>
 
@@ -229,16 +225,14 @@ async function handleShip() {
           </div>
         </div>
 
-        {/* EVIDENCE IMAGES */}
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        {/* IMAGES */}
+        <div className="bg-white rounded-xl p-4">
           <p className="text-sm font-semibold mb-2">
             Evidence Images
           </p>
 
           {allImages.length === 0 ? (
-            <p className="text-xs text-gray-400">
-              No images
-            </p>
+            <p className="text-xs text-gray-400">No images</p>
           ) : (
             <div className="flex gap-2 overflow-x-auto">
               {allImages.map((src, i) => (
@@ -254,57 +248,54 @@ async function handleShip() {
         </div>
 
         {/* STATUS */}
-        <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
+        <div className="bg-white p-4 flex justify-between rounded-xl">
           <span>Status</span>
           <span className={getStatusColor(data.status)}>
             {data.status}
           </span>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 space-y-1">
-  <p className="text-xs text-gray-400">Tracking</p>
-  <p className="text-sm text-blue-600 font-medium">
-    {data.return_tracking_code}
-  </p>
-</div>
-{data.status === "approved" && (
-  <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
 
-    <p className="text-sm font-semibold">
-      📦 Gửi hàng trả
-    </p>
+        {/* TRACKING */}
+        {data.return_tracking_code && (
+          <div className="bg-white p-4 rounded-xl text-xs text-blue-600">
+            Tracking: {data.return_tracking_code}
+          </div>
+        )}
 
-    {/* ADDRESS (tạm hardcode, sau này lấy DB) */}
-    <div className="text-xs text-gray-600">
-      <p>Nguyễn Văn A</p>
-      <p>0123456789</p>
-      <p>123 Lê Lợi, Q1, HCM</p>
-    </div>
+        {/* SHIPPING FORM */}
+        {data.status === "approved" && (
+          <div className="bg-white p-4 rounded-xl space-y-3">
 
-    <input
-      value={trackingCode}
-      onChange={(e) => setTrackingCode(e.target.value)}
-      placeholder="Mã vận đơn"
-      className="w-full border rounded px-3 py-2 text-sm"
-    />
+            <p className="font-semibold text-sm">
+              📦 Gửi hàng trả
+            </p>
 
-    <input
-      value={shippingProvider}
-      onChange={(e) => setShippingProvider(e.target.value)}
-      placeholder="Đơn vị vận chuyển"
-      className="w-full border rounded px-3 py-2 text-sm"
-    />
+            <input
+              value={trackingCode}
+              onChange={(e) => setTrackingCode(e.target.value)}
+              placeholder="Mã vận đơn"
+              className="w-full border px-3 py-2 rounded text-sm"
+            />
 
-    <button
-      onClick={handleShip}
-      disabled={sending}
-      className="w-full bg-orange-500 text-white py-3 rounded-lg"
-    >
-      {sending ? "Đang gửi..." : "Xác nhận đã gửi hàng"}
-    </button>
-  </div>
-)}
+            <input
+              value={shippingProvider}
+              onChange={(e) => setShippingProvider(e.target.value)}
+              placeholder="Đơn vị vận chuyển"
+              className="w-full border px-3 py-2 rounded text-sm"
+            />
+
+            <button
+              onClick={handleShip}
+              disabled={sending}
+              className="w-full bg-orange-500 text-white py-3 rounded-lg"
+            >
+              {sending ? "Đang gửi..." : "Xác nhận đã gửi hàng"}
+            </button>
+          </div>
+        )}
+
         {/* REFUND */}
-        <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
+        <div className="bg-white p-4 flex justify-between rounded-xl">
           <span>Refund</span>
           <span className="font-semibold">
             π{data.refund_amount}
@@ -313,16 +304,16 @@ async function handleShip() {
 
         {/* REASON */}
         {data.reason && (
-          <div className="bg-white rounded-xl shadow-sm p-4">
-            <p className="font-medium mb-1">Reason</p>
-            <p className="text-gray-600 text-sm">
+          <div className="bg-white p-4 rounded-xl">
+            <p className="font-medium">Reason</p>
+            <p className="text-sm text-gray-600">
               {data.reason}
             </p>
           </div>
         )}
 
         {/* DATE */}
-        <div className="bg-white rounded-xl shadow-sm p-4 flex justify-between">
+        <div className="bg-white p-4 flex justify-between rounded-xl">
           <span>Created</span>
           <span className="text-xs text-gray-500">
             {new Date(data.created_at).toLocaleString()}
@@ -336,7 +327,6 @@ async function handleShip() {
       {previewIndex !== null && (
         <div className="fixed inset-0 z-[999] bg-black flex flex-col">
 
-          {/* HEADER */}
           <div className="flex justify-between p-4 text-white">
             <button onClick={() => setPreviewIndex(null)}>✕</button>
             <span>
@@ -345,7 +335,6 @@ async function handleShip() {
             <div />
           </div>
 
-          {/* SWIPER */}
           <Swiper
             modules={[Pagination]}
             pagination={{ clickable: true }}
