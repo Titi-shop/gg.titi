@@ -347,49 +347,74 @@ export async function getReturnByIdForSeller(
   returnId: string,
   sellerId: string
 ) {
-  const { rows } = await query(
+  if (!returnId || !sellerId) {
+    throw new Error("INVALID_INPUT");
+  }
+
+  console.log("🚀 [DB][RETURN DETAIL]", {
+    returnId,
+    sellerId,
+  });
+
+  /* ================= RETURN ================= */
+
+  const { rows: returnRows } = await query(
     `
     SELECT
-      r.id,
-      r.status,
-      r.reason,
-      r.description,
-      r.evidence_images,
-
-      ri.product_name,
-      ri.thumbnail,
-      ri.quantity
-
-    FROM returns r
-    LEFT JOIN return_items ri
-      ON ri.return_id = r.id
-
-    WHERE r.id = $1
-      AND r.seller_id = $2
-      AND r.deleted_at IS NULL
-
+      id,
+      return_number,
+      status,
+      reason,
+      description,
+      evidence_images,
+      created_at
+    FROM returns
+    WHERE id = $1
+      AND seller_id = $2
+      AND deleted_at IS NULL
     LIMIT 1
     `,
     [returnId, sellerId]
   );
 
-  console.log("🧪 [DB SELLER RETURN]:", rows[0]);
+  const ret = returnRows[0];
 
-  if (!rows[0]) return null;
+  console.log("📦 RETURN RAW:", ret);
+
+  if (!ret) return null;
+
+  /* ================= ITEMS ================= */
+
+  const { rows: itemRows } = await query(
+    `
+    SELECT
+      product_name,
+      thumbnail,
+      quantity,
+      unit_price
+    FROM return_items
+    WHERE return_id = $1
+    `,
+    [returnId]
+  );
+
+  console.log("📦 ITEMS RAW:", itemRows);
+
+  /* ================= NORMALIZE ================= */
+
+  const evidenceImages = Array.isArray(ret.evidence_images)
+    ? ret.evidence_images
+    : [];
 
   return {
-    id: rows[0].id,
-    status: rows[0].status,
-    reason: rows[0].reason,
-    description: rows[0].description,
-
-    evidence_images: rows[0].evidence_images || [],
-
-    product: {
-      name: rows[0].product_name,
-      thumbnail: rows[0].thumbnail,
-      quantity: rows[0].quantity,
-    },
+    ...ret,
+    evidence_images: evidenceImages,
+    items: itemRows.map((i) => ({
+      product_name: i.product_name,
+      thumbnail: i.thumbnail,
+      quantity: Number(i.quantity),
+      unit_price: Number(i.unit_price),
+    })),
   };
 }
 export async function updateReturnStatusBySeller(
