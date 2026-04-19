@@ -618,57 +618,24 @@ export async function updateReturnStatusBySeller(
     /* ================= RECEIVED → REFUND ================= */
 
     if (action === "received") {
-
   if (ret.status !== "shipping_back") {
     throw new Error("INVALID_STATE");
   }
 
-  if (ret.refunded_at) {
-    throw new Error("ALREADY_REFUNDED");
-  }
-
-  if (!ret.pi_payment_id) {
-    throw new Error("MISSING_PAYMENT_ID");
-  }
-
-  const amount = Number(ret.refund_amount);
-
-  if (Number.isNaN(amount) || amount <= 0) {
-    throw new Error("INVALID_AMOUNT");
-  }
-
-  console.log("💰 [REFUND START]", {
-    returnId,
-    amount,
-  });
-
-  // 🔥 CALL PI REFUND
-  const refundTxId = await refundPiPayment({
-    paymentId: ret.pi_payment_id,
-    amount,
-  });
-
-  // 🔥 UPDATE RETURN
   await client.query(
     `
     UPDATE returns
     SET
-      status = 'refunded',
-      refunded_at = now(),
-      refund_txid = $1,
+      status = 'refund_pending',
       received_at = now(),
       updated_at = now()
-    WHERE id = $2
+    WHERE id = $1
     `,
-    [refundTxId, returnId]
+    [returnId]
   );
 
-  console.log("🟢 [REFUND SUCCESS]", {
-    returnId,
-    refundTxId,
-  });
-
   return;
+}
 }
 
     /* ================= NORMAL UPDATE ================= */
