@@ -350,14 +350,18 @@ export async function getReturnByIdForSeller(
   const { rows } = await query(
     `
     SELECT
-      r.*,
+      r.id,
+      r.status,
+      r.reason,
+      r.description,
+      r.evidence_images,
 
       ri.product_name,
       ri.thumbnail,
       ri.quantity
 
     FROM returns r
-    JOIN return_items ri
+    LEFT JOIN return_items ri
       ON ri.return_id = r.id
 
     WHERE r.id = $1
@@ -369,9 +373,24 @@ export async function getReturnByIdForSeller(
     [returnId, sellerId]
   );
 
-  console.log("🧪 [SELLER RETURN RAW]:", rows[0]);
+  console.log("🧪 [DB SELLER RETURN]:", rows[0]);
 
-  return rows[0] ?? null;
+  if (!rows[0]) return null;
+
+  return {
+    id: rows[0].id,
+    status: rows[0].status,
+    reason: rows[0].reason,
+    description: rows[0].description,
+
+    evidence_images: rows[0].evidence_images || [],
+
+    product: {
+      name: rows[0].product_name,
+      thumbnail: rows[0].thumbnail,
+      quantity: rows[0].quantity,
+    },
+  };
 }
 export async function updateReturnStatusBySeller(
   returnId: string,
