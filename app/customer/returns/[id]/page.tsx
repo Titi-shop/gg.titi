@@ -22,6 +22,7 @@ type ReturnStatus =
   | "rejected"
   | "shipping_back"
   | "received"
+  | "refund_pending"
   | "refunded"
   | "cancelled";
 
@@ -69,6 +70,14 @@ export default function ReturnDetailPage() {
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
+  /* ===== ZOOM STATE ===== */
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [start, setStart] = useState({ x: 0, y: 0 });
+  const [initialDistance, setInitialDistance] = useState(0);
+  const [initialScale, setInitialScale] = useState(1);
+
   /* ================= LOAD ================= */
 
   useEffect(() => {
@@ -79,7 +88,6 @@ export default function ReturnDetailPage() {
   async function loadReturn() {
     try {
       const res = await apiAuthFetch(`/api/returns/${returnId}`);
-
       if (!res.ok) {
         setData(null);
         return;
@@ -87,9 +95,8 @@ export default function ReturnDetailPage() {
 
       const record: ReturnRecord = await res.json();
       setData(record);
-
     } catch (err) {
-      console.error("LOAD ERROR", err);
+      console.error(err);
       setData(null);
     } finally {
       setLoading(false);
@@ -120,16 +127,9 @@ export default function ReturnDetailPage() {
         return;
       }
 
-      alert("Đã gửi hàng");
-
-      // ✅ reload đúng chuẩn
       await loadReturn();
-
       setTrackingCode("");
       setShippingProvider("");
-
-    } catch (err) {
-      console.error(err);
     } finally {
       setSending(false);
     }
@@ -143,53 +143,41 @@ export default function ReturnDetailPage() {
     return BASE_STORAGE + src;
   }
 
-  function getStatusColor(status: ReturnStatus) {
+  function getStatusLabel(status: ReturnStatus) {
     switch (status) {
-      case "pending":
-        return "text-yellow-600";
-      case "approved":
-        return "text-blue-600";
-      case "shipping_back":
-        return "text-indigo-600";
-      case "received":
-        return "text-purple-600";
-      case "refunded":
-        return "text-green-700";
-      case "rejected":
-        return "text-red-600";
-      default:
-        return "text-gray-500";
+      case "pending": return "Pending";
+      case "approved": return "Approved";
+      case "shipping_back": return "Shipping back";
+      case "received": return "Received";
+      case "refund_pending": return "Waiting refund confirm";
+      case "refunded": return "Refunded";
+      case "rejected": return "Rejected";
+      default: return status;
     }
   }
 
-  /* ================= IMAGES ================= */
+  function getStatusColor(status: ReturnStatus) {
+    switch (status) {
+      case "pending": return "text-yellow-600";
+      case "approved": return "text-blue-600";
+      case "shipping_back": return "text-indigo-600";
+      case "received": return "text-purple-600";
+      case "refund_pending": return "text-orange-600";
+      case "refunded": return "text-green-700";
+      case "rejected": return "text-red-600";
+      default: return "text-gray-500";
+    }
+  }
 
   const allImages: string[] = [
     data?.product_thumbnail ?? "",
     ...(data?.evidence_images ?? []),
   ].filter((i) => typeof i === "string" && i.length > 5);
 
-  /* ================= STATE ================= */
-
-  if (loading) {
-    return (
-      <main className="p-4">
-        <p>{t.loading ?? "Loading..."}</p>
-      </main>
-    );
-  }
-
-  if (!data) {
-    return (
-      <main className="p-4">
-        <p className="text-red-500">
-          {t.return_not_found ?? "Return not found"}
-        </p>
-      </main>
-    );
-  }
-
   /* ================= UI ================= */
+
+  if (loading) return <div className="p-4">Loading...</div>;
+  if (!data) return <div className="p-4 text-red-500">Not found</div>;
 
   return (
     <main className="min-h-screen bg-gray-100 pb-24">
@@ -197,10 +185,8 @@ export default function ReturnDetailPage() {
       {/* HEADER */}
       <header className="bg-orange-500 text-white px-4 py-4">
         <div className="bg-orange-400 rounded-lg p-4">
-          <p className="text-sm">{t.return_detail ?? "Return Detail"}</p>
-          <p className="text-xs mt-1">
-            Order: #{data.order_id}
-          </p>
+          <p className="text-sm">Return Detail</p>
+          <p className="text-xs">Order: #{data.order_id}</p>
         </div>
       </header>
 
@@ -211,144 +197,151 @@ export default function ReturnDetailPage() {
           <img
             src={getImage(data.product_thumbnail)}
             onClick={() => setPreviewIndex(0)}
-            className="w-16 h-16 object-cover rounded border cursor-pointer"
+            className="w-16 h-16 rounded border cursor-pointer"
           />
-
-          <div className="flex-1">
-            <p className="text-sm font-medium">
-              {data.product_name}
-            </p>
-
-            <p className="text-xs text-gray-500">
-              Qty: {data.quantity}
-            </p>
+          <div>
+            <p>{data.product_name}</p>
+            <p className="text-xs text-gray-500">Qty: {data.quantity}</p>
           </div>
-        </div>
-
-        {/* IMAGES */}
-        <div className="bg-white rounded-xl p-4">
-          <p className="text-sm font-semibold mb-2">
-            Evidence Images
-          </p>
-
-          {allImages.length === 0 ? (
-            <p className="text-xs text-gray-400">No images</p>
-          ) : (
-            <div className="flex gap-2 overflow-x-auto">
-              {allImages.map((src, i) => (
-                <img
-                  key={i}
-                  src={getImage(src)}
-                  onClick={() => setPreviewIndex(i)}
-                  className="w-24 h-24 object-cover rounded border cursor-pointer"
-                />
-              ))}
-            </div>
-          )}
         </div>
 
         {/* STATUS */}
         <div className="bg-white p-4 flex justify-between rounded-xl">
           <span>Status</span>
           <span className={getStatusColor(data.status)}>
-            {data.status}
+            {getStatusLabel(data.status)}
           </span>
         </div>
 
         {/* TRACKING */}
         {data.return_tracking_code && (
-          <div className="bg-white p-4 rounded-xl text-xs text-blue-600">
+          <div className="bg-white p-4 text-blue-600 text-xs rounded-xl">
             Tracking: {data.return_tracking_code}
           </div>
         )}
 
-        {/* SHIPPING FORM */}
+        {/* REFUND NOTICE */}
+        {data.status === "refund_pending" && (
+          <div className="bg-yellow-50 text-yellow-700 p-3 rounded">
+            Waiting buyer confirm refund in Pi Wallet
+          </div>
+        )}
+
+        {/* SHIPPING */}
         {data.status === "approved" && (
           <div className="bg-white p-4 rounded-xl space-y-3">
-
-            <p className="font-semibold text-sm">
-              📦 Gửi hàng trả
-            </p>
-
             <input
               value={trackingCode}
               onChange={(e) => setTrackingCode(e.target.value)}
-              placeholder="Mã vận đơn"
-              className="w-full border px-3 py-2 rounded text-sm"
-            />
-
-            <input
-              value={shippingProvider}
-              onChange={(e) => setShippingProvider(e.target.value)}
-              placeholder="Đơn vị vận chuyển"
-              className="w-full border px-3 py-2 rounded text-sm"
+              placeholder="Tracking code"
+              className="w-full border p-2 rounded"
             />
 
             <button
               onClick={handleShip}
-              disabled={sending}
-              className="w-full bg-orange-500 text-white py-3 rounded-lg"
+              className="w-full bg-orange-500 text-white py-3 rounded"
             >
-              {sending ? "Đang gửi..." : "Xác nhận đã gửi hàng"}
+              Send return
             </button>
           </div>
         )}
-
-        {/* REFUND */}
-        <div className="bg-white p-4 flex justify-between rounded-xl">
-          <span>Refund</span>
-          <span className="font-semibold">
-            π{data.refund_amount}
-          </span>
-        </div>
-
-        {/* REASON */}
-        {data.reason && (
-          <div className="bg-white p-4 rounded-xl">
-            <p className="font-medium">Reason</p>
-            <p className="text-sm text-gray-600">
-              {data.reason}
-            </p>
-          </div>
-        )}
-
-        {/* DATE */}
-        <div className="bg-white p-4 flex justify-between rounded-xl">
-          <span>Created</span>
-          <span className="text-xs text-gray-500">
-            {new Date(data.created_at).toLocaleString()}
-          </span>
-        </div>
 
       </section>
 
       {/* ================= PREVIEW ================= */}
 
       {previewIndex !== null && (
-        <div className="fixed inset-0 z-[999] bg-black flex flex-col">
+        <div className="fixed inset-0 z-[999] bg-black">
 
-          <div className="flex justify-between p-4 text-white">
-            <button onClick={() => setPreviewIndex(null)}>✕</button>
-            <span>
-              {previewIndex + 1}/{allImages.length}
-            </span>
-            <div />
-          </div>
+          {/* CLOSE */}
+          <button
+            onClick={() => setPreviewIndex(null)}
+            className="absolute top-5 right-5 z-50 text-white text-2xl"
+          >
+            ✕
+          </button>
 
           <Swiper
             modules={[Pagination]}
             pagination={{ clickable: true }}
             initialSlide={previewIndex}
-            onSlideChange={(s) => setPreviewIndex(s.activeIndex)}
-            className="flex-1"
+            onSlideChange={(s) => {
+              setPreviewIndex(s.activeIndex);
+              setScale(1);
+              setPosition({ x: 0, y: 0 });
+            }}
           >
             {allImages.map((src, i) => (
               <SwiperSlide key={i}>
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-screen">
+
                   <img
                     src={getImage(src)}
+
+                    /* DOUBLE TAP */
+                    onTouchEnd={(e) => {
+                      const now = Date.now();
+                      if (!(window as any).__tap) (window as any).__tap = 0;
+
+                      if (now - (window as any).__tap < 300) {
+                        setScale((s) => (s === 1 ? 2 : 1));
+                        setPosition({ x: 0, y: 0 });
+                      }
+
+                      (window as any).__tap = now;
+                    }}
+
+                    /* PINCH */
+                    onTouchStart={(e) => {
+                      if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+
+                        setInitialDistance(Math.sqrt(dx * dx + dy * dy));
+                        setInitialScale(scale);
+                      }
+
+                      if (e.touches.length === 1) {
+                        const t = e.touches[0];
+                        setDragging(true);
+                        setStart({
+                          x: t.clientX - position.x,
+                          y: t.clientY - position.y,
+                        });
+                      }
+                    }}
+
+                    onTouchMove={(e) => {
+                      if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        let newScale = initialScale * (dist / initialDistance);
+                        newScale = Math.max(1, Math.min(newScale, 6));
+                        setScale(newScale);
+                      }
+
+                      if (e.touches.length === 1 && dragging && scale > 1) {
+                        const t = e.touches[0];
+
+                        setPosition({
+                          x: t.clientX - start.x,
+                          y: t.clientY - start.y,
+                        });
+                      }
+                    }}
+
+                    onTouchEnd={() => setDragging(false)}
+
+                    style={{
+                      transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                    }}
+
                     className="max-w-full max-h-full object-contain"
                   />
+
                 </div>
               </SwiperSlide>
             ))}
