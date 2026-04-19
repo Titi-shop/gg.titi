@@ -1,7 +1,19 @@
 import { query } from "@/lib/db";
 
 export async function getWalletByUserId(userId: string) {
-  const { rows } = await query(
+  // 🔥 ensure wallet exists
+  await query(
+    `
+    INSERT INTO wallets (user_id, balance)
+    VALUES ($1, 0)
+    ON CONFLICT (user_id) DO NOTHING
+    `,
+    [userId]
+  );
+
+  const { rows } = await query<{
+    balance: string;
+  }>(
     `
     SELECT balance
     FROM wallets
@@ -11,7 +23,9 @@ export async function getWalletByUserId(userId: string) {
     [userId]
   );
 
-  return rows[0] ?? null;
+  return {
+    balance: Number(rows[0]?.balance || 0),
+  };
 }
 
 export async function payWithWallet(params: {
