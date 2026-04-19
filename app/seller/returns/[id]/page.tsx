@@ -1,23 +1,53 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
+/* ================= TYPES ================= */
+
+type ReturnItem = {
+  product_name: string;
+  thumbnail: string;
+  quantity: number;
+  unit_price: number;
+};
+
+type ReturnDetail = {
+  id: string;
+  return_number: string;
+  status: string;
+  reason: string;
+  description?: string;
+  evidence_images?: string[];
+  items: ReturnItem[];
+};
+
+/* ================= PAGE ================= */
 
 export default function SellerReturnDetail() {
   const params = useParams();
   const id = params.id as string;
 
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ReturnDetail | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
-    const res = await apiAuthFetch(`/api/seller/returns/${id}`);
-    const json = await res.json();
-    setData(json);
+    try {
+      const res = await apiAuthFetch(`/api/seller/returns/${id}`);
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      console.error("LOAD ERROR", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function action(type: string) {
@@ -29,46 +59,147 @@ export default function SellerReturnDetail() {
     await load();
   }
 
-  if (!data) return <p className="p-4">Loading...</p>;
+  /* ================= STATUS ================= */
+
+  function getStatusColor(status: string) {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
+      case "approved":
+        return "bg-blue-100 text-blue-700";
+      case "shipping_back":
+        return "bg-indigo-100 text-indigo-700";
+      case "received":
+        return "bg-purple-100 text-purple-700";
+      case "refunded":
+        return "bg-green-200 text-green-800";
+      case "rejected":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-600";
+    }
+  }
+
+  /* ================= UI ================= */
+
+  if (loading) {
+    return <p className="p-4">Loading...</p>;
+  }
+
+  if (!data) {
+    return <p className="p-4 text-red-500">Not found</p>;
+  }
 
   return (
-    <main className="p-4 space-y-4">
+    <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
 
-      <h1 className="text-lg font-bold">
-        Return #{data.id}
-      </h1>
+      {/* HEADER */}
+      <div className="bg-white p-4 border-b space-y-2">
+        <p className="text-sm text-gray-500">
+          Return #{data.return_number || data.id.slice(0, 8)}
+        </p>
 
-      <p>Status: {data.status}</p>
+        <div className="flex justify-between items-center">
+          <h1 className="font-semibold text-lg">
+            Return Request
+          </h1>
 
-      <p>Reason: {data.reason}</p>
+          <span className={`px-3 py-1 text-xs rounded-full ${getStatusColor(data.status)}`}>
+            {data.status}
+          </span>
+        </div>
+      </div>
 
-      {/* ACTIONS */}
-      {data.status === "pending" && (
-        <div className="flex gap-2">
-          <button
-            onClick={() => action("approve")}
-            className="bg-green-500 text-white px-3 py-2 rounded"
-          >
-            Approve
-          </button>
+      {/* PRODUCTS */}
+      <div className="bg-white divide-y">
+        {data.items?.map((item, i) => (
+          <div key={i} className="flex gap-3 p-4">
 
-          <button
-            onClick={() => action("reject")}
-            className="bg-red-500 text-white px-3 py-2 rounded"
-          >
-            Reject
-          </button>
+            <img
+              src={item.thumbnail || "/placeholder.png"}
+              className="w-20 h-20 object-cover rounded border"
+            />
+
+            <div className="flex-1">
+              <p className="text-sm font-medium line-clamp-2">
+                {item.product_name}
+              </p>
+
+              <p className="text-xs text-gray-500 mt-1">
+                Qty: {item.quantity}
+              </p>
+
+              <p className="text-sm font-semibold mt-2">
+                π{item.unit_price}
+              </p>
+            </div>
+
+          </div>
+        ))}
+      </div>
+
+      {/* REASON */}
+      <div className="bg-white p-4 space-y-2">
+        <p className="text-sm font-semibold">Reason</p>
+        <p className="text-sm text-gray-600">{data.reason}</p>
+
+        {data.description && (
+          <p className="text-xs text-gray-500">
+            {data.description}
+          </p>
+        )}
+      </div>
+
+      {/* IMAGES */}
+      {data.evidence_images && data.evidence_images.length > 0 && (
+        <div className="bg-white p-4">
+          <p className="text-sm font-semibold mb-2">
+            Evidence Images
+          </p>
+
+          <div className="flex gap-2">
+            {data.evidence_images.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                className="w-20 h-20 object-cover rounded border"
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {data.status === "shipping_back" && (
-        <button
-          onClick={() => action("received")}
-          className="bg-blue-500 text-white px-3 py-2 rounded"
-        >
-          Mark Received
-        </button>
-      )}
+      {/* ACTIONS */}
+      <div className="p-4 space-y-2">
+
+        {data.status === "pending" && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => action("approve")}
+              className="flex-1 bg-green-500 text-white py-3 rounded-lg"
+            >
+              Approve
+            </button>
+
+            <button
+              onClick={() => action("reject")}
+              className="flex-1 bg-red-500 text-white py-3 rounded-lg"
+            >
+              Reject
+            </button>
+          </div>
+        )}
+
+        {data.status === "shipping_back" && (
+          <button
+            onClick={() => action("received")}
+            className="w-full bg-blue-500 text-white py-3 rounded-lg"
+          >
+            Mark as Received
+          </button>
+        )}
+
+      </div>
 
     </main>
   );
