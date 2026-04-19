@@ -8,7 +8,7 @@ export const runtime = "nodejs";
    GET /api/seller/returns
 ===================================================== */
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest) {
   console.log("🚀 [SELLER RETURNS API] START");
 
   try {
@@ -16,25 +16,33 @@ export async function GET(): Promise<NextResponse> {
     const auth = await requireSeller();
 
     if (!auth.ok) {
-      console.error("❌ [SELLER RETURNS] UNAUTHORIZED");
       return auth.response;
     }
 
     const sellerId = auth.userId;
 
-    console.log("👤 [SELLER RETURNS] USER:", sellerId);
+    console.log("👤 SELLER:", sellerId);
+
+    /* ================= QUERY PARAM ================= */
+    const url = new URL(req.url);
+    const status = url.searchParams.get("status"); // 👈 CHÍNH LÀ DÒNG BẠN HỎI
+
+    console.log("🔎 FILTER STATUS:", status);
 
     /* ================= DB ================= */
-    const items = await getReturnsBySeller(sellerId);
+    const items = await getReturnsBySeller(
+      sellerId,
+      status // 👈 TRUYỀN XUỐNG DB
+    );
 
-    console.log("📦 [SELLER RETURNS] COUNT:", items.length);
+    console.log("📦 RETURNS:", items.length);
 
     return NextResponse.json({
       items,
     });
 
   } catch (err) {
-    console.error("💥 [SELLER RETURNS] ERROR:", err);
+    console.error("💥 API ERROR:", err);
 
     return NextResponse.json(
       { error: "INTERNAL_ERROR" },
