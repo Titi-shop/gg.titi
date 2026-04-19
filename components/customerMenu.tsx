@@ -85,7 +85,7 @@ export default function CustomerMenu() {
   const customerMenuItems = [
     { label: t.profile, icon: <User size={22} />, path: "/customer/profile" },
     { label: t.my_orders, icon: <Package size={22} />, path: "/customer/orders" },
-    { label: t.pi_wallet, icon: <Wallet size={22} /> },
+    { label: t.pi_wallet, icon: <Wallet size={22} /> , path: "/account/wallet" },
     { label: t.messages, icon: <MessageCircle size={22} /> },
     { label: t.language, icon: <Globe size={22} /> },
     {
