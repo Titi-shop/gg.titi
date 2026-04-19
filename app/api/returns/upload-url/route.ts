@@ -6,6 +6,8 @@ export const runtime = "nodejs";
 
 export async function POST() {
   try {
+    console.log("🚀 [UPLOAD RETURN]");
+
     const auth = await requireAuth();
     if (!auth.ok) return auth.response;
 
@@ -23,13 +25,18 @@ export async function POST() {
       return NextResponse.json({ error: "SIGNED_URL_FAILED" }, { status: 500 });
     }
 
-    // ✅ FIX CHÍNH
-    const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/returns/${filePath}`;
+    /* ✅ FIX CHUẨN */
+    const { data: publicData } = supabaseAdmin.storage
+      .from("returns")
+      .getPublicUrl(filePath);
+
+    console.log("🌍 PUBLIC URL:", publicData.publicUrl);
 
     return NextResponse.json({
       uploadUrl: data.signedUrl,
-      publicUrl,
+      publicUrl: publicData.publicUrl,
     });
+
   } catch (err) {
     console.error("💥 UPLOAD ERROR:", err);
     return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
