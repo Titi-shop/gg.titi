@@ -364,7 +364,6 @@ const [initialScale, setInitialScale] = useState(1);
         )}
 
         {data.status === "shipping_back" && (
-          <button
             <button
          disabled={acting}
           onClick={() => action("received")}
