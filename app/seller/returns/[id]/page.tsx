@@ -1,13 +1,16 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+
 import "swiper/css";
 import "swiper/css/pagination";
-import { useEffect, useState, useRef } from "react";
+
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
+
 /* ================= TYPES ================= */
 
 type TimelineItem = {
@@ -41,13 +44,18 @@ export default function SellerReturnDetail() {
 
   const [data, setData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
-const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-const [scale, setScale] = useState(1);
-const [position, setPosition] = useState({ x: 0, y: 0 });
-const [dragging, setDragging] = useState(false);
-const [start, setStart] = useState({ x: 0, y: 0 });
-const [initialDistance, setInitialDistance] = useState(0);
-const [initialScale, setInitialScale] = useState(1);
+
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  /* ===== ZOOM STATE ===== */
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [start, setStart] = useState({ x: 0, y: 0 });
+  const [initialDistance, setInitialDistance] = useState(0);
+  const [initialScale, setInitialScale] = useState(1);
+
+  /* ================= LOAD ================= */
 
   useEffect(() => {
     load();
@@ -55,19 +63,13 @@ const [initialScale, setInitialScale] = useState(1);
 
   async function load() {
     try {
-      console.log("🚀 LOAD RETURN DETAIL:", id);
-
       const res = await apiAuthFetch(`/api/seller/returns/${id}`);
+      if (!res.ok) return;
 
-      if (!res.ok) {
-        console.error("❌ API ERROR:", res.status);
-        return;
-      }
       const json = await res.json();
-      console.log("📦 RETURN DATA:", json);
       setData(json);
     } catch (err) {
-      console.error("💥 LOAD ERROR", err);
+      console.error("LOAD ERROR", err);
     } finally {
       setLoading(false);
     }
@@ -103,24 +105,38 @@ const [initialScale, setInitialScale] = useState(1);
     }
   }
 
-  /* ================= IMAGE LIST ================= */
+  /* ================= IMAGE FIX ================= */
+
+  const base =
+    process.env.NEXT_PUBLIC_SUPABASE_URL +
+    "/storage/v1/object/public/";
 
   const allImages: string[] = [
-    ...(data?.items?.map((i) => i.thumbnail) ?? []),
-    ...(data?.evidence_images ?? []),
-  ].filter((i) => typeof i === "string" && i.length > 5);
+    ...(data?.items?.map((i) =>
+      i.thumbnail?.startsWith("http")
+        ? i.thumbnail
+        : base + "products/" + i.thumbnail
+    ) ?? []),
+
+    ...(data?.evidence_images?.map((i) =>
+      i?.startsWith("http")
+        ? i
+        : base + "returns/" + i
+    ) ?? []),
+  ].filter((i) => typeof i === "string" && i.trim() !== "");
 
   /* ================= UI ================= */
 
   if (loading) return <p className="p-4">Loading...</p>;
   if (!data) return <p className="p-4 text-red-500">Not found</p>;
+
   return (
     <main className="min-h-screen bg-gray-100 pb-20 space-y-4">
 
       {/* HEADER */}
-      <div className="bg-white p-4 border-b space-y-2">
+      <div className="bg-white p-4 border-b">
         <p className="text-sm text-gray-500">
-          Return #{data.return_number || data.id.slice(0, 8)}
+          Return #{data.return_number}
         </p>
 
         <div className="flex justify-between items-center">
@@ -138,227 +154,155 @@ const [initialScale, setInitialScale] = useState(1);
       <div className="bg-white divide-y">
         {data.items.map((item, i) => (
           <div key={i} className="flex gap-3 p-4">
-
             <img
               src={item.thumbnail || "/placeholder.png"}
-              onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-              className="w-20 h-20 object-cover rounded border"
+              onClick={() => setPreviewIndex(i)}
+              className="w-20 h-20 object-cover rounded border cursor-pointer"
             />
 
-            <div className="flex-1">
-              <p className="text-sm font-medium line-clamp-2">
+            <div>
+              <p className="text-sm font-medium">
                 {item.product_name}
               </p>
-
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500">
                 Qty: {item.quantity}
               </p>
-
-              <p className="text-sm font-semibold mt-2">
+              <p className="font-semibold">
                 π{item.unit_price}
               </p>
             </div>
-
           </div>
         ))}
       </div>
 
       {/* REASON */}
-      <div className="bg-white p-4 space-y-2">
-        <p className="text-sm font-semibold">Reason</p>
-        <p className="text-sm text-gray-600">{data.reason}</p>
-
-        {data.description && (
-          <p className="text-xs text-gray-500">
-            {data.description}
-          </p>
-        )}
+      <div className="bg-white p-4">
+        <p className="font-semibold">Reason</p>
+        <p className="text-gray-600">{data.reason}</p>
       </div>
 
-      {/* ================= IMAGES ================= */}
-
+      {/* IMAGE LIST */}
       <div className="bg-white p-4">
-        <p className="text-sm font-semibold mb-2">
+        <p className="font-semibold mb-2">
           Product & Evidence Images
         </p>
 
-        {allImages.length === 0 ? (
-          <p className="text-xs text-gray-400">
-            No images
-          </p>
-        ) : (
-          <div className="flex gap-2 overflow-x-auto">
-            {allImages.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                onClick={() => {
-            setPreviewIndex(i);
-         setScale(1);
-           setPosition({ x: 0, y: 0 });
-             }}
-                onError={(e) => (e.currentTarget.src = "/placeholder.png")}
-                className="w-24 h-24 object-cover rounded border cursor-pointer"
-              />
-            ))}
-          </div>
-        )}
+        <div className="flex gap-2 overflow-x-auto">
+          {allImages.map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              onClick={() => {
+                setPreviewIndex(i);
+                setScale(1);
+                setPosition({ x: 0, y: 0 });
+              }}
+              className="w-24 h-24 object-cover rounded border cursor-pointer"
+            />
+          ))}
+        </div>
       </div>
 
-      {/* ================= TIMELINE ================= */}
+      {/* ================= FULL PREVIEW ================= */}
 
-      {data.timeline && (
-        <div className="bg-white p-4 space-y-3">
-          <p className="text-sm font-semibold">Timeline</p>
+      {previewIndex !== null && (
+        <div className="fixed inset-0 z-[999] bg-black flex flex-col h-screen">
 
-          {data.timeline.map((t, i) => (
-            <div key={i} className="flex gap-3 text-sm">
-              <div className="w-2 h-2 mt-2 rounded-full bg-black" />
-              <div>
-                <p className="font-medium">{t.label}</p>
-                <p className="text-xs text-gray-400">
-                  {new Date(t.time).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          ))}
+          {/* HEADER */}
+          <div className="flex justify-between items-center p-4 text-white">
+            <button onClick={() => setPreviewIndex(null)}>✕</button>
+            <span>{previewIndex + 1}/{allImages.length}</span>
+            <div />
+          </div>
+
+          {/* SWIPER */}
+          <Swiper
+            modules={[Pagination]}
+            pagination={{ clickable: true }}
+            initialSlide={previewIndex}
+            allowTouchMove={scale === 1}
+            onSlideChange={(swiper) => {
+              setPreviewIndex(swiper.activeIndex);
+              setScale(1);
+              setPosition({ x: 0, y: 0 });
+            }}
+            className="flex-1 h-full"
+          >
+            {allImages.map((src, i) => (
+              <SwiperSlide key={i}>
+                <div className="flex items-center justify-center h-full overflow-hidden">
+
+                  <img
+                    src={src}
+                    draggable={false}
+
+                    onTouchStart={(e) => {
+                      if (e.touches.length === 2) {
+                        const dx =
+                          e.touches[0].clientX - e.touches[1].clientX;
+                        const dy =
+                          e.touches[0].clientY - e.touches[1].clientY;
+
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        setInitialDistance(dist);
+                        setInitialScale(scale);
+                      }
+
+                      if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+
+                        setDragging(true);
+                        setStart({
+                          x: touch.clientX - position.x,
+                          y: touch.clientY - position.y,
+                        });
+                      }
+                    }}
+
+                    onTouchMove={(e) => {
+                      if (e.touches.length === 2) {
+                        const dx =
+                          e.touches[0].clientX - e.touches[1].clientX;
+                        const dy =
+                          e.touches[0].clientY - e.touches[1].clientY;
+
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        let newScale =
+                          initialScale * (dist / initialDistance);
+
+                        newScale = Math.max(1, Math.min(newScale, 6));
+
+                        setScale(newScale);
+                      }
+
+                      if (e.touches.length === 1 && dragging && scale > 1) {
+                        const touch = e.touches[0];
+
+                        setPosition({
+                          x: touch.clientX - start.x,
+                          y: touch.clientY - start.y,
+                        });
+                      }
+                    }}
+
+                    onTouchEnd={() => setDragging(false)}
+
+                    style={{
+                      transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                    }}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
         </div>
       )}
 
-      {/* ================= PREVIEW ================= */}
-
-     {previewIndex !== null && (
-  <div className="fixed inset-0 z-[999] bg-black flex flex-col">
-
-    {/* HEADER */}
-    <div className="flex justify-between items-center p-4 text-white z-10">
-      <button
-        onClick={() => setPreviewIndex(null)}
-        className="text-xl"
-      >
-        ✕
-      </button>
-
-      <span className="text-sm">
-        {previewIndex + 1}/{allImages.length}
-      </span>
-
-      <div />
-    </div>
-
-    {/* SWIPER */}
-    <Swiper
-      modules={[Pagination]}
-      pagination={{ clickable: true }}
-      initialSlide={previewIndex}
-      allowTouchMove={scale === 1} // 🔥 quan trọng
-      onSlideChange={(swiper) => {
-        setPreviewIndex(swiper.activeIndex);
-
-        // reset zoom
-        setScale(1);
-        setPosition({ x: 0, y: 0 });
-      }}
-      className="flex-1"
-    >
-      {allImages.map((src, i) => (
-        <SwiperSlide key={i}>
-          <div className="flex items-center justify-center h-full overflow-hidden">
-
-            <img
-              src={src}
-              draggable={false}
-
-              /* DOUBLE TAP */
-              onTouchEnd={(e) => {
-                const now = Date.now();
-                if (!window.__lastTap) window.__lastTap = 0;
-
-                if (now - window.__lastTap < 300) {
-                  setScale((prev) => (prev === 1 ? 2 : 1));
-                  setPosition({ x: 0, y: 0 });
-                }
-
-                window.__lastTap = now;
-                setDragging(false);
-              }}
-
-              /* TOUCH START */
-              onTouchStart={(e) => {
-                if (e.touches.length === 2) {
-                  const dx =
-                    e.touches[0].clientX - e.touches[1].clientX;
-                  const dy =
-                    e.touches[0].clientY - e.touches[1].clientY;
-
-                  const dist = Math.sqrt(dx * dx + dy * dy);
-
-                  setInitialDistance(dist);
-                  setInitialScale(scale);
-                }
-
-                if (e.touches.length === 1) {
-                  const touch = e.touches[0];
-
-                  setDragging(true);
-                  setStart({
-                    x: touch.clientX - position.x,
-                    y: touch.clientY - position.y,
-                  });
-                }
-              }}
-
-              /* TOUCH MOVE */
-              onTouchMove={(e) => {
-                /* PINCH */
-                if (e.touches.length === 2) {
-                  const dx =
-                    e.touches[0].clientX - e.touches[1].clientX;
-                  const dy =
-                    e.touches[0].clientY - e.touches[1].clientY;
-
-                  const dist = Math.sqrt(dx * dx + dy * dy);
-
-                  let newScale =
-                    initialScale * (dist / initialDistance);
-
-                  newScale = Math.max(1, Math.min(newScale, 6));
-
-                  setScale(newScale);
-                }
-
-                /* DRAG */
-                if (e.touches.length === 1 && dragging && scale > 1) {
-                  const touch = e.touches[0];
-
-                  const newX = touch.clientX - start.x;
-                  const newY = touch.clientY - start.y;
-
-                  setPosition({
-                    x: newX,
-                    y: newY,
-                  });
-                }
-              }}
-
-              onTouchEnd={() => setDragging(false)}
-
-              style={{
-                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-                transition: dragging ? "none" : "transform 0.2s ease",
-              }}
-              className="max-h-full max-w-full object-contain"
-            />
-          </div>
-        </SwiperSlide>
-      ))}
-    </Swiper>
-  </div>
-)}
-
-      {/* ACTIONS */}
+      {/* ACTION */}
       <div className="p-4 space-y-2">
-
         {data.status === "pending" && (
           <div className="flex gap-2">
             <button
@@ -376,16 +320,6 @@ const [initialScale, setInitialScale] = useState(1);
             </button>
           </div>
         )}
-
-        {data.status === "shipping_back" && (
-          <button
-            onClick={() => action("received")}
-            className="w-full bg-blue-500 text-white py-3 rounded-lg"
-          >
-            Mark as Received
-          </button>
-        )}
-
       </div>
 
     </main>
