@@ -8,21 +8,23 @@ export default function ThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
+    if (!user?.role) return; // ✅ CHẶN LỖI
 
     const root = document.documentElement;
 
     root.classList.remove("theme-seller", "theme-customer");
 
-    if (user?.role === "seller") {
+    if (user.role === "seller") {
       root.classList.add("theme-seller");
     } else {
       root.classList.add("theme-customer");
     }
-  }, [user, loading]);
+
+    console.log("🎨 THEME:", user.role);
+  }, [user?.role]);
 
   return <>{children}</>;
 }
