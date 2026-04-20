@@ -9,38 +9,29 @@ const base = JSON.parse(
 
 const files = fs.readdirSync(messagesDir).filter((f) => f !== "en.json");
 
-function findMissing(baseObj, targetObj, prefix = "") {
-  const missing = [];
-
+function mergeMissing(baseObj, targetObj) {
   for (const key in baseObj) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-
     if (!(key in targetObj)) {
-      missing.push(fullKey);
+      targetObj[key] = baseObj[key]; // thêm key thiếu
     } else if (
       typeof baseObj[key] === "object" &&
       typeof targetObj[key] === "object"
     ) {
-      missing.push(
-        ...findMissing(baseObj[key], targetObj[key], fullKey)
-      );
+      mergeMissing(baseObj[key], targetObj[key]);
     }
   }
-
-  return missing;
 }
 
 files.forEach((file) => {
+  const filePath = path.join(messagesDir, file);
+
   const target = JSON.parse(
-    fs.readFileSync(path.join(messagesDir, file), "utf-8")
+    fs.readFileSync(filePath, "utf-8")
   );
 
-  const missing = findMissing(base, target);
+  mergeMissing(base, target);
 
-  if (missing.length > 0) {
-    console.log(`\n❌ ${file} missing keys:`);
-    missing.forEach((k) => console.log("   -", k));
-  } else {
-    console.log(`\n✅ ${file} OK`);
-  }
+  fs.writeFileSync(filePath, JSON.stringify(target, null, 2));
+
+  console.log(`✅ Fixed ${file}`);
 });
