@@ -516,7 +516,7 @@ export default function CustomerOrdersPage() {
           bg-white rounded-t-3xl
           p-5
            pb-[calc(env(safe-area-inset-bottom)+80px)]
-            "
+            ">
             <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-gray-300" />
 
             <h3 className="text-center text-lg font-semibold">
