@@ -1,6 +1,11 @@
 import { languageFiles } from "./i18n";
 
 export async function getDictionary(lang: string) {
-  const mod = await languageFiles[lang]?.();
-  return mod?.default || {};
+  const en = await languageFiles["en"]?.();
+  const current = await languageFiles[lang]?.();
+
+  return {
+    ...(en?.default || {}),
+    ...(current?.default || {}),
+  };
 }
