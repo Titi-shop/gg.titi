@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { formatPi } from "@/lib/pi";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
@@ -15,108 +16,46 @@ import {
 import "swiper/css";
 import "swiper/css/pagination";
 
-/* ================= TYPES ================= */
-
-type Variant = {
-  id: string;
-  optionValue: string;
-  price: number;
-  salePrice?: number | null;
-  stock: number;
-  isActive?: boolean;
-};
-
-type RelatedProduct = {
-  id: string;
-  name: string;
-  thumbnail?: string;
-  price: number;
-  finalPrice: number;
-  isSale: boolean;
-};
-
-type Props = {
-  product: any;
-  t: Record<string, string>;
-  router: any;
-
-  add: () => void;
-  buy: () => void;
-
-  zoomImage: string | null;
-  setZoomImage: (v: string | null) => void;
-
-  scale: number;
-  setScale: (v: number) => void;
-
-  position: { x: number; y: number };
-  setPosition: (v: { x: number; y: number }) => void;
-
-  dragging: boolean;
-  setDragging: (v: boolean) => void;
-
-  start: { x: number; y: number };
-  setStart: (v: { x: number; y: number }) => void;
-
-  initialDistance: number;
-  setInitialDistance: (v: number) => void;
-
-  initialScale: number;
-  setInitialScale: (v: number) => void;
-
-  handleDoubleTap: () => void;
-
-  selectedVariant: Variant | null;
-  setSelectedVariant: (v: Variant) => void;
-
-  availableVariants: Variant[];
-  canBuy: boolean;
-  selectedStock: number;
-  hasVariants: boolean;
-
-  relatedProducts: RelatedProduct[];
-};
-
-/* ================= COMPONENT ================= */
-
-export function ProductView(props: Props) {
-  const {
-    product,
-    t,
-    router,
-    add,
-    buy,
-    zoomImage,
-    setZoomImage,
-    scale,
-    setScale,
-    position,
-    setPosition,
-    dragging,
-    setDragging,
-    start,
-    setStart,
-    initialDistance,
-    setInitialDistance,
-    initialScale,
-    setInitialScale,
-    selectedVariant,
-    setSelectedVariant,
-    availableVariants,
-    canBuy,
-    selectedStock,
-    hasVariants,
-    relatedProducts,
-  } = props;
-
+export function ProductView({
+  product,
+  t,
+  router,
+  add,
+  buy,
+  zoomImage,
+  setZoomImage,
+  scale,
+  setScale,
+  position,
+  setPosition,
+  dragging,
+  setDragging,
+  start,
+  setStart,
+  initialDistance,
+  setInitialDistance,
+  initialScale,
+  setInitialScale,
+  handleDoubleTap,
+  selectedVariant,
+  setSelectedVariant,
+  availableVariants,
+  canBuy,
+  selectedStock,
+  hasVariants,
+  relatedProducts,
+}: any) {
+  /* ================= SAFE ================= */
   if (!product) return null;
 
-  /* ================= IMAGES ================= */
+  /* ================= DOUBLE TAP FIX ================= */
+  const [lastTap, setLastTap] = useState(0);
 
+  /* ================= IMAGES ================= */
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
     ...(Array.isArray(product.images)
-      ? product.images.filter((img: string) => img !== product.thumbnail)
+      ? product.images.filter((img: string) => img && img !== product.thumbnail)
       : []),
   ];
 
@@ -136,7 +75,7 @@ export function ProductView(props: Props) {
         )}
 
         <Swiper modules={[Pagination]} pagination={{ clickable: true }}>
-          {gallery.map((img, i) => (
+          {gallery.map((img: string, i: number) => (
             <SwiperSlide key={i}>
               <img
                 src={img}
@@ -146,7 +85,7 @@ export function ProductView(props: Props) {
                   setScale(1);
                   setPosition({ x: 0, y: 0 });
                 }}
-                className="w-full aspect-square object-cover"
+                className="w-full aspect-square object-cover block active:scale-95"
               />
             </SwiperSlide>
           ))}
@@ -162,6 +101,20 @@ export function ProductView(props: Props) {
           <img
             src={zoomImage}
             onClick={(e) => e.stopPropagation()}
+
+            /* ===== DOUBLE TAP (FIX) ===== */
+            onTouchEnd={() => {
+              const now = Date.now();
+
+              if (now - lastTap < 300) {
+                setScale((prev: number) => (prev === 1 ? 2 : 1));
+                setPosition({ x: 0, y: 0 });
+              }
+
+              setLastTap(now);
+            }}
+
+            /* ===== TOUCH START ===== */
             onTouchStart={(e) => {
               if (e.touches.length === 2) {
                 const dx =
@@ -169,46 +122,59 @@ export function ProductView(props: Props) {
                 const dy =
                   e.touches[0].clientY - e.touches[1].clientY;
 
-                setInitialDistance(Math.sqrt(dx * dx + dy * dy));
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                setInitialDistance(distance);
                 setInitialScale(scale);
               }
 
               if (e.touches.length === 1) {
-                const t = e.touches[0];
+                const touch = e.touches[0];
+
                 setDragging(true);
                 setStart({
-                  x: t.clientX - position.x,
-                  y: t.clientY - position.y,
+                  x: touch.clientX - position.x,
+                  y: touch.clientY - position.y,
                 });
               }
             }}
+
+            /* ===== TOUCH MOVE ===== */
             onTouchMove={(e) => {
+              /* PINCH */
               if (e.touches.length === 2) {
                 const dx =
                   e.touches[0].clientX - e.touches[1].clientX;
                 const dy =
                   e.touches[0].clientY - e.touches[1].clientY;
 
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
                 let newScale =
-                  initialScale * (dist / initialDistance);
+                  initialScale * (distance / initialDistance);
 
-                setScale(Math.max(1, Math.min(newScale, 6)));
+                newScale = Math.max(1, Math.min(newScale, 6));
+
+                setScale(newScale);
               }
 
+              /* DRAG */
               if (e.touches.length === 1 && dragging && scale > 1) {
-                const t = e.touches[0];
+                const touch = e.touches[0];
 
                 setPosition({
-                  x: t.clientX - start.x,
-                  y: t.clientY - start.y,
+                  x: touch.clientX - start.x,
+                  y: touch.clientY - start.y,
                 });
               }
             }}
+
             onTouchEnd={() => setDragging(false)}
+
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              transformOrigin: "center center",
+              willChange: "transform",
             }}
             className="max-w-full max-h-full object-contain"
           />
@@ -216,26 +182,75 @@ export function ProductView(props: Props) {
       )}
 
       {/* ===== INFO ===== */}
-      <div className="bg-white p-4 flex justify-between">
+      <div className="bg-white p-4 flex justify-between items-start">
         <h2 className="text-lg font-medium">{product.name}</h2>
 
         <div className="text-right">
-          <p className="text-xl font-bold text-primary">
-            π{" "}
-            {formatPi(
-              selectedVariant?.salePrice ??
-                selectedVariant?.price ??
-                product.finalPrice
-            )}
-          </p>
+          {hasVariants ? (
+            selectedVariant ? (
+              <>
+                <p className="text-xl font-bold text-primary">
+                  π {formatPi(
+                    selectedVariant.salePrice ?? selectedVariant.price
+                  )}
+                </p>
+
+                {selectedVariant.salePrice && (
+                  <p className="text-sm text-gray-400 line-through">
+                    π {formatPi(selectedVariant.price)}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-xl font-bold text-primary">
+                {product.minPrice === product.maxPrice
+                  ? `π ${formatPi(product.minPrice)}`
+                  : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
+              </p>
+            )
+          ) : (
+            <>
+              <p className="text-xl font-bold text-primary">
+                π {formatPi(product.finalPrice)}
+              </p>
+
+              {product.isSale && (
+                <p className="text-sm text-gray-400 line-through">
+                  π {formatPi(product.price)}
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
 
+      {/* ===== META ===== */}
+      <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
+        <span>👁 {product.views || 0} {t.views}</span>
+
+        <span className="flex items-center gap-1">
+          <ShoppingCart className="w-4 h-4" />
+          {product.sold || 0} {t.orders}
+        </span>
+
+        <span className="flex items-center gap-1">
+          ⭐ {Number(product.ratingAvg ?? 0).toFixed(1)}
+          <span className="text-gray-400">
+            ({product.ratingCount ?? 0})
+          </span>
+        </span>
+      </div>
+
       {/* ===== STOCK ===== */}
-      <div className="bg-white px-4 pb-3 text-sm">
+      <div className="bg-white px-4 pb-2 text-sm">
         {canBuy ? (
           <span className="text-green-600">
-            ✅ {t.in_stock} {selectedStock}
+            ✅ {t.in_stock}{" "}
+            {hasVariants
+              ? selectedVariant
+                ? selectedVariant.stock
+                : product.stock
+              : product.stock}
           </span>
         ) : (
           <span className="text-red-500">
@@ -248,21 +263,34 @@ export function ProductView(props: Props) {
       {hasVariants && (
         <div className="bg-white px-4 pb-4">
           <div className="grid grid-cols-5 gap-2">
-            {availableVariants.map((v) => {
-              const active = selectedVariant?.id === v.id;
+            {availableVariants.map((v: any) => {
+              const isSelected = selectedVariant?.id === v.id;
+              const isDisabled = v.stock <= 0;
 
               return (
                 <button
                   key={v.id}
-                  onClick={() => setSelectedVariant(v)}
-                  disabled={v.stock <= 0}
-                  className={`rounded border px-2 py-2 text-sm ${
-                    active
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-gray-300"
-                  }`}
+                  disabled={isDisabled}
+                  onClick={() => {
+                    if (!isDisabled) setSelectedVariant(v);
+                  }}
+                  className={`rounded border px-2 py-2 text-sm transition
+                    ${
+                      isDisabled
+                        ? "bg-gray-100 text-gray-400"
+                        : isSelected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-gray-300 bg-white"
+                    }
+                  `}
                 >
-                  {v.optionValue}
+                  <div className="font-medium">
+                    {v.optionValue}
+                  </div>
+
+                  <div className="text-[11px]">
+                    {v.stock}
+                  </div>
                 </button>
               );
             })}
@@ -270,26 +298,80 @@ export function ProductView(props: Props) {
         </div>
       )}
 
-      {/* ===== ACTION ===== */}
+      {/* ===== DESCRIPTION ===== */}
+      <div className="bg-white p-4">
+        {formatShortDescription(product.description).map((l, i) => (
+          <p key={i}>• {l}</p>
+        ))}
+      </div>
+
+      {/* ===== DETAIL ===== */}
       <div
-        className="
-          fixed bottom-0 left-0 right-0 z-50
-          bg-white border-t p-3 flex gap-2
-        "
+        className="bg-white mt-2 p-4 text-sm"
+        dangerouslySetInnerHTML={{
+          __html: formatDetail(product.detail || ""),
+        }}
+      />
+
+      {/* ===== RELATED ===== */}
+      {relatedProducts?.length > 0 && (
+        <div className="bg-white mt-2 p-4">
+          <h3 className="text-sm font-semibold mb-3">
+            🔗 {t.product_related_products}
+          </h3>
+
+          <div className="flex gap-3 overflow-x-auto">
+            {relatedProducts.map((p: any) => (
+              <div
+                key={p.id}
+                onClick={async () => {
+                  await prefetchProduct(p.id);
+                  router.push(`/product/${p.id}`);
+                }}
+                onTouchStart={() => prefetchProduct(p.id)}
+                className="min-w-[140px] cursor-pointer"
+              >
+                <img
+                  src={p.thumbnail || "/placeholder.png"}
+                  className="w-full h-24 object-cover rounded"
+                />
+
+                <p className="text-xs mt-2 line-clamp-2">
+                  {p.name}
+                </p>
+
+                <p className="text-sm font-semibold text-primary">
+                  π {formatPi(p.finalPrice)}
+                </p>
+
+                {p.isSale && (
+                  <p className="text-xs text-gray-400 line-through">
+                    π {formatPi(p.price)}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== ACTION (FIX CHE NAV) ===== */}
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-white p-3 flex gap-2 z-50 border-t"
         style={{
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
         <button
           onClick={add}
-          className="flex-1 bg-primary text-white py-3 rounded-xl"
+          className="flex-1 bg-primary text-white rounded-xl py-3"
         >
           {t.add_to_cart}
         </button>
 
         <button
           onClick={buy}
-          className="flex-1 bg-primary-dark text-white py-3 rounded-xl"
+          className="flex-1 bg-primary-dark text-white rounded-xl py-3"
         >
           {t.buy_now}
         </button>
