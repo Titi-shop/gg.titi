@@ -591,7 +591,22 @@
   "return_reason_wrong": "Giao sai sản phẩm",
   "return_reason_not_match": "Không giống mô tả",
   "return_reason_other": "Khác",
-  "return_max_3_images": "Tối đa 3 ảnh"
+  "return_max_3_images": "Tối đa 3 ảnh",
+  
+  "my_returns": "My Returns",
+  "no_returns": "No return requests",
+  "all": "All",
+  "return_pending": "Waiting approval",
+  "return_approved": "Approved",
+  "return_shipping_back": "Returning",
+  "return_received": "Received",
+  "return_waiting_refund": "Waiting refund",
+  "return_refunded": "Refunded",
+  "return_rejected": "Rejected",
+
+  "order": "Order",
+  "loading": "Loading..."
+
 
 
   
