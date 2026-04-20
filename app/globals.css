@@ -9,28 +9,45 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* 🔥 THEME DEFAULT = CUSTOMER */
+  --color-primary: #f97316;
+  --color-primary-dark: #ea580c;
 }
 
 /* ===============================
-   3️⃣ Theme
+   3️⃣ Theme system (QUAN TRỌNG)
+================================ */
+
+/* 🟧 CUSTOMER */
+.theme-customer {
+  --color-primary: #f97316;
+  --color-primary-dark: #ea580c;
+}
+
+/* ⬛ SELLER */
+.theme-seller {
+  --color-primary: #374151;
+  --color-primary-dark: #111827;
+}
+
+/* ===============================
+   4️⃣ Tailwind theme bridge
 ================================ */
 @theme {
-  --color-orange-500: #f97316;
-  --color-orange-600: #ea580c;
+  --color-primary: var(--color-primary);
+  --color-primary-dark: var(--color-primary-dark);
 }
 
 /* ===============================
-   4️⃣ Base
+   5️⃣ Base
 ================================ */
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 
-  /* 🔥 TOP (Navbar) */
   padding-top: calc(env(safe-area-inset-top) + 56px);
-
-  /* 🔥 BOTTOM (BottomNav) */
   padding-bottom: calc(env(safe-area-inset-bottom) + 60px);
 
   @apply antialiased transition-colors duration-300;
@@ -44,8 +61,9 @@ img {
   user-select: none;
   touch-action: none;
 }
+
 /* ===============================
-   5️⃣ Dark mode
+   6️⃣ Dark mode
 ================================ */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -55,7 +73,7 @@ img {
 }
 
 /* ===============================
-   6️⃣ Components
+   7️⃣ Components (UPDATED)
 ================================ */
 @layer components {
 
@@ -84,9 +102,11 @@ img {
     @apply bg-black;
   }
 
-  /* BUTTON */
-  .btn-orange {
-    @apply bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-3 rounded text-sm transition;
+  /* ================= BUTTON ================= */
+
+  /* 🔥 PRIMARY (THAY btn-orange) */
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-dark text-white font-semibold py-2 px-3 rounded text-sm transition;
   }
 
   .btn-green {
@@ -97,12 +117,12 @@ img {
     @apply bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-3 rounded text-sm transition;
   }
 
-  /* CARD */
+  /* ================= CARD ================= */
+
   .card {
     @apply bg-white border rounded-lg p-4 shadow hover:shadow-md transition;
   }
 
-  /* IMAGE DISABLED */
   .img-disabled {
     @apply opacity-40;
   }
