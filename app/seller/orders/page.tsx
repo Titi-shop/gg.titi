@@ -1,3 +1,4 @@
+
 "use client";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -614,10 +615,10 @@ function SellerOrdersContent() {
       )}
 
       {/* HEADER */}
-      <header className="bg-primary text-white px-4 py-4 shadow">
-  <div className="bg-primary-dark rounded-2xl p-4">
+      <header className="bg-gray-700 text-white px-4 py-4 shadow">
+        <div className="bg-gray-600 rounded-2xl p-4">
           <p className="text-sm">
-           {
+            {
               {
                 all:
                   t.all_orders ??
@@ -773,7 +774,7 @@ function SellerOrdersContent() {
                         null
                       )
                     }
-                    className="py-2 border border-gray-300 rounded-xl"
+                    className="py-2 border rounded-xl"
                   >
                     {t.close ??
                       "Close"}
