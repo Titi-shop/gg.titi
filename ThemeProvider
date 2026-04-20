@@ -1,0 +1,28 @@
+"use client";
+
+import { useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+
+export default function ThemeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const root = document.documentElement;
+
+    root.classList.remove("theme-seller", "theme-customer");
+
+    if (user?.role === "seller") {
+      root.classList.add("theme-seller");
+    } else {
+      root.classList.add("theme-customer");
+    }
+  }, [user, loading]);
+
+  return <>{children}</>;
+}
