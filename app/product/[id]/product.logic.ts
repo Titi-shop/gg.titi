@@ -1,21 +1,38 @@
+"use client";
+
 import useSWR from "swr";
 import { useMemo } from "react";
 import type { Product as ProductType } from "@/types/Product";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+
+/* ================= FETCHER ================= */
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error("Fetch failed");
-  return res.json();
+  try {
+    const res = await apiAuthFetch(url, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return null; // ❗ không throw raw error
+    }
+
+    return await res.json();
+  } catch {
+    return null;
+  }
 };
 
+/* ================= HOOK ================= */
+
 export function useProduct(id: string) {
-  const { data } = useSWR(
+  const { data, isLoading } = useSWR(
     id ? `/api/products/${id}` : null,
     fetcher,
     {
       revalidateOnFocus: false,
       revalidateIfStale: true,
-      keepPreviousData: true, // 🔥 QUAN TRỌNG (mượt)
+      keepPreviousData: true,
     }
   );
 
@@ -51,6 +68,6 @@ export function useProduct(id: string) {
 
   return {
     product,
-    isLoading: !data, // 👉 vẫn giữ để fallback nếu cần
+    isLoading,
   };
 }
