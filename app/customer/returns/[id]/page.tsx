@@ -1,7 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-
+import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
@@ -43,15 +43,18 @@ export default function SellerReturnDetailPage() {
   const [data, setData] = useState<ReturnDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
-
+const { user, loading: authLoading } = useAuth();
   const [preview, setPreview] = useState<string | null>(null);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
-    if (!id) return;
-    load();
-  }, [id]);
+  if (authLoading) return;
+  if (!user) return;
+  if (!id) return;
+
+  load();
+}, [authLoading, user, id]);
 
   async function load() {
     try {
