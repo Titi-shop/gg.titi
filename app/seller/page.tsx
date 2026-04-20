@@ -91,11 +91,11 @@ function SellerOrdersContent() {
     <main className="max-w-4xl mx-auto px-4 py-8 space-y-8 bg-gray-100 min-h-screen">
 
       {/* HEADER */}
-      <div className="bg-gray-200 border border-gray-300 rounded-xl p-4">
-        <h1 className="text-lg font-semibold text-gray-800">
-          🏪 {t.seller_dashboard ?? "Seller Dashboard"}
-        </h1>
-      </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4">
+     <h2 className="text-xs font-semibold text-gray-700 tracking-wide">
+    {t.order_status ?? "ORDER STATUS"}
+       </h2>
+       </div>
 
       {/* MAIN ACTIONS */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -198,22 +198,22 @@ function MainCard({
     <Link href={href} className="block">
       <div className="relative bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm h-[96px] flex flex-col justify-center hover:shadow-md transition">
 
-        {badge !== undefined && badge > 0 && (
-          <span className="absolute top-2 right-2 text-[10px] bg-gray-800 text-white px-2 py-0.5 rounded-full">
-            {badge}
-          </span>
-        )}
+  {badge !== undefined && badge > 0 && (
+    <span className="absolute top-2 right-2 text-[10px] bg-primary text-white px-2 py-0.5 rounded-full">
+      {badge}
+    </span>
+  )}
 
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700">
-            {icon}
-          </div>
+  <div className="flex flex-col items-center gap-2">
+    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-700">
+      {icon}
+    </div>
 
-          <span className="text-[12px] font-medium text-gray-700 text-center leading-tight">
-            {label}
-          </span>
-        </div>
-      </div>
+    <span className="text-[12px] font-medium text-gray-700 text-center leading-tight">
+      {label}
+    </span>
+  </div>
+</div>
     </Link>
   );
 }
@@ -234,19 +234,18 @@ function StatusCard({
   return (
     <Link href={href} className="block">
       <div className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm h-[110px] flex flex-col justify-between hover:shadow-md transition">
+  <div className="w-8 h-8 mx-auto rounded-full bg-gray-100 flex items-center justify-center text-gray-700">
+    {icon}
+  </div>
 
-        <div className="w-8 h-8 mx-auto rounded-full bg-gray-200 flex items-center justify-center text-gray-700">
-          {icon}
-        </div>
+  <span className="text-[11px] text-gray-600 leading-tight px-1">
+    {label}
+  </span>
 
-        <span className="text-[11px] text-gray-600 leading-tight px-1">
-          {label}
-        </span>
-
-        <span className="text-sm font-semibold text-gray-800">
-          {count}
-        </span>
-      </div>
+  <span className="text-sm font-semibold text-gray-800">
+    {count}
+  </span>
+</div>
     </Link>
   );
 }
