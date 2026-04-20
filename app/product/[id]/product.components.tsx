@@ -396,7 +396,6 @@ export function ProductView({
       {t.buy_now}
     </button>
 
-  </div>
 </div>
   );
 }
