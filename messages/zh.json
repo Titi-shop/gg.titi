@@ -573,7 +573,42 @@
   "return_reason_wrong": "发错商品",
   "return_reason_not_match": "与描述不符",
   "return_reason_other": "其他",
-  "return_max_3_images": "最多3张图片"
+  "return_max_3_images": "最多3张图片",
+  
+  "my_returns": "退货订单",
+  "no_returns": "暂无退货申请",
+  "all": "全部",
+
+  "return_pending": "等待审核",
+  "return_approved": "已通过",
+  "return_shipping_back": "退回中",
+  "return_received": "已收货",
+  "return_waiting_refund": "等待退款",
+  "return_refunded": "已退款",
+  "return_rejected": "已拒绝",
+
+  "order": "订单",
+  "loading": "加载中...",
+
+  "tracking": "物流单号",
+  "waiting_refund": "等待退款确认",
+
+  "return_request": "退货申请",
+  "return_submit": "提交申请",
+  "return_submitting": "提交中...",
+
+  "return_select_reason": "请选择退货原因",
+  "return_reason_placeholder": "请输入原因",
+  "return_reason_required": "请填写退货原因",
+  "return_upload_required": "请上传图片",
+  "return_max_3_images": "最多上传3张图片",
+
+  "return_select_item": "请选择至少一个商品",
+  "return_submit_failed": "提交失败",
+  "system_error": "系统错误",
+
+  "return_leave_warning": "您有未保存的内容，离开将丢失，是否继续？"
+
 
 
 
