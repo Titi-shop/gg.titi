@@ -1,69 +1,81 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { languageFiles } from "../i18n";
+import { languageFiles, availableLanguages } from "../i18n";
 
 type TranslationMap = Record<string, string>;
 
 export function useTranslationClient() {
-  const [lang, setLang] = useState<string>("en");
+  /* ================= INIT LANG (AUTO DETECT) ================= */
+
+  const [lang, setLang] = useState<string>(() => {
+    if (typeof window === "undefined") return "en";
+
+    // 1. user đã chọn
+    const saved = localStorage.getItem("lang");
+    if (saved && saved in availableLanguages) {
+      return saved;
+    }
+
+    // 2. detect từ Pi Browser / device
+    const browserLang = navigator.language.toLowerCase();
+
+    const matched = Object.keys(availableLanguages).find((key) =>
+      browserLang.startsWith(key)
+    );
+
+    return matched || "en";
+  });
+
   const [t, setT] = useState<TranslationMap>({});
 
-  // Load ngôn ngữ đã lưu
+  /* ================= LOAD TRANSLATION ================= */
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    let active = true;
 
-    const saved = localStorage.getItem("lang");
-    if (saved) {
-      setLang(saved);
-    }
-  }, []);
+    async function load() {
+      try {
+        const loader = languageFiles[lang];
+        const enLoader = languageFiles["en"];
 
-  // Load file JSON
-  useEffect(() => {
-  let active = true;
+        if (!enLoader) return;
 
-  async function load() {
-    try {
-      const loader = languageFiles[lang];
-      const enLoader = languageFiles["en"];
+        // ✅ load EN fallback
+        const enMod = await enLoader();
+        const enData = enMod.default || {};
 
-      if (!enLoader) return;
+        // ✅ load current language
+        let langData: TranslationMap = {};
 
-      // ✅ load EN (fallback)
-      const enMod = await enLoader();
-      const enData = enMod.default || {};
+        if (loader) {
+          const mod = await loader();
+          langData = mod.default || {};
+        }
 
-      // ✅ load current lang
-      let langData: TranslationMap = {};
+        // ✅ merge fallback
+        const merged: TranslationMap = {
+          ...enData,
+          ...langData,
+        };
 
-      if (loader) {
-        const mod = await loader();
-        langData = mod.default || {};
+        if (active) {
+          setT(merged);
+        }
+      } catch (err) {
+        console.error("[i18n] load error", err);
       }
-
-      // ✅ merge fallback
-      const merged: TranslationMap = {
-        ...enData,
-        ...langData,
-      };
-
-      if (active) {
-        setT(merged);
-      }
-    } catch (err) {
-      console.error("i18n load error", err);
     }
-  }
 
-  void load();
+    void load();
 
-  return () => {
-    active = false;
-  };
-}, [lang]);
+    return () => {
+      active = false;
+    };
+  }, [lang]);
 
-  // Lắng nghe event đổi ngôn ngữ
+  /* ================= LISTEN CHANGE EVENT ================= */
+
   useEffect(() => {
     const handler = (e: Event) => {
       const custom = e as CustomEvent<string>;
@@ -79,9 +91,12 @@ export function useTranslationClient() {
     };
   }, []);
 
-  // Đổi ngôn ngữ
+  /* ================= CHANGE LANGUAGE ================= */
+
   const setLanguage = (newLang: string) => {
     if (typeof window === "undefined") return;
+
+    if (!(newLang in availableLanguages)) return;
 
     localStorage.setItem("lang", newLang);
     setLang(newLang);
