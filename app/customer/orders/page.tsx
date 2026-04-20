@@ -511,7 +511,7 @@ export default function CustomerOrdersPage() {
             className="absolute inset-0 bg-black/40"
           />
 
-          className="
+          <className="
           absolute bottom-0 left-0 right-0
           bg-white rounded-t-3xl
           p-5
