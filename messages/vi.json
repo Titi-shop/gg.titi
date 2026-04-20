@@ -570,7 +570,22 @@
   "wallet_ref_order": "Đơn hàng",
   "wallet_ref_refund": "Hoàn tiền",
   "wallet_ref_withdraw": "Rút tiền",
-  "wallet_ref_deposit": "Nạp tiền"
+  "wallet_ref_deposit": "Nạp tiền",
+  
+  {
+  "loading": "Đang tải...",
+  "order_not_found": "Không tìm thấy đơn hàng",
+  "return_request": "Yêu cầu hoàn trả",
+  "return_submit": "Gửi yêu cầu",
+  "return_submitting": "Đang gửi...",
+  "return_submit_failed": "Gửi thất bại",
+  "return_only_completed": "Chỉ đơn đã hoàn thành mới được hoàn",
+  "return_select_item": "Chọn ít nhất 1 sản phẩm",
+  "return_reason_required": "Vui lòng nhập lý do",
+  "return_upload_required": "Vui lòng tải ảnh",
+  "return_image_limit": "Tối đa 2MB / ảnh",
+  "return_reason_placeholder": "Nhập lý do hoàn hàng",
+  "system_error": "Lỗi hệ thống"
 
 
       
