@@ -53,15 +53,18 @@ export default function BottomNav() {
 
   return (
     <nav
-      className={`
-        fixed left-0 right-0 bottom-0 z-50
-        transition-transform duration-300
-        ${hide ? "translate-y-full" : "translate-y-0"}
-      `}
-      style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
-      }}
-    >
+  className={`
+    fixed left-0 right-0 bottom-0 z-50
+    transition-transform duration-300
+    ${hide ? "translate-y-full" : "translate-y-0"}
+  `}
+  style={{
+    paddingBottom: "env(safe-area-inset-bottom)",
+    height: "60px",
+    // ✅ thêm dòng này
+    ["--bottom-nav-height" as any]: "60px",
+  }}
+>
       {/* GLASS BACKGROUND */}
       <div className="backdrop-blur-lg bg-white/80 border-t border-gray-200 shadow-lg">
         <div className="flex justify-around items-center h-[60px] relative">
