@@ -549,7 +549,24 @@
   "status_confirmed": "已确认",
   "completed_orders": "已完成订单",
   "no_completed_orders": "暂无完成订单",
-  "search_order": "搜索订单号"
+  "search_order": "搜索订单号",
+  
+  "loading": "加载中...",
+  "order_not_found": "未找到订单",
+
+  "return_request": "申请退货",
+  "return_submit": "提交申请",
+  "return_submitting": "提交中...",
+  "return_submit_failed": "提交失败",
+
+  "return_only_completed": "仅已完成的订单可以申请退货",
+  "return_select_item": "请至少选择一个商品",
+  "return_reason_required": "请输入退货原因",
+  "return_upload_required": "请上传图片",
+  "return_image_limit": "每张图片最大2MB",
+  "return_reason_placeholder": "请输入退货原因",
+  "system_error": "系统错误"
+
 
 
 
