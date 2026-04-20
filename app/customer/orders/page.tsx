@@ -450,8 +450,8 @@ export default function CustomerOrdersPage() {
       )}
 
       {/* HEADER */}
-      <header className="bg-orange-500 px-4 py-4 text-white shadow">
-        <div className="rounded-xl bg-orange-400 p-4">
+      <header className="bg-primary px-4 py-4 text-white shadow">
+        <div className="rounded-xl bg-primary-dark p-4">
           <p className="text-sm">
             {t.orders ??
               "Orders"}
@@ -537,7 +537,7 @@ export default function CustomerOrdersPage() {
                     className={`w-full rounded-xl border px-4 py-3 text-left ${
                       selectedReason ===
                       key
-                        ? "border-orange-500 bg-orange-50 text-orange-600"
+                        "border-primary bg-primary/10 text-primary"
                         : "border-gray-200"
                     }`}
                   >
@@ -594,7 +594,7 @@ export default function CustomerOrdersPage() {
                     showCancelFor
                   )
                 }
-                className="rounded-xl bg-orange-500 py-3 text-white disabled:opacity-50"
+                className="rounded-xl bg-primary py-3 text-white"
               >
                 {t.confirm ??
                   "Confirm"}
@@ -700,7 +700,7 @@ export default function CustomerOrdersPage() {
                     );
                   }
                 }}
-                className="rounded-xl bg-orange-500 py-3 text-white disabled:opacity-50"
+                className="rounded-xl bg-primary py-3 text-white"
               >
                 {t.submit_review ??
                   "Submit"}
