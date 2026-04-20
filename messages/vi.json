@@ -584,19 +584,13 @@
   "return_upload_required": "Vui lòng tải ảnh",
   "return_image_limit": "Tối đa 2MB / ảnh",
   "return_reason_placeholder": "Nhập lý do hoàn hàng",
-  "system_error": "Lỗi hệ thống"
-
-
-      
-
-
-
-
-
-    
-  
-  
-
+  "system_error": "Lỗi hệ thống",
+  "return_select_reason": "Chọn lý do",
+  "return_reason_damaged": "Sản phẩm bị hỏng",
+  "return_reason_wrong": "Giao sai sản phẩm",
+  "return_reason_not_match": "Không giống mô tả",
+  "return_reason_other": "Khác",
+  "return_max_3_images": "Tối đa 3 ảnh"
 
 
   
