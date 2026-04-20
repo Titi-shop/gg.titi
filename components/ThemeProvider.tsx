@@ -1,31 +1,28 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { usePathname } from "next/navigation";
 
 export default function ThemeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useAuth();
+  const pathname = usePathname();
 
   useEffect(() => {
     const root = document.documentElement;
 
     root.classList.remove("theme-seller", "theme-customer");
 
-    if (user?.role === "seller") {
+    if (pathname.startsWith("/seller")) {
       root.classList.add("theme-seller");
-    } else if (user?.role === "customer") {
-      root.classList.add("theme-customer");
     } else {
-      // fallback
       root.classList.add("theme-customer");
     }
 
     console.log("🎨 theme:", root.className);
-  }, [user]);
+  }, [pathname]);
 
   return <>{children}</>;
 }
