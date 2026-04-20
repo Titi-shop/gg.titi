@@ -70,6 +70,15 @@ export default function OrderReturnPage() {
     fetcher
   );
 
+  /* ================= REASONS ================= */
+
+  const reasons = [
+    { value: "damaged", label: t.return_reason_damaged },
+    { value: "wrong_item", label: t.return_reason_wrong },
+    { value: "not_as_described", label: t.return_reason_not_match },
+    { value: "other", label: t.return_reason_other },
+  ];
+
   /* ================= INIT ================= */
 
   useEffect(() => {
@@ -100,23 +109,36 @@ export default function OrderReturnPage() {
     const list = e.target.files;
     if (!list) return;
 
-    const selected = Array.from(list).slice(0, 3);
+    const selected = Array.from(list);
 
-    for (const f of selected) {
+    const updated = [...items];
+
+    const currentFiles = updated[index].files;
+
+    const merged = [...currentFiles, ...selected].slice(0, 3);
+
+    for (const f of merged) {
       if (f.size > 2 * 1024 * 1024) {
         setError(t.return_image_limit);
         return;
       }
     }
 
-    const updated = [...items];
-
     updated[index].previews.forEach(URL.revokeObjectURL);
 
-    updated[index].files = selected;
-    updated[index].previews = selected.map((f) =>
+    updated[index].files = merged;
+    updated[index].previews = merged.map((f) =>
       URL.createObjectURL(f)
     );
+
+    setItems(updated);
+  }
+
+  function removeImage(index: number, imgIndex: number) {
+    const updated = [...items];
+
+    updated[index].files.splice(imgIndex, 1);
+    updated[index].previews.splice(imgIndex, 1);
 
     setItems(updated);
   }
@@ -163,7 +185,7 @@ export default function OrderReturnPage() {
 
       await Promise.all(
         selectedItems.map(async (item) => {
-          if (!item.reason.trim()) {
+          if (!item.reason) {
             throw new Error(t.return_reason_required);
           }
 
@@ -197,9 +219,9 @@ export default function OrderReturnPage() {
       router.push("/customer/returns");
 
     } catch (err) {
-      const message =
+      const msg =
         err instanceof Error ? err.message : t.system_error;
-      setError(message);
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -208,32 +230,20 @@ export default function OrderReturnPage() {
   /* ================= UI ================= */
 
   if (isLoading || authLoading) {
-    return (
-      <p className="p-4 text-sm text-gray-500">
-        {t.loading}
-      </p>
-    );
+    return <p className="p-4">{t.loading}</p>;
   }
 
   if (!order) {
-    return (
-      <p className="p-4 text-red-500">
-        {t.order_not_found}
-      </p>
-    );
+    return <p className="p-4 text-red-500">{t.order_not_found}</p>;
   }
 
   return (
     <main className="min-h-screen bg-gray-100 p-4 space-y-4">
 
-      {/* TITLE */}
-      <div className="bg-white p-4 rounded-xl shadow">
-        <h1 className="text-lg font-semibold">
-          🔄 {t.return_request}
-        </h1>
-      </div>
+      <h1 className="text-lg font-semibold">
+        🔄 {t.return_request}
+      </h1>
 
-      {/* ITEMS */}
       {order.order_items.map((item, index) => {
         const state = items[index];
         if (!state) return null;
@@ -242,13 +252,11 @@ export default function OrderReturnPage() {
           <div
             key={item.id}
             className={`bg-white rounded-xl p-4 shadow space-y-3 border ${
-              state.selected
-                ? "border-orange-500"
-                : "border-transparent"
+              state.selected ? "border-orange-500" : ""
             }`}
           >
             {/* HEADER */}
-            <div className="flex gap-3 items-center">
+            <div className="flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={state.selected}
@@ -257,7 +265,6 @@ export default function OrderReturnPage() {
                   updated[index].selected = e.target.checked;
                   setItems(updated);
                 }}
-                className="w-5 h-5"
               />
 
               {item.thumbnail && (
@@ -267,46 +274,77 @@ export default function OrderReturnPage() {
                 />
               )}
 
-              <p className="text-sm font-medium flex-1">
+              <p className="text-sm font-medium">
                 {item.product_name}
               </p>
             </div>
 
-            {/* REASON */}
-            {state.selected && (
-              <input
-                value={state.reason}
-                onChange={(e) => {
-                  const updated = [...items];
-                  updated[index].reason = e.target.value;
-                  setItems(updated);
-                }}
-                placeholder={t.return_reason_placeholder}
-                className="w-full border rounded-lg p-3 text-sm"
-              />
-            )}
-
-            {/* IMAGE */}
+            {/* FORM */}
             {state.selected && (
               <>
-                <input
-                  type="file"
-                  multiple
-                  onChange={(e) =>
-                    handleImageChange(e, index)
-                  }
-                  className="text-sm"
-                />
-
-                <div className="flex gap-2">
-                  {state.previews.map((src, i) => (
-                    <img
-                      key={i}
-                      src={src}
-                      className="w-16 h-16 rounded object-cover"
-                    />
+                {/* REASON DROPDOWN */}
+                <select
+                  value={state.reason}
+                  onChange={(e) => {
+                    const updated = [...items];
+                    updated[index].reason = e.target.value;
+                    setItems(updated);
+                  }}
+                  className="w-full border rounded-lg p-3 text-sm"
+                >
+                  <option value="">
+                    {t.return_select_reason}
+                  </option>
+                  {reasons.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
                   ))}
+                </select>
+
+                {/* IMAGE GRID */}
+                <div className="grid grid-cols-4 gap-2">
+
+                  {state.previews.map((src, i) => (
+                    <div
+                      key={i}
+                      className="relative w-full h-20"
+                    >
+                      <img
+                        src={src}
+                        className="w-full h-full object-cover rounded"
+                      />
+
+                      <button
+                        onClick={() =>
+                          removeImage(index, i)
+                        }
+                        className="absolute -top-2 -right-2 bg-black text-white text-xs w-5 h-5 rounded-full"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* ADD BUTTON */}
+                  {state.files.length < 3 && (
+                    <label className="border rounded flex items-center justify-center text-gray-400 text-sm cursor-pointer h-20">
+                      +
+                      <input
+                        type="file"
+                        hidden
+                        onChange={(e) =>
+                          handleImageChange(e, index)
+                        }
+                      />
+                    </label>
+                  )}
+
                 </div>
+
+                <p className="text-xs text-gray-400">
+                  {t.return_max_3_images}
+                </p>
               </>
             )}
           </div>
@@ -315,7 +353,7 @@ export default function OrderReturnPage() {
 
       {/* ERROR */}
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+        <div className="bg-red-50 text-red-600 p-3 rounded">
           {error}
         </div>
       )}
@@ -324,7 +362,7 @@ export default function OrderReturnPage() {
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="w-full bg-black text-white py-4 rounded-xl font-semibold disabled:opacity-50"
+        className="w-full bg-black text-white py-4 rounded-xl font-semibold"
       >
         {submitting
           ? t.return_submitting
