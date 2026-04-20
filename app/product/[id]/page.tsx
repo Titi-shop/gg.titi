@@ -1,13 +1,37 @@
 "use client";
 
-import { useState, useEffect } from "react";
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
 
 import { useProduct } from "./product.logic";
 import { ProductView } from "./product.components";
 import CheckoutSheet from "./CheckoutSheet";
+
+/* ================= TYPES ================= */
+
+type Variant = {
+  id: string;
+  optionValue: string;
+  price: number;
+  salePrice?: number | null;
+  stock: number;
+  isActive?: boolean;
+};
+
+type RelatedProduct = {
+  id: string;
+  categoryId: string;
+  price: number;
+  salePrice?: number | null;
+  finalPrice: number;
+  isSale: boolean;
+};
 
 /* ================= PAGE ================= */
 
@@ -20,8 +44,13 @@ export default function ProductDetail() {
   const id = String(params?.id ?? "");
 
   const { product, isLoading } = useProduct(id);
-console.log("[PAGE] product:", product);
-  /* ================= ZOOM STATE (🔥 QUAN TRỌNG) ================= */
+
+  /* ================= DEBUG ================= */
+  if (process.env.NODE_ENV === "development") {
+    console.log("[PRODUCT PAGE]", product);
+  }
+
+  /* ================= ZOOM ================= */
 
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
@@ -32,23 +61,23 @@ console.log("[PAGE] product:", product);
   const [initialDistance, setInitialDistance] = useState(0);
   const [initialScale, setInitialScale] = useState(1);
 
-  let lastTap = 0;
+  const lastTap = useRef(0);
 
   const handleDoubleTap = () => {
     const now = Date.now();
 
-    if (now - lastTap < 300) {
+    if (now - lastTap.current < 300) {
       setScale((prev) => (prev === 1 ? 2 : 1));
       setPosition({ x: 0, y: 0 });
     }
 
-    lastTap = now;
+    lastTap.current = now;
   };
 
   /* ================= STATE ================= */
 
-  const [selectedVariant, setSelectedVariant] = useState<any>(null);
-  const [products, setProducts] = useState<any[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [products, setProducts] = useState<RelatedProduct[]>([]);
   const [openCheckout, setOpenCheckout] = useState(false);
 
   /* ================= DEFAULT VARIANT ================= */
@@ -57,8 +86,8 @@ console.log("[PAGE] product:", product);
     if (!product) return;
 
     const first =
-      product.variants.find(
-        (v: any) => (v.isActive ?? true) && v.stock > 0
+      product.variants?.find(
+        (v: Variant) => (v.isActive ?? true) && v.stock > 0
       ) ?? null;
 
     setSelectedVariant(first);
@@ -67,52 +96,67 @@ console.log("[PAGE] product:", product);
   /* ================= LOAD RELATED ================= */
 
   useEffect(() => {
-  async function loadProducts() {
-    if (!product?.categoryId) return;
+    async function loadProducts() {
+      if (!product?.categoryId) return;
 
-    try {
-      const res = await fetch(
-        `/api/products?categoryId=${product.categoryId}`
-      );
+      try {
+        const res = await apiAuthFetch(
+          `/api/products?categoryId=${product.categoryId}`
+        );
 
-      const data = await res.json();
+        if (!res.ok) return;
 
-      if (!Array.isArray(data)) return;
+        const data = await res.json();
 
-      const normalized = data.map((p: any) => ({
-        ...p,
-        finalPrice:
-          typeof p.salePrice === "number" &&
-          p.salePrice < p.price
-            ? p.salePrice
-            : p.price,
-        isSale:
-          typeof p.salePrice === "number" &&
-          p.salePrice < p.price,
-      }));
+        if (!Array.isArray(data)) return;
 
-      setProducts(normalized);
-    } catch (err) {
-      console.error("Load related failed:", err);
+        const normalized: RelatedProduct[] = data.map((p) => ({
+          ...p,
+          finalPrice:
+            typeof p.salePrice === "number" &&
+            p.salePrice < p.price
+              ? p.salePrice
+              : p.price,
+          isSale:
+            typeof p.salePrice === "number" &&
+            p.salePrice < p.price,
+        }));
+
+        setProducts(normalized);
+      } catch (err) {
+        console.error("[RELATED PRODUCTS ERROR]", err);
+      }
     }
-  }
 
-  loadProducts();
-}, [product?.categoryId]);
+    loadProducts();
+  }, [product?.categoryId]);
 
   /* ================= GUARD ================= */
 
-  if (isLoading) return null; // hoặc skeleton
-if (!product) return <div>{t.no_products}</div>;
+  if (isLoading) {
+    return (
+      <div className="p-4 text-center text-gray-400">
+        {t.loading ?? "Loading..."}
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        {t.product_not_found ?? "Product not found"}
+      </div>
+    );
+  }
 
   /* ================= LOGIC ================= */
 
   const hasVariants =
-  Array.isArray(product.variants) &&
-  product.variants.length > 0;
+    Array.isArray(product.variants) &&
+    product.variants.length > 0;
 
-  const availableVariants = product.variants.filter(
-    (v: any) => (v.isActive ?? true) && v.optionValue
+  const availableVariants = product.variants?.filter(
+    (v: Variant) => (v.isActive ?? true) && v.optionValue
   );
 
   const selectedStock = hasVariants
@@ -124,21 +168,25 @@ if (!product) return <div>{t.no_products}</div>;
     : !(product.isOutOfStock ?? false);
 
   const relatedProducts = products
-  .filter(
-    (p) =>
-      p.id !== product.id &&
-      p.categoryId === product.categoryId
-  )
-  .slice(0, 10);
+    .filter(
+      (p) =>
+        p.id !== product.id &&
+        p.categoryId === product.categoryId
+    )
+    .slice(0, 10);
 
   /* ================= ACTIONS ================= */
 
-  const add = () => {
+  const requireVariant = () => {
     if (hasVariants && !selectedVariant) {
-      alert("Vui lòng chọn size");
-      return;
+      alert(t.select_variant ?? "Please select option");
+      return false;
     }
+    return true;
+  };
 
+  const add = () => {
+    if (!requireVariant()) return;
     if (!canBuy) return;
 
     addToCart({
@@ -159,11 +207,7 @@ if (!product) return <div>{t.no_products}</div>;
   };
 
   const buy = () => {
-    if (hasVariants && !selectedVariant) {
-      alert("Vui lòng chọn size");
-      return;
-    }
-
+    if (!requireVariant()) return;
     if (!canBuy) return;
 
     addToCart({
@@ -174,12 +218,11 @@ if (!product) return <div>{t.no_products}</div>;
         hasVariants && selectedVariant
           ? `${product.name} - ${selectedVariant.optionValue}`
           : product.name,
-           price: selectedVariant?.price ?? product.price,
-
-          sale_price:
-          selectedVariant?.salePrice ??
-          product.salePrice ??
-         null,
+      price: selectedVariant?.price ?? product.price,
+      sale_price:
+        selectedVariant?.salePrice ??
+        product.salePrice ??
+        null,
       thumbnail: product.thumbnail,
       quantity: 1,
     });
@@ -190,61 +233,56 @@ if (!product) return <div>{t.no_products}</div>;
   /* ================= RENDER ================= */
 
   return (
-  <>
-    <ProductView
-      product={product}
-      t={t}
-      router={router}
-      add={add}
-      buy={buy}
-      selectedVariant={selectedVariant}
-      setSelectedVariant={setSelectedVariant}
-      availableVariants={availableVariants}
-      hasVariants={hasVariants}
-      canBuy={canBuy}
-      selectedStock={selectedStock}
-      relatedProducts={relatedProducts}
+    <>
+      <ProductView
+        product={product}
+        t={t}
+        router={router}
+        add={add}
+        buy={buy}
+        selectedVariant={selectedVariant}
+        setSelectedVariant={setSelectedVariant}
+        availableVariants={availableVariants}
+        hasVariants={hasVariants}
+        canBuy={canBuy}
+        selectedStock={selectedStock}
+        relatedProducts={relatedProducts}
 
-      zoomImage={zoomImage}
-      setZoomImage={setZoomImage}
-      scale={scale}
-      setScale={setScale}
-      position={position}
-      setPosition={setPosition}
-      dragging={dragging}
-      setDragging={setDragging}
-      start={start}
-      setStart={setStart}
-      initialDistance={initialDistance}
-      setInitialDistance={setInitialDistance}
-      initialScale={initialScale}
-      setInitialScale={setInitialScale}
-      handleDoubleTap={handleDoubleTap}
-    />
+        zoomImage={zoomImage}
+        setZoomImage={setZoomImage}
+        scale={scale}
+        setScale={setScale}
+        position={position}
+        setPosition={setPosition}
+        dragging={dragging}
+        setDragging={setDragging}
+        start={start}
+        setStart={setStart}
+        initialDistance={initialDistance}
+        setInitialDistance={setInitialDistance}
+        initialScale={initialScale}
+        setInitialScale={setInitialScale}
+        handleDoubleTap={handleDoubleTap}
+      />
 
-    <CheckoutSheet
-      open={openCheckout}
-      onClose={() => setOpenCheckout(false)}
-      product={{
-  id: product.id,
-
-  /* 🔥 QUAN TRỌNG */
-  selectedVariant,
-
-  name:
-    hasVariants && selectedVariant
-      ? `${product.name} - ${selectedVariant.optionValue}`
-      : product.name,
-
-       price: product.price,
-       salePrice: product.salePrice,
-      finalPrice: product.finalPrice,
-      thumbnail: product.thumbnail,
-    stock: selectedStock,
-  shippingRates: product.shippingRates,
-   }}
-    />
-  </>
-);
-
+      <CheckoutSheet
+        open={openCheckout}
+        onClose={() => setOpenCheckout(false)}
+        product={{
+          id: product.id,
+          selectedVariant,
+          name:
+            hasVariants && selectedVariant
+              ? `${product.name} - ${selectedVariant.optionValue}`
+              : product.name,
+          price: product.price,
+          salePrice: product.salePrice,
+          finalPrice: product.finalPrice,
+          thumbnail: product.thumbnail,
+          stock: selectedStock,
+          shippingRates: product.shippingRates,
+        }}
+      />
+    </>
+  );
 }
