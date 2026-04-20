@@ -8,10 +8,9 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        orange: {
-          500: "#f97316", // ✅ màu bg-orange-500
-          600: "#ea580c", // ✅ thêm màu hover cam đậm hơn
-        },
+        /* 🔥 THEME SYSTEM */
+        primary: "var(--color-primary)",
+        "primary-dark": "var(--color-primary-dark)",
       },
     },
   },
