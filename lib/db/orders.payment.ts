@@ -1,4 +1,3 @@
-
 import { withTransaction } from "@/lib/db";
 
 /* ================= HELPERS ================= */
@@ -74,19 +73,6 @@ export async function processPiPayment(params: {
       };
     }
 
-    /* =========================================================
-   🔒 CHECK TXID (ANTI DOUBLE SPEND)
-========================================================= */
-
-const txCheck = await client.query(
-  `SELECT id FROM pi_payments WHERE txid=$1 LIMIT 1`,
-  [params.txid]
-);
-
-if (txCheck.rows.length > 0) {
-  console.error("❌ [PAYMENT] TX ALREADY USED", params.txid);
-  throw new Error("TX_ALREADY_USED");
-}
     /* =========================================================
        🔒 2. INSERT PAYMENT (ANTI REPLAY)
     ========================================================= */
@@ -170,17 +156,17 @@ const address = addressRes.rows[0];
     ========================================================= */
 
     const productRes = await client.query(
-  `
-  SELECT 
-    id, seller_id, name, price, thumbnail,
-    is_active, deleted_at,
-    sale_price, sale_start, sale_end
-  FROM products
-  WHERE id=$1
-  FOR UPDATE
-  `,
-  [params.productId]
-);
+      `
+      SELECT 
+        id, seller_id, name, price, thumbnail,
+        is_active, deleted_at,
+        sale_price, sale_start, sale_end
+      FROM products
+      WHERE id=$1
+      LIMIT 1
+      `,
+      [params.productId]
+    );
 
     const product = productRes.rows[0];
 
@@ -200,9 +186,8 @@ const address = addressRes.rows[0];
       const vRes = await client.query(
         `
         SELECT price, sale_price
-       FROM product_variants
-       WHERE id=$1 AND product_id=$2
-       FOR UPDATE
+        FROM product_variants
+        WHERE id=$1 AND product_id=$2
         LIMIT 1
         `,
         [params.variantId, params.productId]
