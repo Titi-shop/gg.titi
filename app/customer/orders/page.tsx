@@ -124,12 +124,14 @@ const [optimisticOrder, setOptimisticOrder] =
   user ? "/api/orders" : null,
   fetcher,
   {
-    revalidateOnFocus: false,
-    dedupingInterval: 5000,
-    keepPreviousData: true,
+    revalidateOnFocus: true, 
+    dedupingInterval: 2000,   
   }
 );
-
+useEffect(() => {
+  if (!user) return;
+  mutate(); 
+}, [user]);
   /* ================= STATE ================= */
 
   const [toast, setToast] =
