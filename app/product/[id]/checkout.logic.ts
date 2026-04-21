@@ -244,16 +244,10 @@ export function useCheckoutPay({
           amount: finalPreview.total,
           memo: t.payment_memo_order ?? "order_payment",
           metadata: {
-            shipping,
-            zone,
-            product: {
-              id: item?.id,
-              name: item?.name,
-              image: item?.thumbnail ?? "",
-              price: unitPrice,
-            },
-            quantity,
-          },
+     product_id: item?.id,
+     variant_id: product.variant_id ?? null,
+       quantity,
+       },
         },
         {
           onReadyForServerApproval: async (paymentId, callback) => {
