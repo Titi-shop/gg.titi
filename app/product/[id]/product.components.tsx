@@ -357,12 +357,7 @@ export function ProductView({
       )}
 
       {/* ===== ACTION (FIX CHE NAV) ===== */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2"
-        style={{
-          bottom: "var(--bottom-nav-height, 60px)",
-          paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)",
-        }}
-      >
+      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2"  >
         <div className="flex gap-2 max-w-4xl mx-auto">
           <button
             onClick={add}
