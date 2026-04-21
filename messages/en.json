@@ -1,6 +1,8 @@
 {
   
-
+"in_stock": "In stock",
+"out_of_stock": "Out of stock",
+"select_variant": "Please select option",
   "return_leave_warning": "You have unsaved changes. Leaving this page will lose your data. Continue?",
   "quick_thank_you": "Thank you ❤️",
   "quick_ship_soon": "We will ship soon 🚚",
