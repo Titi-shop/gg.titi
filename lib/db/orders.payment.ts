@@ -51,8 +51,6 @@ export async function processPiPayment(params: {
   }
 
   const quantity = safeQty(params.quantity);
-  const zone = params.zone?.trim().toLowerCase();
-  const country = params.country?.trim().toUpperCase();
 
   return withTransaction(async (client) => {
 
@@ -124,7 +122,7 @@ export async function processPiPayment(params: {
     /* =========================================================
        🌍 4. VALIDATE ZONE
     ========================================================= */
-    console.log("🟡 [DB] STEP 4 ZONE", { country, zone });
+    console.log("🟡 [DB] STEP 4 ZONE FROM ADDRESS", { country });
 
     const zoneRes = await client.query(
   `
@@ -144,16 +142,10 @@ export async function processPiPayment(params: {
 
     const realZone = zoneRes.rows[0].code;
 
-    if (realZone !== zone) {
-      console.error("❌ [DB] INVALID_REGION", { realZone, zone });
-      throw new Error("INVALID_REGION");
-    }
-
     /* =========================================================
        📍 5. ADDRESS
     ========================================================= */
     console.log("🟡 [DB] STEP 5 ADDRESS");
-
     const addressRes = await client.query(
       `
       SELECT 
@@ -179,7 +171,12 @@ export async function processPiPayment(params: {
     }
 
     const address = addressRes.rows[0];
+const country = address.country?.toUpperCase();
 
+if (!country) {
+  console.error("❌ [DB] ADDRESS_INVALID_COUNTRY");
+  throw new Error("INVALID_COUNTRY");
+}
     /* =========================================================
        📦 6. PRODUCT
     ========================================================= */
@@ -231,9 +228,7 @@ export async function processPiPayment(params: {
         console.error("❌ [DB] INVALID_VARIANT");
         throw new Error("INVALID_VARIANT");
       }
-
       const v = vRes.rows[0];
-
       price =
         v.sale_price && v.sale_price > 0
           ? Number(v.sale_price)
