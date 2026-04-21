@@ -9,11 +9,17 @@ export function formatDetail(text: string) {
     .replace(/\r/g, "\n")
     .trim();
 
-  // ✅ escape HTML
+  // ✅ cho phép img + br, escape phần còn lại
   const safe = normalized
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    // giữ img tag
+    .replace(/<img[^>]*>/gi, (match) => {
+      return match
+        .replace(/on\w+="[^"]*"/g, "") // remove onClick, onError (XSS)
+        .replace(/javascript:/gi, ""); // chặn js injection
+    })
+    // escape các tag khác
+    .replace(/<(?!img|br)/gi, "&lt;")
+    .replace(/(?<!img|br)>/gi, "&gt;");
 
   return safe.replace(/\n/g, "<br/>");
 }
