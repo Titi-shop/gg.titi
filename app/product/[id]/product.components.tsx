@@ -357,41 +357,23 @@ export function ProductView({
       )}
 
       {/* ===== ACTION (FIX CHE NAV) ===== */}
-      <div
+     <div
   className="
     fixed left-0 right-0 z-50
     bg-white border-t border-gray-200
-    px-3 pt-2
-    shadow-[0_-2px_10px_rgba(0,0,0,0.05)]
+    px-2 pt-1
   "
   style={{
     bottom: "var(--bottom-nav-height, 60px)",
-    paddingBottom: "calc(env(safe-area-inset-bottom) + 6px)",
+    paddingBottom: "calc(env(safe-area-inset-bottom) + 4px)",
   }}
 >
-  <div className="flex items-center gap-2 max-w-4xl mx-auto">
-    
-    {/* ===== PRICE ===== */}
-    <div className="flex flex-col min-w-[80px]">
-      <span className="text-[11px] text-gray-400">
-        {t.total || "Total"}
-      </span>
-
-      <span className="text-sm font-semibold text-orange-600">
-        π {formatPi(
-          selectedVariant?.salePrice ??
-          selectedVariant?.price ??
-          product.finalPrice
-        )}
-      </span>
-    </div>
-
-    {/* ===== ADD TO CART ===== */}
+  <div className="flex gap-2 max-w-4xl mx-auto">
     <button
       onClick={add}
       className="
-        flex-1 h-9
-        bg-yellow-500 text-white
+        flex-1 h-8
+        bg-primary text-white
         rounded-lg
         text-xs font-medium
         active:scale-95 transition
@@ -400,13 +382,11 @@ export function ProductView({
       {t.add_to_cart}
     </button>
 
-    {/* ===== BUY NOW ===== */}
     <button
       onClick={buy}
       className="
-        flex-1 h-9
-        bg-gradient-to-r from-orange-500 to-red-500
-        text-white
+        flex-1 h-8
+        bg-primary-dark text-white
         rounded-lg
         text-xs font-semibold
         active:scale-95 transition
