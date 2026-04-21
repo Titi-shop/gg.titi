@@ -7,7 +7,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import { ShoppingCart } from "lucide-react";
 import { prefetchProduct } from "@/lib/prefetch";
-
+import type { Product as ProductType } from "@/types/Product";
 import {
   formatShortDescription,
   formatDetail,
@@ -16,8 +16,59 @@ import {
 
 import "swiper/css";
 import "swiper/css/pagination";
+type Variant = {
+  id: string;
+  optionValue: string;
+  price: number;
+  salePrice?: number | null;
+  stock: number;
+  isActive?: boolean;
+};
 
-export function ProductView({
+type RelatedProduct = {
+  id: string;
+  categoryId: string;
+  name: string;
+  thumbnail?: string;
+  price: number;
+  salePrice?: number | null;
+  finalPrice: number;
+  isSale: boolean;
+};
+
+type ProductViewProps = {
+  product: ProductType;
+
+  t: Record<string, string>;
+  router: {
+    push: (path: string) => void;
+  };
+  add: () => void;
+  buy: () => void;
+  zoomImage: string | null;
+  setZoomImage: (v: string | null) => void;
+  scale: number;
+  setScale: (v: number) => void;
+  position: { x: number; y: number };
+  setPosition: (v: { x: number; y: number }) => void;
+  dragging: boolean;
+  setDragging: (v: boolean) => void;
+  start: { x: number; y: number };
+  setStart: (v: { x: number; y: number }) => void;
+  initialDistance: number;
+  setInitialDistance: (v: number) => void;
+  initialScale: number;
+  setInitialScale: (v: number) => void;
+  selectedVariant: Variant | null;
+  setSelectedVariant: (v: Variant | null) => void;
+  availableVariants: Variant[];
+  canBuy: boolean;
+  selectedStock: number;
+  hasVariants: boolean;
+
+  relatedProducts: RelatedProduct[];
+};
+const {
   product,
   t,
   router,
@@ -37,7 +88,6 @@ export function ProductView({
   setInitialDistance,
   initialScale,
   setInitialScale,
-  handleDoubleTap,
   selectedVariant,
   setSelectedVariant,
   availableVariants,
@@ -45,7 +95,7 @@ export function ProductView({
   selectedStock,
   hasVariants,
   relatedProducts,
-}: any) {
+} = props;
   /* ================= SAFE ================= */
   if (!product) return null;
 
@@ -264,7 +314,7 @@ export function ProductView({
       {hasVariants && (
         <div className="bg-white px-4 pb-4">
           <div className="grid grid-cols-5 gap-2">
-            {availableVariants.map((v: any) => {
+          availableVariants.map((v) => {
               const isSelected = selectedVariant?.id === v.id;
               const isDisabled = v.stock <= 0;
 
@@ -322,7 +372,7 @@ export function ProductView({
           </h3>
 
           <div className="flex gap-3 overflow-x-auto">
-            {relatedProducts.map((p: any) => (
+            relatedProducts.map((p) => (
               <div
                 key={p.id}
                 onClick={async () => {
