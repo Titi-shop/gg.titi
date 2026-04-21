@@ -282,9 +282,12 @@ export function useCheckoutPay({
           },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-  // 🚀 1. Redirect NGAY (UX mượt)
+  // 🚀 1. ĐÁNH DẤU optimistic
+  localStorage.setItem("pending_order", "1");
+
+  // 🚀 2. Redirect NGAY về orders (KHÔNG chờ API)
   onClose();
-  router.push("/customer/pending");
+  router.push("/customer/orders?tab=pending"); // ✅ nếu bạn có filter tab
 
   try {
     const token = await getPiAccessToken();
@@ -306,12 +309,8 @@ export function useCheckoutPay({
       }),
     });
 
-    // ❗ không cần check res.ok ở đây nữa
-    // vì user đã rời khỏi checkout
-
   } catch (err) {
     console.error("[COMPLETE ERROR]", err);
-    // ❗ không show message ở đây (user đã redirect)
   } finally {
     processingRef.current = false;
     setProcessing(false);
