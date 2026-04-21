@@ -68,34 +68,36 @@ type ProductViewProps = {
 
   relatedProducts: RelatedProduct[];
 };
-const {
-  product,
-  t,
-  router,
-  add,
-  buy,
-  zoomImage,
-  setZoomImage,
-  scale,
-  setScale,
-  position,
-  setPosition,
-  dragging,
-  setDragging,
-  start,
-  setStart,
-  initialDistance,
-  setInitialDistance,
-  initialScale,
-  setInitialScale,
-  selectedVariant,
-  setSelectedVariant,
-  availableVariants,
-  canBuy,
-  selectedStock,
-  hasVariants,
-  relatedProducts,
-} = props;
+export function ProductView(props: ProductViewProps) {
+  const {
+    product,
+    t,
+    router,
+    add,
+    buy,
+    zoomImage,
+    setZoomImage,
+    scale,
+    setScale,
+    position,
+    setPosition,
+    dragging,
+    setDragging,
+    start,
+    setStart,
+    initialDistance,
+    setInitialDistance,
+    initialScale,
+    setInitialScale,
+    selectedVariant,
+    setSelectedVariant,
+    availableVariants,
+    canBuy,
+    selectedStock,
+    hasVariants,
+    relatedProducts,
+  } = props;
+
   /* ================= SAFE ================= */
   if (!product) return null;
 
@@ -314,7 +316,7 @@ const {
       {hasVariants && (
         <div className="bg-white px-4 pb-4">
           <div className="grid grid-cols-5 gap-2">
-          availableVariants.map((v) => {
+          {availableVariants.map((v) => {
               const isSelected = selectedVariant?.id === v.id;
               const isDisabled = v.stock <= 0;
 
@@ -372,7 +374,7 @@ const {
           </h3>
 
           <div className="flex gap-3 overflow-x-auto">
-            relatedProducts.map((p) => (
+            {relatedProducts.map((p) => (
               <div
                 key={p.id}
                 onClick={async () => {
