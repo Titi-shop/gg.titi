@@ -282,10 +282,11 @@ export function useCheckoutPay({
           },
 
           onReadyForServerCompletion: async (paymentId, txid) => {
-  // ✅ tạo đơn fake
+  /* =========================
+     1. TẠO ĐƠN ẢO (OPTIMISTIC)
+  ========================= */
   const fakeOrder = {
     id: "temp_" + Date.now(),
-     created_at: Date.now(),
     order_number: "TEMP",
     total: total,
     status: "pending",
@@ -296,17 +297,25 @@ export function useCheckoutPay({
         thumbnail: item?.thumbnail,
       },
     ],
+    created_at: Date.now(),
   };
 
-  localStorage.setItem(
-    "optimistic_order",
-    JSON.stringify(fakeOrder)
-  );
+  try {
+    localStorage.setItem(
+      "optimistic_order",
+      JSON.stringify(fakeOrder)
+    );
+  } catch {}
 
-  // 🚀 redirect ngay
+  /* =========================
+     2. REDIRECT NGAY (QUAN TRỌNG)
+  ========================= */
   onClose();
   router.push("/customer/orders?tab=pending");
 
+  /* =========================
+     3. CALL BACKEND (CHẠY NGẦM)
+  ========================= */
   try {
     const token = await getPiAccessToken();
 
@@ -326,13 +335,17 @@ export function useCheckoutPay({
         zone,
       }),
     });
-  } catch {}
 
-  finally {
+    // ❗ KHÔNG check res.ok nữa
+    // vì user đã rời khỏi checkout
+  } catch (err) {
+    console.error("COMPLETE ERROR:", err);
+    // ❗ KHÔNG show message ở đây
+  } finally {
     processingRef.current = false;
     setProcessing(false);
   }
-},
+};
 
           onCancel: () => {
             processingRef.current = false;
