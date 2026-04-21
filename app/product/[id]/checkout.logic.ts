@@ -286,14 +286,9 @@ export function useCheckoutPay({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        paymentId,
-        txid,
-        product_id: item?.id,
-        variant_id: product.variant_id ?? null,
-        quantity,
-        shipping,
-        zone,
-      }),
+  paymentId,
+  txid,
+     }),
     });
 
     if (!res.ok) {
