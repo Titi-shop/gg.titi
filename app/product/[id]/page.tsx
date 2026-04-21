@@ -27,6 +27,8 @@ type Variant = {
 type RelatedProduct = {
   id: string;
   categoryId: string;
+  name: string;
+  thumbnail?: string;
   price: number;
   salePrice?: number | null;
   finalPrice: number;
@@ -39,10 +41,8 @@ export default function ProductDetail() {
   const { t } = useTranslation();
   const { addToCart } = useCart();
   const router = useRouter();
-
   const params = useParams();
   const id = String(params?.id ?? "");
-
   const { product, isLoading } = useProduct(id);
 
   /* ================= DEBUG ================= */
@@ -110,17 +110,25 @@ export default function ProductDetail() {
 
         if (!Array.isArray(data)) return;
 
-        const normalized: RelatedProduct[] = data.map((p) => ({
-          ...p,
-          finalPrice:
-            typeof p.salePrice === "number" &&
-            p.salePrice < p.price
-              ? p.salePrice
-              : p.price,
-          isSale:
-            typeof p.salePrice === "number" &&
-            p.salePrice < p.price,
-        }));
+        const normalized: RelatedProduct[] = data.map((p: any) => ({
+  id: p.id,
+  categoryId: p.categoryId,
+  name: p.name,
+  thumbnail: p.thumbnail,
+
+  price: p.price,
+  salePrice: p.salePrice ?? null,
+
+  finalPrice:
+    typeof p.salePrice === "number" &&
+    p.salePrice < p.price
+      ? p.salePrice
+      : p.price,
+
+  isSale:
+    typeof p.salePrice === "number" &&
+    p.salePrice < p.price,
+}));
 
         setProducts(normalized);
       } catch (err) {
@@ -156,8 +164,8 @@ export default function ProductDetail() {
     product.variants.length > 0;
 
   const availableVariants = product.variants?.filter(
-    (v: Variant) => (v.isActive ?? true) && v.optionValue
-  );
+  (v: Variant) => (v.isActive ?? true) && v.optionValue
+) ?? [];
 
   const selectedStock = hasVariants
     ? selectedVariant?.stock ?? 0
