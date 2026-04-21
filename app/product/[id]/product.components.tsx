@@ -1,16 +1,17 @@
 
 "use client";
 
+import { useState } from "react";
 import { formatPi } from "@/lib/pi";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import { ShoppingCart } from "lucide-react";
 import { prefetchProduct } from "@/lib/prefetch";
+
 import {
   formatShortDescription,
   formatDetail,
   calcSalePercent,
-  getDistance,
 } from "./product.helpers";
 
 import "swiper/css";
@@ -45,10 +46,13 @@ export function ProductView({
   hasVariants,
   relatedProducts,
 }: any) {
-  /* ================= SAFE DATA ================= */
-console.log("[UI] product render:", product);
+  /* ================= SAFE ================= */
   if (!product) return null;
 
+  /* ================= DOUBLE TAP FIX ================= */
+  const [lastTap, setLastTap] = useState(0);
+
+  /* ================= IMAGES ================= */
   const displayImages = [
     ...(product.thumbnail ? [product.thumbnail] : []),
     ...(Array.isArray(product.images)
@@ -59,12 +63,12 @@ console.log("[UI] product render:", product);
   const gallery =
     displayImages.length > 0 ? displayImages : ["/placeholder.png"];
 
-  /* ================= RENDER ================= */
+  /* ================= UI ================= */
 
   return (
-    <div className="pb-32 bg-gray-50 min-h-screen">
+    <div className="pb-40 bg-gray-50 min-h-screen">
       {/* ===== GALLERY ===== */}
-   <div className="relative bg-white">
+      <div className="relative bg-white">
         {product.isSale && (
           <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
             -{calcSalePercent(product.price, product.finalPrice)}%
@@ -88,140 +92,138 @@ console.log("[UI] product render:", product);
           ))}
         </Swiper>
       </div>
+
       {/* ===== ZOOM ===== */}
-{zoomImage && (
-  <div
-    className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center"
-    onClick={() => setZoomImage(null)}
-  >
-    <img
-      src={zoomImage}
-      onClick={(e) => e.stopPropagation()}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-[999] bg-black/95 flex items-center justify-center"
+          onClick={() => setZoomImage(null)}
+        >
+          <img
+            src={zoomImage}
+            onClick={(e) => e.stopPropagation()}
 
-      /* ===== DOUBLE TAP ===== */
-      onTouchEnd={(e) => {
-        const now = Date.now();
-        if (!window.__lastTap) window.__lastTap = 0;
+            /* ===== DOUBLE TAP (FIX) ===== */
+            onTouchEnd={() => {
+              const now = Date.now();
 
-        if (now - window.__lastTap < 300) {
-          setScale((prev: number) => (prev === 1 ? 2 : 1));
-          setPosition({ x: 0, y: 0 });
-        }
+              if (now - lastTap < 300) {
+                setScale((prev: number) => (prev === 1 ? 2 : 1));
+                setPosition({ x: 0, y: 0 });
+              }
 
-        window.__lastTap = now;
-      }}
+              setLastTap(now);
+            }}
 
-      /* ===== TOUCH START ===== */
-      onTouchStart={(e) => {
-        if (e.touches.length === 2) {
-          const dx =
-            e.touches[0].clientX - e.touches[1].clientX;
-          const dy =
-            e.touches[0].clientY - e.touches[1].clientY;
+            /* ===== TOUCH START ===== */
+            onTouchStart={(e) => {
+              if (e.touches.length === 2) {
+                const dx =
+                  e.touches[0].clientX - e.touches[1].clientX;
+                const dy =
+                  e.touches[0].clientY - e.touches[1].clientY;
 
-          const distance = Math.sqrt(dx * dx + dy * dy);
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-          setInitialDistance(distance);
-          setInitialScale(scale);
-        }
+                setInitialDistance(distance);
+                setInitialScale(scale);
+              }
 
-        if (e.touches.length === 1) {
-          const touch = e.touches[0];
+              if (e.touches.length === 1) {
+                const touch = e.touches[0];
 
-          setDragging(true);
-          setStart({
-            x: touch.clientX - position.x,
-            y: touch.clientY - position.y,
-          });
-        }
-      }}
+                setDragging(true);
+                setStart({
+                  x: touch.clientX - position.x,
+                  y: touch.clientY - position.y,
+                });
+              }
+            }}
 
-      /* ===== TOUCH MOVE ===== */
-      onTouchMove={(e) => {
-        /* PINCH */
-        if (e.touches.length === 2) {
-          const dx =
-            e.touches[0].clientX - e.touches[1].clientX;
-          const dy =
-            e.touches[0].clientY - e.touches[1].clientY;
+            /* ===== TOUCH MOVE ===== */
+            onTouchMove={(e) => {
+              /* PINCH */
+              if (e.touches.length === 2) {
+                const dx =
+                  e.touches[0].clientX - e.touches[1].clientX;
+                const dy =
+                  e.touches[0].clientY - e.touches[1].clientY;
 
-          const distance = Math.sqrt(dx * dx + dy * dy);
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-          let newScale =
-            initialScale * (distance / initialDistance);
+                let newScale =
+                  initialScale * (distance / initialDistance);
 
-          newScale = Math.max(1, Math.min(newScale, 6));
+                newScale = Math.max(1, Math.min(newScale, 6));
 
-          setScale(newScale);
-        }
+                setScale(newScale);
+              }
 
-        /* DRAG */
-        if (e.touches.length === 1 && dragging && scale > 1) {
-          const touch = e.touches[0];
+              /* DRAG */
+              if (e.touches.length === 1 && dragging && scale > 1) {
+                const touch = e.touches[0];
 
-          setPosition({
-            x: touch.clientX - start.x,
-            y: touch.clientY - start.y,
-          });
-        }
-      }}
+                setPosition({
+                  x: touch.clientX - start.x,
+                  y: touch.clientY - start.y,
+                });
+              }
+            }}
 
-      onTouchEnd={() => setDragging(false)}
+            onTouchEnd={() => setDragging(false)}
 
-      style={{
-        transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-        transformOrigin: "center center",
-        willChange: "transform",
-      }}
-
-      className="max-w-full max-h-full object-contain"
-    />
-  </div>
-)}
+            style={{
+              transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+              transformOrigin: "center center",
+              willChange: "transform",
+            }}
+            className="max-w-full max-h-full object-contain"
+          />
+        </div>
+      )}
 
       {/* ===== INFO ===== */}
-<div className="bg-white p-4 flex justify-between items-start">
-  <h2 className="text-lg font-medium">{product.name}</h2>
+      <div className="bg-white p-4 flex justify-between items-start">
+        <h2 className="text-lg font-medium">{product.name}</h2>
 
-  <div className="text-right">
-    {/* ================= PRICE LOGIC ================= */}
-{hasVariants ? (
-  selectedVariant ? (
-    <>
-      <p className="text-xl font-bold text-orange-600">
-        π {formatPi(
-          selectedVariant.salePrice ?? selectedVariant.price
-        )}
-      </p>
+        <div className="text-right">
+          {hasVariants ? (
+            selectedVariant ? (
+              <>
+                <p className="text-xl font-bold text-primary">
+                  π {formatPi(
+                    selectedVariant.salePrice ?? selectedVariant.price
+                  )}
+                </p>
 
-      {selectedVariant.salePrice && (
-        <p className="text-sm text-gray-400 line-through">
-          π {formatPi(selectedVariant.price)}
-        </p>
-      )}
-    </>
-  ) : (
-    <p className="text-xl font-bold text-orange-600">
-      {product.minPrice === product.maxPrice
-        ? `π ${formatPi(product.minPrice)}`
-        : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
-    </p>
-  )
-) : (
-  <>
-    <p className="text-xl font-bold text-orange-600">
-      π {formatPi(product.finalPrice)}
-    </p>
+                {selectedVariant.salePrice && (
+                  <p className="text-sm text-gray-400 line-through">
+                    π {formatPi(selectedVariant.price)}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-xl font-bold text-primary">
+                {product.minPrice === product.maxPrice
+                  ? `π ${formatPi(product.minPrice)}`
+                  : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
+              </p>
+            )
+          ) : (
+            <>
+              <p className="text-xl font-bold text-primary">
+                π {formatPi(product.finalPrice)}
+              </p>
 
-    {product.isSale && (
-      <p className="text-sm text-gray-400 line-through">
-        π {formatPi(product.price)}
-      </p>
-    )}
-  </>
-)}
-  </div>
-</div>
+              {product.isSale && (
+                <p className="text-sm text-gray-400 line-through">
+                  π {formatPi(product.price)}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
       {/* ===== META ===== */}
       <div className="bg-white px-4 pb-4 flex gap-4 text-sm text-gray-600">
@@ -240,23 +242,23 @@ console.log("[UI] product render:", product);
         </span>
       </div>
 
-{/* ===== STOCK ===== */}
-<div className="bg-white px-4 pb-2 text-sm">
-  {canBuy ? (
-    <span className="text-green-600">
-      ✅ {t.in_stock}{" "}
-      {hasVariants
-        ? selectedVariant
-          ? selectedVariant.stock
-          : product.stock
-        : product.stock}
-    </span>
-  ) : (
-    <span className="text-red-500">
-      ❌ {t.out_of_stock}
-    </span>
-  )}
-</div>
+      {/* ===== STOCK ===== */}
+      <div className="bg-white px-4 pb-2 text-sm">
+        {canBuy ? (
+          <span className="text-green-600">
+            ✅ {t.in_stock}{" "}
+            {hasVariants
+              ? selectedVariant
+                ? selectedVariant.stock
+                : product.stock
+              : product.stock}
+          </span>
+        ) : (
+          <span className="text-red-500">
+            ❌ {t.out_of_stock}
+          </span>
+        )}
+      </div>
 
       {/* ===== VARIANTS ===== */}
       {hasVariants && (
@@ -278,7 +280,7 @@ console.log("[UI] product render:", product);
                       isDisabled
                         ? "bg-gray-100 text-gray-400"
                         : isSelected
-                        ? "border-orange-500 bg-orange-50 text-orange-600"
+                        ? "border-primary bg-primary/10 text-primary"
                         : "border-gray-300 bg-white"
                     }
                   `}
@@ -321,49 +323,75 @@ console.log("[UI] product render:", product);
 
           <div className="flex gap-3 overflow-x-auto">
             {relatedProducts.map((p: any) => (
-  <div
-    key={p.id}
-    onClick={async () => {
-      await prefetchProduct(p.id);
-      router.push(`/product/${p.id}`);
-    }}
-    onTouchStart={() => prefetchProduct(p.id)}
-    className="min-w-[140px] cursor-pointer"
-  >
-    <img
-      src={p.thumbnail || "/placeholder.png"}
-      className="w-full h-24 object-cover rounded"
-    />
+              <div
+                key={p.id}
+                onClick={async () => {
+                  await prefetchProduct(p.id);
+                  router.push(`/product/${p.id}`);
+                }}
+                onTouchStart={() => prefetchProduct(p.id)}
+                className="min-w-[140px] cursor-pointer"
+              >
+                <img
+                  src={p.thumbnail || "/placeholder.png"}
+                  className="w-full h-24 object-cover rounded"
+                />
 
-    <p className="text-xs mt-2 line-clamp-2">
-      {p.name}
-    </p>
+                <p className="text-xs mt-2 line-clamp-2">
+                  {p.name}
+                </p>
 
-    <p className="text-sm font-semibold text-orange-600">
-      π {formatPi(p.finalPrice)}
-    </p>
+                <p className="text-sm font-semibold text-primary">
+                  π {formatPi(p.finalPrice)}
+                </p>
 
-    {p.isSale && (
-      <p className="text-xs text-gray-400 line-through">
-        π {formatPi(p.price)}
-      </p>
-    )}
-  </div>
-))}
+                {p.isSale && (
+                  <p className="text-xs text-gray-400 line-through">
+                    π {formatPi(p.price)}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-        {/* ACTION */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2">
-        <button onClick={add} className="flex-1 bg-yellow-500 text-white">
-          {t.add_to_cart}
-        </button>
+      {/* ===== ACTION (FIX CHE NAV) ===== */}
+      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2"
+        style={{
+          bottom: "var(--bottom-nav-height, 60px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)",
+        }}
+      >
+        <div className="flex gap-2 max-w-4xl mx-auto">
+          <button
+            onClick={add}
+            className="
+              flex-1 h-11
+              bg-primary text-white
+              rounded-xl
+              text-sm font-medium
+              active:scale-95 transition
+            "
+          >
+            {t.add_to_cart}
+          </button>
 
-        <button onClick={buy} className="flex-1 bg-red-500 text-white">
-          {t.buy_now}
-        </button>
+          <button
+            onClick={buy}
+            className="
+              flex-1 h-11
+              bg-primary-dark text-white
+              rounded-xl
+              text-sm font-semibold
+              shadow-md
+              active:scale-95 transition
+            "
+          >
+            {t.buy_now}
+          </button>
+        </div>
       </div>
-    </div>
+    </div> 
   );
 }
