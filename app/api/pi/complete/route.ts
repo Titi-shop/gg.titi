@@ -215,48 +215,11 @@ console.log("🟢 [API] STEP 2.6 PI USER OK", {
       quantity,
     });
 
-    /* ================= COMPLETE PI ================= */
-
-    if (!status?.developer_completed) {
-      console.log("🟡 [API] STEP 8 COMPLETE_PI");
-
-      const completeRes = await fetch(
-        `${PI_API}/payments/${paymentId}/complete`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Key ${PI_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ txid }),
-        }
-      );
-
-      const completeData = await completeRes.json().catch(() => null);
-
-      if (!completeRes.ok) {
-        console.warn("🟡 [API] PI_COMPLETE_WARNING", completeData);
-
-        const isAlreadyCompleted =
-          completeData?.error === "already_completed" ||
-          completeData?.error_message?.includes("already");
-
-        if (!isAlreadyCompleted) {
-          return NextResponse.json(
-            { error: "PI_COMPLETE_FAILED" },
-            { status: 400 }
-          );
-        }
-
-        console.log("🟢 [API] ALREADY COMPLETED → CONTINUE");
-      }
-    }
-
     /* ================= DB ================= */
 
-    console.log("🟡 [API] STEP 9 CALL DB");
+console.log("🟡 [API] STEP 8 CALL DB");
 
-    const result = await processPiPayment({
+const result = await processPiPayment({
   userId,
   paymentId,
   txid,
@@ -266,19 +229,43 @@ console.log("🟢 [API] STEP 2.6 PI USER OK", {
   verifiedAmount: Number(payment.amount),
 });
 
-    console.log("🟢 [API] STEP 10 SUCCESS", result);
+console.log("🟢 [API] DB SUCCESS", result);
 
-    return NextResponse.json({
-      success: true,
-      order_id: result.orderId,
-    });
+/* ================= COMPLETE PI ================= */
 
-  } catch (err) {
-    console.error("🔥 [API COMPLETE ERROR]", err);
+if (!status?.developer_completed) {
+  console.log("🟡 [API] STEP 9 COMPLETE_PI");
 
-    return NextResponse.json(
-      { error: (err as Error).message || "PAYMENT_FAILED" },
-      { status: 400 }
-    );
+  const completeRes = await fetch(
+    `${PI_API}/payments/${paymentId}/complete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${PI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid }),
+    }
+  );
+
+  const completeData = await completeRes.json().catch(() => null);
+
+  if (!completeRes.ok) {
+    console.warn("🟡 [API] PI_COMPLETE_WARNING", completeData);
+
+    const isAlreadyCompleted =
+      completeData?.error === "already_completed" ||
+      completeData?.error_message?.includes("already");
+
+    if (!isAlreadyCompleted) {
+      throw new Error("PI_COMPLETE_FAILED");
+    }
   }
 }
+
+console.log("🟢 [API] STEP 10 SUCCESS");
+
+return NextResponse.json({
+  success: true,
+  order_id: result.orderId,
+});
