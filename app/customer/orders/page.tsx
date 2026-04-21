@@ -119,6 +119,7 @@ export default function CustomerOrdersPage() {
     isLoading,
     mutate,
   } = useSWR<Order[]>(
+    const [optimisticOrder, setOptimisticOrder] = useState<Order | null>(null);
     user ? "/api/orders" : null,
     fetcher,
     {
@@ -166,22 +167,35 @@ export default function CustomerOrdersPage() {
     confirmReceivedFor,
     setConfirmReceivedFor,
   ] = useState<string | null>(null);
+  useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const raw = localStorage.getItem("optimistic_order");
+  if (!raw) return;
+
+  try {
+    const parsed = JSON.parse(raw);
+    setOptimisticOrder(parsed);
+  } catch {}
+}, []);
 
   /* ================= TOTAL ================= */
 
-  const totalPi = useMemo(() => {
-    return orders.reduce(
-      (
-        sum: number,
-        order: Order
-      ) =>
-        sum +
-        Number(
-          order.total ?? 0
-        ),
-      0
-    );
-  }, [orders]);
+  const mergedOrders = useMemo(() => {
+  if (!optimisticOrder) return orders;
+
+  const exists = orders.some(
+    (o) => o.id === optimisticOrder.id
+  );
+
+  // nếu backend đã trả về → remove fake
+  if (exists) {
+    localStorage.removeItem("optimistic_order");
+    return orders;
+  }
+
+  return [optimisticOrder, ...orders];
+}, [orders, optimisticOrder]);
 
   /* ================= HELPERS ================= */
 
@@ -474,7 +488,7 @@ export default function CustomerOrdersPage() {
       >
         <CustomerOrdersList
           initialTab="all"
-          orders={orders}
+          orders={mergedOrders}
           reviewedMap={
             reviewedMap
           }
@@ -697,8 +711,7 @@ pb-[calc(env(safe-area-inset-bottom)+80px)]
                   activeReviewId
                 }
                 onClick={() => {
-                  const order =
-                    orders.find(
+                  const order = mergedOrders.find(
                       (
                         item
                       ) =>
