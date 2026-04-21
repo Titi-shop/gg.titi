@@ -357,36 +357,45 @@ export function ProductView({
       )}
 
       {/* ===== ACTION (FIX CHE NAV) ===== */}
-      <div className="fixed bottom-16 left-0 right-0 bg-white p-3 flex gap-2"  >
-        <div className="flex gap-2 max-w-4xl mx-auto">
-          <button
-            onClick={add}
-            className="
-              flex-1 h-11
-              bg-primary text-white
-              rounded-xl
-              text-sm font-medium
-              active:scale-95 transition
-            "
-          >
-            {t.add_to_cart}
-          </button>
+      <div
+  className="
+    fixed left-0 right-0 z-50
+    bg-white border-t
+    px-3 pt-2
+  "
+  style={{
+    bottom: "var(--bottom-nav-height, 60px)",
+    paddingBottom: "calc(env(safe-area-inset-bottom) + 6px)",
+  }}
+>
+  <div className="flex gap-2 max-w-4xl mx-auto">
+    <button
+      onClick={add}
+      className="
+        flex-1 h-9
+        bg-yellow-500 text-white
+        rounded-lg
+        text-xs font-medium
+        active:scale-95 transition
+      "
+    >
+      {t.add_to_cart}
+    </button>
 
-          <button
-            onClick={buy}
-            className="
-              flex-1 h-11
-              bg-primary-dark text-white
-              rounded-xl
-              text-sm font-semibold
-              shadow-md
-              active:scale-95 transition
-            "
-          >
-            {t.buy_now}
-          </button>
-        </div>
-      </div>
+    <button
+      onClick={buy}
+      className="
+        flex-1 h-9
+        bg-red-500 text-white
+        rounded-lg
+        text-xs font-semibold
+        active:scale-95 transition
+      "
+    >
+      {t.buy_now}
+    </button>
+  </div>
+</div>
     </div> 
   );
 }
