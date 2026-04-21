@@ -14,36 +14,18 @@ function isUUID(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
-
+}
 /* ================= TYPES ================= */
 
 type Body = {
   paymentId?: unknown;
   txid?: unknown;
-  product_id?: unknown;
-  variant_id?: unknown;
-  quantity?: unknown;
-  shipping?: {
-  name?: string;
-  phone?: string;
-  address_line?: string;
-  ward?: string;
-  district?: string;
-  region?: string;
-  country?: string;
-  postal_code?: string | null;
-  };
-  zone?: unknown;
 };
 
 /* ================= API ================= */
 
 export async function POST(req: Request) {
   try {
-    console.log("🟡 [PAYMENT][START]", {
-  paymentId,
-  txid,
-});
 
     /* ================= BODY ================= */
 
@@ -60,10 +42,13 @@ export async function POST(req: Request) {
     const body = raw as Body;
 
     const paymentId =
-      typeof body.paymentId === "string" ? body.paymentId : "";
-
-    const txid =
-      typeof body.txid === "string" ? body.txid : "";
+  typeof body.paymentId === "string" ? body.paymentId : "";
+const txid =
+  typeof body.txid === "string" ? body.txid : "";
+console.log("🟡 [PAYMENT][START]", {
+  paymentId,
+  txid,
+});
 
     /* ================= VALIDATE BASIC ================= */
 
