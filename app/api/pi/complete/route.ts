@@ -257,14 +257,14 @@ console.log("🟢 [API] STEP 2.6 PI USER OK", {
     console.log("🟡 [API] STEP 9 CALL DB");
 
     const result = await processPiPayment({
-      userId,
-      paymentId,
-      txid,
-      productId,
-      variantId,
-      quantity,
-      verifiedAmount: Number(payment.amount),
-    });
+  userId,
+  paymentId,
+  txid,
+  productId,
+  variantId,
+  quantity,
+  verifiedAmount: Number(payment.amount),
+});
 
     console.log("🟢 [API] STEP 10 SUCCESS", result);
 
