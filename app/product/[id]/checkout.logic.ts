@@ -345,7 +345,7 @@ export function useCheckoutPay({
     processingRef.current = false;
     setProcessing(false);
   }
-};
+},
 
           onCancel: () => {
             processingRef.current = false;
