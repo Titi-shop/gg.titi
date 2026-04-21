@@ -106,24 +106,28 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   /* ========================= */
 
   const previewKey = useMemo(() => {
-  if (!open || !shipping?.country || !zone || !item) return null;
+  if (!open || !shipping || !zone || !item) return null;
 
   return [
     "/api/orders/preview",
-    shipping.country,
-    zone,
-    item.id,
-    quantity,
-    product?.selectedVariant?.id ?? null,
+    {
+      country: shipping.country.toUpperCase(),
+      zone,
+      shipping: {
+        region: shipping.region,
+        district: shipping.district,
+        ward: shipping.ward,
+      },
+      items: [
+        {
+          product_id: item.id,
+          variant_id: product?.selectedVariant?.id ?? null,
+          quantity,
+        },
+      ],
+    },
   ];
-}, [
-  open,
-  shipping?.country,
-  zone,
-  item?.id,
-  quantity,
-  product?.selectedVariant?.id,
-]);
+}, [open, shipping, zone, item, quantity, product?.selectedVariant?.id]);
 
   const { data: preview, error: previewError } = useSWR(
     previewKey,
@@ -390,7 +394,7 @@ setZone(r.zone);
         {/* PAY BUTTON (FIX POSITION) */}
         <div className="border-t p-4">
           <button
-  onClick={handlePayClick}
+  onClick={handlePay}
   disabled={processing}
   className={`w-full py-3 text-white rounded ${
     processing ? "bg-gray-400" : "bg-orange-600"
