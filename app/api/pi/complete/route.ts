@@ -61,9 +61,40 @@ export async function POST(req: Request) {
     }
 
     const userId = auth.userId;
-    const piUidFromToken = auth.pi_uid;
+    /* ================= VERIFY PI USER ================= */
 
-    console.log("🟢 [API] STEP 2 AUTH OK", { userId });
+console.log("🟡 [API] STEP 2.5 VERIFY PI USER");
+
+const meRes = await fetch("https://api.minepi.com/v2/me", {
+  headers: {
+    Authorization: req.headers.get("authorization") || "",
+  },
+  cache: "no-store",
+});
+
+if (!meRes.ok) {
+  console.error("❌ [API] INVALID_PI_TOKEN");
+  return NextResponse.json(
+    { error: "INVALID_TOKEN" },
+    { status: 401 }
+  );
+}
+
+const me = await meRes.json();
+
+if (!me?.uid) {
+  console.error("❌ [API] INVALID_PI_USER", me);
+  return NextResponse.json(
+    { error: "INVALID_PI_USER" },
+    { status: 401 }
+  );
+}
+
+const piUidFromToken = me.uid;
+
+console.log("🟢 [API] STEP 2.6 PI USER OK", {
+  piUidFromToken,
+});
 
     /* ================= VERIFY PI ================= */
 
