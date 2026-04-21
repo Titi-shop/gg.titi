@@ -421,41 +421,63 @@ export function ProductView({
       </div>
 
       {/* ===== ADD TO CART ===== */}
-      <button
-        onClick={() => add(qty)}
-        disabled={!canBuy}
-        className={`
-          flex-1 h-9
-          rounded-lg text-xs font-medium
-          transition active:scale-95
-          ${
-            canBuy
-              ? "bg-yellow-500 text-white"
-              : "bg-gray-200 text-gray-400"
-          }
-        `}
-      >
-        {t.add_to_cart}
-      </button>
+      <div
+  className="
+    fixed left-0 right-0 z-50
+    bg-white border-t border-gray-200
+    px-3 pt-2
+    shadow-[0_-2px_10px_rgba(0,0,0,0.05)]
+  "
+  style={{
+    bottom: "var(--bottom-nav-height, 60px)",
+    paddingBottom: "calc(env(safe-area-inset-bottom) + 6px)",
+  }}
+>
+  <div className="flex items-center gap-2 max-w-4xl mx-auto">
+    
+    {/* ===== PRICE ===== */}
+    <div className="flex flex-col min-w-[80px]">
+      <span className="text-[11px] text-gray-400">
+        {t.total || "Total"}
+      </span>
 
-      {/* ===== BUY NOW ===== */}
-      <button
-        onClick={() => buy(qty)}
-        disabled={!canBuy}
-        className={`
-          flex-1 h-9
-          rounded-lg text-xs font-semibold
-          transition active:scale-95
-          ${
-            canBuy
-              ? "bg-gradient-to-r from-orange-500 to-red-500 text-white"
-              : "bg-gray-200 text-gray-400"
-          }
-        `}
-      >
-        {t.buy_now}
-      </button>
+      <span className="text-sm font-semibold text-orange-600">
+        π {formatPi(
+          selectedVariant?.salePrice ??
+          selectedVariant?.price ??
+          product.finalPrice
+        )}
+      </span>
     </div>
+
+    {/* ===== ADD TO CART ===== */}
+    <button
+      onClick={add}
+      className="
+        flex-1 h-9
+        bg-yellow-500 text-white
+        rounded-lg
+        text-xs font-medium
+        active:scale-95 transition
+      "
+    >
+      {t.add_to_cart}
+    </button>
+
+    {/* ===== BUY NOW ===== */}
+    <button
+      onClick={buy}
+      className="
+        flex-1 h-9
+        bg-gradient-to-r from-orange-500 to-red-500
+        text-white
+        rounded-lg
+        text-xs font-semibold
+        active:scale-95 transition
+      "
+    >
+      {t.buy_now}
+    </button>
   </div>
 </div>
     </div> 
