@@ -285,6 +285,7 @@ export function useCheckoutPay({
   // ✅ tạo đơn fake
   const fakeOrder = {
     id: "temp_" + Date.now(),
+     created_at: Date.now(),
     order_number: "TEMP",
     total: total,
     status: "pending",
