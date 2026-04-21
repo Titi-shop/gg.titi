@@ -50,8 +50,6 @@ export async function processPiPayment(params: {
   }
 
   const quantity = safeQty(params.quantity);
-  const zone = params.zone?.trim().toLowerCase();
-  const country = params.country?.trim().toUpperCase();
 
   return withTransaction(async (client) => {
 
@@ -97,8 +95,8 @@ export async function processPiPayment(params: {
         params.paymentId,
         params.txid,
         params.verifiedAmount,
-        country,
-        zone,
+        null, 
+        null,
         params.verifiedAmount,
       ]
     );
@@ -151,6 +149,62 @@ if (!addressRes.rows.length) {
 
 const address = addressRes.rows[0];
 
+console.log("🧪 [DB] ADDRESS RAW", address);
+
+// 🔥 normalize country
+let addressCountry = address.country;
+
+if (typeof addressCountry !== "string") {
+  console.error("❌ [DB] COUNTRY NOT STRING", addressCountry);
+  throw new Error("INVALID_COUNTRY");
+}
+
+addressCountry = addressCountry.trim().toUpperCase();
+
+if (!addressCountry) {
+  console.error("❌ [DB] COUNTRY EMPTY");
+  throw new Error("INVALID_COUNTRY");
+}
+
+// sau khi load address + normalize country
+
+console.log("🟢 [DB] COUNTRY FINAL", addressCountry);
+
+console.log("🟡 [DB] STEP ZONE CHECK", { addressCountry });
+
+const zoneRes = await client.query(
+  `
+  SELECT sz.code
+  FROM shipping_zone_countries szc
+  JOIN shipping_zones sz ON sz.id = szc.zone_id
+  WHERE szc.country_code = $1
+  LIMIT 1
+  `,
+  [addressCountry]
+);
+
+if (!zoneRes.rows.length) {
+  console.error("❌ [DB] INVALID_COUNTRY", addressCountry);
+  throw new Error("INVALID_COUNTRY");
+}
+
+const realZone = zoneRes.rows[0].code;
+
+console.log("🟢 [DB] ZONE OK", { realZone });
+
+/* ================= 🔥 THÊM Ở ĐÂY ================= */
+
+await client.query(
+  `
+  UPDATE pi_payments
+  SET country = $1,
+      zone = $2
+  WHERE pi_payment_id = $3
+  `,
+  [addressCountry, realZone, params.paymentId]
+);
+
+console.log("🟢 [DB] PAYMENT UPDATED WITH COUNTRY/ZONE");
     /* =========================================================
        📦 4. LOAD PRODUCT
     ========================================================= */
