@@ -39,6 +39,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const processingRef = useRef(false);
 
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
+  if (process.env.NODE_ENV === "development") {
+  console.log("[CHECKOUT SHIPPING]", shipping);
+}
   const [processing, setProcessing] = useState(false);
   const [qtyDraft, setQtyDraft] = useState("1");
   const [message, setMessage] = useState<Message | null>(null);
