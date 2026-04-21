@@ -120,7 +120,7 @@ const [optimisticOrder, setOptimisticOrder] =
     data: orders = [],
     isLoading,
     mutate,
-  } = const {
+  const {
   data: orders = [],
   isLoading,
   mutate,
