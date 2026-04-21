@@ -204,6 +204,8 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
       showMessage,
       t,
     });
+  if (processingRef.current) return;
+processingRef.current = true;
 
   const handlePay = useCheckoutPay({
     item,
