@@ -43,7 +43,6 @@ export function useProduct(id: string) {
 
   return {
     ...api,
-    finalPrice,
 
     images: Array.isArray(api.images) ? api.images : [],
     variants: Array.isArray(api.variants) ? api.variants : [],
@@ -58,9 +57,11 @@ export function useProduct(id: string) {
     ratingCount: Number.isFinite(Number(api.ratingCount))
       ? Number(api.ratingCount)
       : 0,
-    
-  finalPrice: api.finalPrice ?? api.price ?? 0,
-isSale: api.isSale ?? false,
+
+    // 🔥 CHUẨN
+    finalPrice: api.finalPrice ?? api.price ?? 0,
+    isSale: api.isSale ?? false,
+
     isOutOfStock:
       (api.stock ?? 0) <= 0 || api.isActive === false,
   } as ProductType & {
