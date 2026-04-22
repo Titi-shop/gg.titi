@@ -143,20 +143,34 @@ if (!zoneRes.rows.length) {
 const realZone = zoneRes.rows[0].code;
 
 console.log("🟢 [DB] ZONE OK", { realZone });
-
-/* ================= 🔥 THÊM Ở ĐÂY ================= */
-
-await client.query(
+    await client.query(
   `
-  UPDATE pi_payments
-  SET country = $1,
-      zone = $2
-  WHERE pi_payment_id = $3
+  INSERT INTO pi_payments (
+    user_id,
+    pi_payment_id,
+    txid,
+    amount,
+    status,
+    country,
+    zone,
+    verified_amount
+  )
+  VALUES ($1,$2,$3,$4,'verified',$5,$6,$7)
+  ON CONFLICT (pi_payment_id) DO NOTHING
   `,
-  [addressCountry, realZone, params.paymentId]
+  [
+    params.userId,
+    params.paymentId,
+    params.txid,
+    params.verifiedAmount,
+    addressCountry,
+    realZone,
+    params.verifiedAmount,
+  ]
 );
 
-console.log("🟢 [DB] PAYMENT UPDATED WITH COUNTRY/ZONE");
+console.log("🟢 [DB] PAYMENT INSERTED");
+
     /* =========================================================
        📦 4. LOAD PRODUCT
     ========================================================= */
@@ -209,35 +223,36 @@ console.log("🟢 [DB] PAYMENT UPDATED WITH COUNTRY/ZONE");
           : Number(v.price);
 
       console.log("🎯 [PAYMENT] VARIANT PRICE:", price);
-    } else {
-      const now = Date.now();
+   } else {
+  const now = Date.now();
 
-const start = product.sale_start
-  ? new Date(product.sale_start).getTime()
-  : null;
+  const start = product.sale_start
+    ? new Date(product.sale_start).getTime()
+    : null;
 
-const end = product.sale_end
-  ? new Date(product.sale_end).getTime()
-  : null;
+  const end = product.sale_end
+    ? new Date(product.sale_end).getTime()
+    : null;
 
-const isSale =
-  product.sale_price !== null &&
-  product.sale_price > 0 &&
-  start &&
-  end &&
-  now >= start &&
-  now <= end;
+  const isSale =
+    product.sale_price !== null &&
+    product.sale_price > 0 &&
+    start &&
+    end &&
+    now >= start &&
+    now <= end;
 
-let price = isSale
-  ? Number(product.sale_price)
-  : Number(product.price);
+  price = isSale
+    ? Number(product.sale_price)
+    : Number(product.price);
 
-console.log("💰 [DB] FINAL PRODUCT PRICE", {
-  price,
-  base: product.price,
-  sale: product.sale_price,
-  isSale,
-});
+  console.log("💰 [DB] FINAL PRODUCT PRICE", {
+    price,
+    base: product.price,
+    sale: product.sale_price,
+    isSale,
+  });
+}
 
     /* =========================================================
        🚚 6. SHIPPING
@@ -297,9 +312,6 @@ const total = itemsTotal + shippingFee;
       throw new Error("INVALID_AMOUNT");
     }
 
-    /* =========================================================
-       📉 9. STOCK (ATOMIC)
-    ========================================================= */
 /* =========================================================
    📉 9. STOCK (ATOMIC)
 ========================================================= */
@@ -309,7 +321,6 @@ console.log("🧪 [DB] STOCK FLOW", {
 });
 
 if (params.variantId) {
-  // 🔥 1. trừ stock variant
   const stock = await client.query(
     `
     UPDATE product_variants
@@ -321,11 +332,9 @@ if (params.variantId) {
   );
 
   if (!stock.rowCount) {
-    console.error("❌ [DB] VARIANT OUT OF STOCK");
     throw new Error("OUT_OF_STOCK");
   }
 
-  // 🔥 2. trừ stock tổng product (QUAN TRỌNG)
   await client.query(
     `
     UPDATE products
@@ -337,7 +346,6 @@ if (params.variantId) {
   );
 
 } else {
-  // 🔥 product không có variant
   const stock = await client.query(
     `
     UPDATE products
@@ -350,7 +358,6 @@ if (params.variantId) {
   );
 
   if (!stock.rowCount) {
-    console.error("❌ [DB] PRODUCT OUT OF STOCK");
     throw new Error("OUT_OF_STOCK");
   }
 }
