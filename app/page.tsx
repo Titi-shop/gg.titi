@@ -92,8 +92,8 @@ const isSale = isProductOnSale(product);
       onClick={() => router.push(`/product/${product.id}`)}
     className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-transform ${
   product.stock === 0
-    ? "opacity-50 pointer-events-none"
-    : "cursor-pointer active:scale-[0.97]"
+  ? "opacity-60"
+  : "cursor-pointer active:scale-[0.97]"
 }`}
     >
       <div className="relative">
@@ -200,11 +200,10 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
     return;
   }
 
-  // ✅ có variant → chuyển trang luôn
-  if (product.variants?.length) {
-    router.push(`/product/${product.id}`);
-    return;
-  }
+ if (product.hasVariants) {
+  router.push(`/product/${product.id}`);
+  return;
+}
 
   if (product.stock !== undefined && product.stock <= 0) {
     showMessage(t.out_of_stock || "Out of stock");
@@ -290,8 +289,13 @@ useEffect(() => {
   list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
 } else if (sortType === "sale") {
   list.sort((a, b) => {
-    const discountA = a.price - a.finalPrice;
-    const discountB = b.price - b.finalPrice;
+    const discountA = a.hasVariants
+  ? (a.maxPrice ?? 0) - (a.minPrice ?? 0)
+  : a.price - (a.finalPrice ?? a.price);
+
+    const discountB = b.hasVariants
+  ? (b.maxPrice ?? 0) - (b.minPrice ?? 0)
+  : b.price - (b.finalPrice ?? b.price);
     return discountB - discountA;
   });
 }
