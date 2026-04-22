@@ -144,10 +144,7 @@ export function validateBeforePay({
     showMessage(t.pi_not_ready ?? "pi_not_ready");
     return false;
   }
-if (!preview || typeof preview.total !== "number") {
-  showMessage("Đang tính giá, vui lòng chờ...");
-  return;
-}
+   
   if (!shipping) {
     showMessage(t.please_add_shipping_address ?? "no_address");
     return false;
