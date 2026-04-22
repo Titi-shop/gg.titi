@@ -41,13 +41,6 @@ export function useProduct(id: string) {
 
   const api = data as Partial<ProductType>;
 
-  const finalPrice =
-    typeof api.salePrice === "number" &&
-    typeof api.price === "number" &&
-    api.salePrice < api.price
-      ? api.salePrice
-      : api.price ?? 0;
-
   return {
     ...api,
     finalPrice,
@@ -65,9 +58,9 @@ export function useProduct(id: string) {
     ratingCount: Number.isFinite(Number(api.ratingCount))
       ? Number(api.ratingCount)
       : 0,
-
-    isSale: finalPrice < (api.price ?? 0),
-
+    
+  finalPrice: api.finalPrice ?? api.price ?? 0,
+isSale: api.isSale ?? false,
     isOutOfStock:
       (api.stock ?? 0) <= 0 || api.isActive === false,
   } as ProductType & {
