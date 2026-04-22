@@ -282,6 +282,7 @@ export default function ProductDetail() {
           thumbnail: product.thumbnail,
           stock: selectedStock,
           shippingRates: product.shippingRates,
+          variant_id: selectedVariant?.id ?? null,
         }}
       />
     </>
