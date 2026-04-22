@@ -211,6 +211,10 @@ export function useCheckoutPay({
     if (processingRef.current || processing) return;
 
     if (!validate()) return;
+if (!preview || typeof preview.total !== "number") {
+  showMessage(t.order_preview_error ?? "Đang tính giá, vui lòng chờ...");
+  return;
+}
 
     processingRef.current = true;
     setProcessing(true);
