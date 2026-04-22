@@ -57,7 +57,7 @@ function getMainImage(product: Product) {
   return "/placeholder.png";
 }
 function isProductOnSale(p: Product) {
-  return p.finalPrice < p.price;
+  return p.isSale;
 }
 /* ================= PRODUCT CARD ================= */
 
@@ -218,9 +218,7 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 };
   /* ===== COUNTDOWN ===== */
   useEffect(() => {
-    const target = new Date();
-    target.setHours(target.getHours() + 2);
-
+    const target = new Date(product.saleEnd);
     const interval = setInterval(() => {
       const diff = target.getTime() - Date.now();
       if (diff <= 0) {
