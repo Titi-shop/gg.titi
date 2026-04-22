@@ -171,17 +171,38 @@ export async function previewOrder(
 
     /* ================= VARIANT ================= */
     if (item.variant_id) {
-      const v = variantMap.get(item.variant_id);
+  const v = variantMap.get(item.variant_id);
 
-      if (!v) throw new Error("INVALID_VARIANT");
+  if (!v) throw new Error("INVALID_VARIANT");
 
-      price =
-        v.sale_price && v.sale_price > 0
-          ? Number(v.sale_price)
-          : Number(v.price);
+  const start = p.sale_start
+    ? new Date(p.sale_start).getTime()
+    : null;
 
-      console.log("🎯 [PREVIEW] VARIANT PRICE:", price);
-    } else {
+  const end = p.sale_end
+    ? new Date(p.sale_end).getTime()
+    : null;
+
+  const isSale =
+    v.sale_price &&
+    v.sale_price > 0 &&
+    start &&
+    end &&
+    now >= start &&
+    now <= end;
+
+  price = isSale
+    ? Number(v.sale_price)
+    : Number(v.price);
+
+  console.log("🎯 [PREVIEW] VARIANT PRICE:", {
+    price,
+    isSale,
+    now,
+    start,
+    end,
+  });
+}
       /* ================= SALE ================= */
 
       const start = p.sale_start
