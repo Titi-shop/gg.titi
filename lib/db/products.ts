@@ -113,7 +113,9 @@ function toAppProduct(row: ProductRow): ProductRecord {
 /* =========================================================
    GET — ALL PRODUCTS
 ========================================================= */
-
+export async function getSellerProducts(
+  sellerId: string
+): Promise<ProductRecord[]> {
 export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   const { rows } = await query<ProductRecord>(
     `
@@ -152,7 +154,8 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   seller_id
     FROM products
     WHERE is_active = true
-      AND deleted_at IS NULL
+  AND deleted_at IS NULL
+  AND status = 'active'
     ORDER BY created_at DESC
     LIMIT $1
     `,
@@ -168,36 +171,42 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
 export async function getSellerProducts(
   sellerId: string
 ): Promise<ProductRecord[]> {
-  const { rows } = await query(
-    `
-    SELECT DISTINCT ON (p.id)
-      p.*,
+    const { rows } = await query(
+  `
+  SELECT 
+    p.*,
 
-      /* 🔥 MIN VARIANT PRICE */
-      COALESCE(v.price, p.price) AS price,
+    /* ✅ MIN VARIANT PRICE (đúng chuẩn ecommerce) */
+    (
+      SELECT MIN(
+        CASE
+          WHEN v.sale_price > 0 
+            AND NOW() BETWEEN p.sale_start AND p.sale_end
+          THEN v.sale_price
+          ELSE v.price
+        END
+      )
+      FROM product_variants v
+      WHERE v.product_id = p.id
+        AND v.is_active = TRUE
+    ) AS price,
 
-      /* 🔥 SALE */
-      CASE
-        WHEN v.sale_price > 0 THEN v.sale_price
-        ELSE p.sale_price
-      END AS sale_price
+    /* ✅ SALE PRICE (optional) */
+    CASE
+      WHEN p.sale_price > 0 
+        AND NOW() BETWEEN p.sale_start AND p.sale_end
+      THEN p.sale_price
+      ELSE NULL
+    END AS sale_price
 
-    FROM products p
+  FROM products p
+  WHERE p.seller_id = $1
+    AND p.deleted_at IS NULL
 
-    LEFT JOIN product_variants v
-      ON v.product_id = p.id
-      AND (v.is_active = TRUE OR v.is_active IS NULL)
-
-    WHERE p.seller_id = $1
-      AND p.deleted_at IS NULL
-
-    ORDER BY 
-      p.id,
-      v.price ASC NULLS LAST
-
-    `,
-    [sellerId]
-  );
+  ORDER BY p.created_at DESC
+  `,
+  [sellerId]
+);
 
   return rows.map(toAppProduct);
 }
@@ -585,9 +594,13 @@ export async function deleteProductById(
 
     /* ================= DELETE ================= */
     await query(
-      `DELETE FROM products WHERE id = $1`,
-      [productId]
-    );
+  `
+  UPDATE products
+  SET deleted_at = NOW()
+  WHERE id = $1
+  `,
+  [productId]
+);
 
     return { ok: true, paths };
 
