@@ -124,10 +124,12 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   ];
 }, [open, shipping, zone, item, quantity, product?.selectedVariant?.id]);
 
-  const { data: preview, error: previewError } = useSWR(
-    previewKey,
-    previewFetcher
-  );
+  const {
+  data: preview,
+  error: previewError,
+  isLoading,
+  isValidating,
+} = useSWR(previewKey, previewFetcher);
 
   /* =========================
      LOAD ADDRESS (FIXED)
@@ -377,11 +379,11 @@ setZone(r.zone);
     {formatPi(total)} π
   </p>
 
-  {!preview && (
-    <p className="text-xs text-gray-400">
-      Đang tính phí...
-    </p>
-  )}
+  {(isLoading || isValidating) && (
+  <p className="text-xs text-gray-400">
+    Đang cập nhật giá...
+  </p>
+)}
 </div>
           </div>
         </div>
@@ -389,12 +391,14 @@ setZone(r.zone);
         {/* PAY BUTTON (FIX POSITION) */}
         <div className="border-t p-4">
           <button
-  onClick={handlePay}
-  disabled={processing || !preview}
-  className={`w-full py-3 text-white rounded ${
-    processing ? "bg-gray-400" : "bg-orange-600"
-  }`}
-          >
+         onClick={handlePay}
+        disabled={processing || !preview || isLoading || isValidating}
+        className={`w-full py-3 text-white rounded ${
+         processing || !preview || isLoading || isValidating
+      ? "bg-gray-400"
+      : "bg-orange-600"
+        }`}
+         >
             {processing ? t.processing : t.pay_now}
           </button>
         </div>
