@@ -1,3 +1,5 @@
+Sửa chính xác đoạn nào .
+
 import { query } from "@/lib/db";
 
 /* ================= TYPES ================= */
@@ -170,7 +172,52 @@ export async function previewOrder(
     let price = Number(p.price);
 
     /* ================= VARIANT ================= */
-    
+    const start = p.sale_start
+  ? new Date(p.sale_start).getTime()
+  : null;
+
+const end = p.sale_end
+  ? new Date(p.sale_end).getTime()
+  : null;
+
+const isSaleTime =
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end;
+
+/* ================= VARIANT ================= */
+if (item.variant_id) {
+  const v = variantMap.get(item.variant_id);
+
+  if (!v) throw new Error("INVALID_VARIANT");
+
+  const isSale =
+    isSaleTime &&
+    v.sale_price &&
+    v.sale_price > 0;
+
+  price = isSale
+    ? Number(v.sale_price)
+    : Number(v.price);
+
+  console.log("🎯 [PREVIEW] VARIANT PRICE:", price);
+
+} else {
+  /* ================= PRODUCT ================= */
+
+  const isSale =
+    isSaleTime &&
+    p.sale_price &&
+    p.sale_price > 0;
+
+  price = isSale
+    ? Number(p.sale_price)
+    : Number(p.price);
+
+  console.log("💰 [PREVIEW] PRODUCT PRICE:", price);
+}
+
     const total = price * item.quantity;
 
     subtotal += total;
