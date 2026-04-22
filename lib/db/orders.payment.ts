@@ -71,35 +71,6 @@ export async function processPiPayment(params: {
       };
     }
 
-    /* =========================================================
-       🔒 2. INSERT PAYMENT (ANTI REPLAY)
-    ========================================================= */
-
-    await client.query(
-      `
-      INSERT INTO pi_payments (
-  user_id,
-  pi_payment_id,
-  txid,
-  amount,
-  status,
-  country,
-  zone,
-  verified_amount
-    )
-     VALUES ($1,$2,$3,$4,'verified',$5,$6,$7)
-      ON CONFLICT (pi_payment_id) DO NOTHING
-      `,
-      [
-        params.userId,
-        params.paymentId,
-        params.txid,
-        params.verifiedAmount,
-        null, 
-        null,
-        params.verifiedAmount,
-      ]
-    );
 
     /* =========================================================
    📍 LOAD ADDRESS (SOURCE OF TRUTH)
@@ -241,27 +212,32 @@ console.log("🟢 [DB] PAYMENT UPDATED WITH COUNTRY/ZONE");
     } else {
       const now = Date.now();
 
-      const start = product.sale_start
-        ? new Date(product.sale_start).getTime()
-        : null;
+const start = product.sale_start
+  ? new Date(product.sale_start).getTime()
+  : null;
 
-      const end = product.sale_end
-        ? new Date(product.sale_end).getTime()
-        : null;
+const end = product.sale_end
+  ? new Date(product.sale_end).getTime()
+  : null;
 
-      const isSale =
-        product.sale_price &&
-        start &&
-        end &&
-        now >= start &&
-        now <= end;
+const isSale =
+  product.sale_price !== null &&
+  product.sale_price > 0 &&
+  start &&
+  end &&
+  now >= start &&
+  now <= end;
 
-      if (isSale) {
-        price = Number(product.sale_price);
-      }
+let price = isSale
+  ? Number(product.sale_price)
+  : Number(product.price);
 
-      console.log("💰 [PAYMENT] PRODUCT PRICE:", price);
-    }
+console.log("💰 [DB] FINAL PRODUCT PRICE", {
+  price,
+  base: product.price,
+  sale: product.sale_price,
+  isSale,
+});
 
     /* =========================================================
        🚚 6. SHIPPING
@@ -324,36 +300,60 @@ const total = itemsTotal + shippingFee;
     /* =========================================================
        📉 9. STOCK (ATOMIC)
     ========================================================= */
+/* =========================================================
+   📉 9. STOCK (ATOMIC)
+========================================================= */
 console.log("🧪 [DB] STOCK FLOW", {
   variantId: params.variantId,
   productId: params.productId,
 });
-    if (params.variantId) {
-      const stock = await client.query(
-        `
-        UPDATE product_variants
-        SET stock = stock - $1
-        WHERE id=$2 AND stock >= $1
-        RETURNING id
-        `,
-        [quantity, params.variantId]
-      );
 
-      if (!stock.rowCount) throw new Error("OUT_OF_STOCK");
-    } else {
-      const stock = await client.query(
-        `
-        UPDATE products
-        SET stock = stock - $1,
-            sold = sold + $1
-        WHERE id=$2 AND stock >= $1
-        RETURNING id
-        `,
-        [quantity, params.productId]
-      );
+if (params.variantId) {
+  // 🔥 1. trừ stock variant
+  const stock = await client.query(
+    `
+    UPDATE product_variants
+    SET stock = stock - $1
+    WHERE id=$2 AND stock >= $1
+    RETURNING id
+    `,
+    [quantity, params.variantId]
+  );
 
-      if (!stock.rowCount) throw new Error("OUT_OF_STOCK");
-    }
+  if (!stock.rowCount) {
+    console.error("❌ [DB] VARIANT OUT OF STOCK");
+    throw new Error("OUT_OF_STOCK");
+  }
+
+  // 🔥 2. trừ stock tổng product (QUAN TRỌNG)
+  await client.query(
+    `
+    UPDATE products
+    SET stock = stock - $1,
+        sold = sold + $1
+    WHERE id=$2
+    `,
+    [quantity, params.productId]
+  );
+
+} else {
+  // 🔥 product không có variant
+  const stock = await client.query(
+    `
+    UPDATE products
+    SET stock = stock - $1,
+        sold = sold + $1
+    WHERE id=$2 AND stock >= $1
+    RETURNING id
+    `,
+    [quantity, params.productId]
+  );
+
+  if (!stock.rowCount) {
+    console.error("❌ [DB] PRODUCT OUT OF STOCK");
+    throw new Error("OUT_OF_STOCK");
+  }
+}
 
     /* =========================================================
        🧾 10. CREATE ORDER
