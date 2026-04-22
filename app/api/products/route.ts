@@ -170,8 +170,6 @@ export async function GET(req: Request) {
           end !== null &&
           now >= start &&
           now <= end;
-
-        /* ================= VARIANT FIX ================= */
         /* ================= VARIANT FIX (FULL) ================= */
 
 /* ✅ 1. chỉ lấy variant active */
@@ -231,8 +229,7 @@ if (enrichedVariants.length > 0) {
 
 /* ================= HAS VARIANTS ================= */
 const hasVariants = enrichedVariants.length > 0;
-        }
-
+        
         return {
           id: p.id,
           sellerId: p.seller_id,
