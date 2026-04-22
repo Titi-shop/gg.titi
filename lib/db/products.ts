@@ -152,7 +152,6 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
     FROM products
     WHERE is_active = true
   AND deleted_at IS NULL
-  AND status = 'active'
     ORDER BY created_at DESC
     LIMIT $1
     `,
