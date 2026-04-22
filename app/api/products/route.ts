@@ -172,51 +172,65 @@ export async function GET(req: Request) {
           now <= end;
 
         /* ================= VARIANT FIX ================= */
-        const enrichedVariants = variants.map((v) => {
-          const basePrice =
-            typeof v.price === "number" && v.price > 0
-              ? v.price
-              : p.price;
+        /* ================= VARIANT FIX (FULL) ================= */
 
-          const finalPrice =
-  typeof v.salePrice === "number" &&
-  v.salePrice > 0 &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end
-    ? v.salePrice
-    : basePrice;
+/* ✅ 1. chỉ lấy variant active */
+const activeVariants = variants.filter(
+  (v) => v.isActive !== false
+);
 
-          return {
-            ...v,
-            finalPrice,
-          };
-        });
+/* ✅ 2. tính giá variant theo sale time product */
+const enrichedVariants = activeVariants.map((v) => {
+  const basePrice =
+    typeof v.price === "number" && v.price > 0
+      ? v.price
+      : p.price;
 
-        /* ================= STOCK ================= */
-        const finalStock =
-          enrichedVariants.length > 0
-            ? enrichedVariants.reduce((s, v) => s + (v.stock || 0), 0)
-            : p.stock ?? 0;
+  const finalPrice =
+    typeof v.salePrice === "number" &&
+    v.salePrice > 0 &&
+    start !== null &&
+    end !== null &&
+    now >= start &&
+    now <= end
+      ? v.salePrice
+      : basePrice;
 
-        /* ================= PRODUCT FINAL PRICE ================= */
-        const productFinalPrice =
-          typeof p.sale_price === "number" && isSale
-            ? p.sale_price
-            : p.price;
+  return {
+    ...v,
+    finalPrice,
+  };
+});
 
-        console.log("💰 PRODUCT PRICE:", productFinalPrice);
+/* ================= STOCK ================= */
+const finalStock =
+  enrichedVariants.length > 0
+    ? enrichedVariants.reduce((s, v) => s + (v.stock || 0), 0)
+    : p.stock ?? 0;
 
-        /* ================= PRICE RANGE ================= */
-        let minPrice: number | null = null;
-        let maxPrice: number | null = null;
+/* ================= PRODUCT PRICE ================= */
+const productFinalPrice =
+  typeof p.sale_price === "number" && isSale
+    ? p.sale_price
+    : p.price;
 
-        if (enrichedVariants.length > 0) {
-          const prices = enrichedVariants.map((v) => v.finalPrice);
+/* ================= PRICE RANGE ================= */
+let minPrice: number | null = null;
+let maxPrice: number | null = null;
 
-          minPrice = Math.min(...prices);
-          maxPrice = Math.max(...prices);
+if (enrichedVariants.length > 0) {
+  const prices = enrichedVariants
+    .map((v) => v.finalPrice)
+    .filter((p) => typeof p === "number" && p > 0);
+
+  if (prices.length) {
+    minPrice = Math.min(...prices);
+    maxPrice = Math.max(...prices);
+  }
+}
+
+/* ================= HAS VARIANTS ================= */
+const hasVariants = enrichedVariants.length > 0;
         }
 
         return {
@@ -226,7 +240,8 @@ export async function GET(req: Request) {
 
           price: p.price ?? 0,
           salePrice: p.sale_price ?? null,
-          finalPrice: productFinalPrice,
+          finalPrice: hasVariants ? null : productFinalPrice,
+          hasVariants,
 
           minPrice,
           maxPrice,
