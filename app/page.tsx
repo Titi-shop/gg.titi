@@ -392,10 +392,10 @@ if (loading && products.length === 0) {
                     <p className="text-xs line-clamp-2 min-h-[32px]">{p.name}</p>
 
                     <p className="text-orange-500 font-bold text-sm mt-1">
-                      {product.hasVariants
-                   ? `${formatPi(product.minPrice ?? 0)} - ${formatPi(product.maxPrice ?? 0)} π`
-                 : `${formatPi(product.finalPrice ?? product.price)} π`}
-                    </p>
+                {p.hasVariants
+           ? `${formatPi(p.minPrice ?? 0)} - ${formatPi(p.maxPrice ?? 0)} π`
+          : `${formatPi(p.finalPrice ?? p.price)} π`}
+               </p>
 
                     <p className="text-[10px] text-gray-400 line-through">
                       {formatPi(p.price)} π
