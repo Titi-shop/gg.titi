@@ -21,6 +21,8 @@ type Variant = {
   optionValue: string;
   price: number;
   salePrice?: number | null;
+  finalPrice: number;  
+  isSale: boolean;     
   stock: number;
   isActive?: boolean;
 };
@@ -265,11 +267,18 @@ export function ProductView(props: ProductViewProps) {
                 π {formatPi(product.finalPrice)}
               </p>
 
-              {product.isSale && (
-                <p className="text-sm text-gray-400 line-through">
-                  π {formatPi(product.price)}
-                </p>
-              )}
+              {isSale && (
+  <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
+    -{calcSalePercent(
+      hasVariants
+        ? selectedVariant?.price ?? 0
+        : product.price,
+      hasVariants
+        ? selectedVariant?.finalPrice ?? 0
+        : product.finalPrice
+    )}%
+  </div>
+)}
             </>
           )}
         </div>
