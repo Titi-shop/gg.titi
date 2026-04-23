@@ -372,7 +372,6 @@ if (loading && products.length === 0) {
   </div>
 )}
       <BannerCarousel />
-
       {/* PI PRICE + FLASH SALE */}
       <div className="my-4 px-3 space-y-3">
         <div className="flex justify-center">
@@ -396,14 +395,9 @@ if (loading && products.length === 0) {
           </div>
           <div className="flex gap-3 overflow-x-auto">
           {products
-           function isProductOnSale(p: Product) {
-  if (p.hasVariants) {
-    return p.minPrice !== null && p.maxPrice !== null && p.minPrice < p.maxPrice;
-  }
-  return p.finalPrice !== null && p.finalPrice < p.price;
-}
-             .slice(0, 10)
-              .map((p) => (
+           ?.filter((p) => isProductOnSale(p))
+           .slice(0, 10)
+             .map((p) => (
                 <div
                   key={p.id}
                   onClick={() => router.push(`/product/${p.id}`)}
