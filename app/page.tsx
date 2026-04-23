@@ -376,9 +376,15 @@ if (loading && products.length === 0) {
                       className="w-full h-28 object-cover"
                     />
 
-                    <div className="absolute top-1 left-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded">
-                      {t.flash_sale || "Sale"}
-                    </div>
+                    {p.stock === 0 ? (
+          <div className="absolute top-1 left-1 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded">
+        {t.out_of_stock || "Out of stock"}
+     </div>
+    ) : (
+  <div className="absolute top-1 left-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded">
+    {t.flash_sale || "Sale"}
+            </div>
+                )}
 
                     <button
                       onClick={(e) => {
