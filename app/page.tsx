@@ -228,8 +228,8 @@ export default function HomePage() {
   data: productsData,
   isLoading: loadingProducts,
 } = useSWR<Product[]>("/api/products", fetcher, {
-  revalidateOnFocus: false,
-  dedupingInterval: 5000,
+  refreshInterval: 3000, // 🔥 realtime mỗi 3s
+  revalidateOnFocus: true,
 });
 
 const {
@@ -359,7 +359,6 @@ useEffect(() => {
   
   const filteredProducts = useMemo(() => {
     let list = [...products];
-
     if (selectedCategory !== "all") {
       list = list.filter((p) => p.categoryId === selectedCategory);
     }
