@@ -162,8 +162,8 @@ export default function ProductDetail() {
 ) ?? [];
 
   const selectedStock = hasVariants
-    ? selectedVariant?.stock ?? 0
-    : product.stock;
+  ? selectedVariant?.stock ?? 0
+  : product.stock ?? 0;
 
   const canBuy = hasVariants
     ? !!selectedVariant && selectedStock > 0
