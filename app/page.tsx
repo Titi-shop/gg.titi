@@ -164,7 +164,9 @@ function ProductCard({
             setAdded(true);
             setTimeout(() => setAdded(false), 600);
           }}
-          disabled={isOut}
+          const isSaleOut =
+         (product as any).saleStock > 0 &&
+         (product as any).saleLeft <= 0;
           className={`absolute top-2 right-2 p-2 rounded-full shadow transition-all ${
             isOut
               ? "bg-gray-200 text-gray-400 cursor-not-allowed"
