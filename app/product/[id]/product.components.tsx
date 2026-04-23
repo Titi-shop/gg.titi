@@ -176,16 +176,13 @@ export function ProductView(props: ProductViewProps) {
                   e.touches[0].clientX - e.touches[1].clientX;
                 const dy =
                   e.touches[0].clientY - e.touches[1].clientY;
-
                 const distance = Math.sqrt(dx * dx + dy * dy);
-
                 setInitialDistance(distance);
                 setInitialScale(scale);
               }
 
               if (e.touches.length === 1) {
                 const touch = e.touches[0];
-
                 setDragging(true);
                 setStart({
                   x: touch.clientX - position.x,
@@ -257,7 +254,7 @@ export function ProductView(props: ProductViewProps) {
             ) : (
               <p className="text-xl font-bold text-primary">
                 {product.minPrice === product.maxPrice
-                  ? `π ${formatPi(product.minPrice)}`
+                  ? `π {formatPi(product.minPrice ?? 0)}`
                   : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
               </p>
             )
