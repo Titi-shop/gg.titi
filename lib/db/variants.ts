@@ -1,19 +1,24 @@
 import { query, withTransaction } from "@/lib/db";
 
 /* =========================================================
-   TYPES
+   TYPES (MATCH DB)
 ========================================================= */
 
 export type ProductVariant = {
   id?: string;
 
-  optionName?: string;   // "Size"
-  optionValue: string;   // "XL"
+  optionName?: string;
+  optionValue: string;
+
   price?: number;
   salePrice?: number | null;
+
   stock: number;
+  isUnlimited?: boolean;
+
   sku?: string | null;
   image?: string | null;
+
   sortOrder?: number;
   isActive?: boolean;
 };
@@ -53,7 +58,7 @@ function validateVariants(input: unknown): ProductVariant[] {
 }
 
 /* =========================================================
-   NORMALIZE
+   NORMALIZE (MATCH DB)
 ========================================================= */
 
 function normalizeVariant(v: ProductVariant, index: number) {
@@ -76,25 +81,39 @@ function normalizeVariant(v: ProductVariant, index: number) {
       ? v.price
       : 0;
 
-  /* ✅ KHÔNG validate sale < price (logic nằm ở API) */
   const salePrice =
     typeof v.salePrice === "number" && v.salePrice >= 0
       ? v.salePrice
       : null;
 
+  /* ✅ FINAL PRICE (QUAN TRỌNG) */
+  const finalPrice =
+    salePrice !== null && salePrice < price
+      ? salePrice
+      : price;
+
   return {
     option_1: value,
     option_label_1: label,
+
     option_2: null,
     option_label_2: null,
+
     option_3: null,
     option_label_3: null,
+
     name: value,
+
     price,
     sale_price: salePrice,
+    final_price: finalPrice,
+
     stock: v.stock >= 0 ? v.stock : 0,
+    is_unlimited: v.isUnlimited ?? false,
+
     sku: v.sku ?? null,
     image: v.image ?? "",
+
     sort_order: v.sortOrder ?? index,
     is_active: v.isActive ?? true,
   };
@@ -106,6 +125,7 @@ function normalizeVariant(v: ProductVariant, index: number) {
 
 export async function getVariantsByProductId(productId: string) {
   console.log("🔍 [VARIANT][GET] product:", productId);
+
   const res = await query(
     `
     SELECT
@@ -132,17 +152,25 @@ export async function getVariantsByProductId(productId: string) {
 
   return res.rows.map((r) => ({
     id: r.id,
+
     optionName: r.option_label_1,
     optionValue: r.option_1,
+
     price: Number(r.price),
     salePrice:
       r.sale_price !== null ? Number(r.sale_price) : null,
+
     finalPrice: Number(r.final_price),
+
     stock: r.is_unlimited ? 999999 : r.stock,
+    isUnlimited: r.is_unlimited,
+
     sku: r.sku,
     image: r.image,
+
     sortOrder: r.sort_order,
     isActive: r.is_active,
+
     sold: r.sold ?? 0,
   }));
 }
@@ -187,26 +215,36 @@ export async function replaceVariantsByProductId(
     const placeholders: string[] = [];
 
     normalized.forEach((v, i) => {
-      const idx = i * 15;
+      const idx = i * 17;
 
       placeholders.push(
-        `($${idx + 1},$${idx + 2},$${idx + 3},$${idx + 4},$${idx + 5},$${idx + 6},$${idx + 7},$${idx + 8},$${idx + 9},$${idx + 10},$${idx + 11},$${idx + 12},$${idx + 13},$${idx + 14},$${idx + 15})`
+        `($${idx + 1},$${idx + 2},$${idx + 3},$${idx + 4},$${idx + 5},$${idx + 6},$${idx + 7},$${idx + 8},$${idx + 9},$${idx + 10},$${idx + 11},$${idx + 12},$${idx + 13},$${idx + 14},$${idx + 15},$${idx + 16},$${idx + 17})`
       );
 
       values.push(
         productId,
+
         v.option_1,
         v.option_label_1,
+
         v.option_2,
         v.option_label_2,
+
         v.option_3,
         v.option_label_3,
+
         v.name,
+
         v.price,
         v.sale_price,
+        v.final_price,
+
         v.stock,
+        v.is_unlimited,
+
         v.sku,
         v.image,
+
         v.sort_order,
         v.is_active
       );
@@ -220,18 +258,28 @@ export async function replaceVariantsByProductId(
       INSERT INTO product_variants
       (
         product_id,
+
         option_1,
         option_label_1,
+
         option_2,
         option_label_2,
+
         option_3,
         option_label_3,
+
         name,
+
         price,
         sale_price,
+        final_price,
+
         stock,
+        is_unlimited,
+
         sku,
         image,
+
         sort_order,
         is_active
       )
