@@ -150,7 +150,9 @@ export default function ProductDetail() {
       </div>
     );
   }
-
+if (!product || typeof product !== "object") {
+  return null;
+}
   /* ================= LOGIC ================= */
 
   const hasVariants =
