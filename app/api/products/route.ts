@@ -42,26 +42,23 @@ function normalizeVariants(input: unknown): ProductVariant[] {
       if (!value) return null;
 
       return {
-        id: typeof item.id === "string" ? item.id : undefined,
-        optionName:
-          typeof item.optionName === "string"
-            ? item.optionName
-            : "option",
-        optionValue: value,
-        price: Number(item.price) || 0,
-        salePrice:
-          typeof item.salePrice === "number"
-            ? item.salePrice
-            : null,
-        stock: Number(item.stock) || 0,
-        sku: item.sku ?? null,
-        image: item.image ?? "",
-        sortOrder: item.sortOrder ?? index,
-        isActive: item.isActive ?? true,
-        saleEnabled: item.saleEnabled ?? false,
-        saleStock: Number(item.saleStock) || 0,
-        saleSold: Number(item.saleSold) || 0,
-      };
+  id: typeof item.id === "string" ? item.id : undefined,
+  optionName:
+    typeof item.optionName === "string"
+      ? item.optionName
+      : "option",
+  optionValue: value,
+  price: Number(item.price) || 0,
+  salePrice:
+    typeof item.salePrice === "number"
+      ? item.salePrice
+      : null,
+  stock: Number(item.stock) || 0,
+  sku: item.sku ?? null,
+  image: item.image ?? "",
+  sortOrder: item.sortOrder ?? index,
+  isActive: item.isActive ?? true,
+};
     })
     .filter(Boolean) as ProductVariant[];
 }
@@ -135,13 +132,12 @@ const enriched = await Promise.all(
       const base = v.price;
 
       const isSale =
-        v.saleEnabled === true &&
-        typeof v.salePrice === "number" &&
-        start !== null &&
-        end !== null &&
-        now >= start &&
-        now <= end &&
-        (v.saleSold ?? 0) < (v.saleStock ?? 0);
+      typeof v.salePrice === "number" &&
+      v.salePrice < v.price &&
+      start !== null &&
+     end !== null &&
+      now >= start &&
+      now <= end;
 
       const finalPrice = isSale
         ? v.salePrice!
@@ -177,15 +173,15 @@ const enriched = await Promise.all(
     let maxPrice: number | null = null;
 
     if (hasVariants) {
-      const prices = enrichedVariants
-        .map((v) => v.finalPrice)
-        .filter((p) => typeof p === "number");
+  const prices = enrichedVariants
+    .map((v) => v.finalPrice)
+    .filter((p) => typeof p === "number" && p > 0); // ✅ FIX Ở ĐÂY
 
-      if (prices.length) {
-        minPrice = Math.min(...prices);
-        maxPrice = Math.max(...prices);
-      }
-    }
+  if (prices.length) {
+    minPrice = Math.min(...prices);
+    maxPrice = Math.max(...prices);
+  }
+}
 
     return {
       id: p.id,
