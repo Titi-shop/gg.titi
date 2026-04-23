@@ -58,6 +58,9 @@ function normalizeVariants(input: unknown): ProductVariant[] {
         image: item.image ?? "",
         sortOrder: item.sortOrder ?? index,
         isActive: item.isActive ?? true,
+        saleEnabled: item.saleEnabled ?? false,
+        saleStock: Number(item.saleStock) || 0,
+        saleSold: Number(item.saleSold) || 0,
       };
     })
     .filter(Boolean) as ProductVariant[];
