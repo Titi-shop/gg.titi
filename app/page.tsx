@@ -61,10 +61,7 @@ function getMainImage(product: Product) {
   return "/placeholder.png";
 }
 function isProductOnSale(p: Product) {
-  if (p.hasVariants) {
-    return p.minPrice !== null && p.maxPrice !== null && p.minPrice < p.maxPrice;
-  }
-  return p.finalPrice !== null && p.finalPrice < p.price;
+  return (p as any).isSale === true;
 }
 function getVariantDiscount(p: Product) {
   if (!p.hasVariants || !p.variants?.length) return 0;
@@ -141,15 +138,15 @@ function ProductCard({
 
         {/* ===== BADGE ===== */}
         {isOut ? (
-      <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+  <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
     {t.out_of_stock || "Out of stock"}
   </div>
-    ) : isLowStock ? (
+) : isLowStock ? (
   <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
     {t.low_stock || "Low stock"}
   </div>
-    ) : discount > 0 ? (
-  <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
+) : discount > 0 ? (
+  <div className="absolute top-2 left-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs px-2 py-1 rounded shadow">
     -{discount}%
   </div>
 ) : null}
@@ -293,27 +290,38 @@ const showMessage = (text: string, type: "error" | "success" = "error") => {
 };
   /* ===== COUNTDOWN ===== */
   useEffect(() => {
-    const target = new Date();
-    target.setHours(target.getHours() + 2);
+  if (!products || products.length === 0) return;
 
-    const interval = setInterval(() => {
-      const diff = target.getTime() - Date.now();
-      if (diff <= 0) {
-        setTimeLeft("00:00:00");
-        return;
-      }
+  const saleProduct = products.find(
+    (p: any) => p.isSale && p.saleEnd
+  );
 
-      const h = Math.floor(diff / 1000 / 60 / 60);
-      const m = Math.floor((diff / 1000 / 60) % 60);
-      const s = Math.floor((diff / 1000) % 60);
+  const target = new Date(
+    saleProduct?.saleEnd || Date.now()
+  );
 
-      setTimeLeft(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-      );
-    }, 1000);
+  const interval = setInterval(() => {
+    const diff = target.getTime() - Date.now();
 
-    return () => clearInterval(interval);
-  }, []);
+    if (diff <= 0) {
+      setTimeLeft("00:00:00");
+      return;
+    }
+
+    const h = Math.floor(diff / 1000 / 60 / 60);
+    const m = Math.floor((diff / 1000 / 60) % 60);
+    const s = Math.floor((diff / 1000) % 60);
+
+    setTimeLeft(
+      `${String(h).padStart(2, "0")}:${String(m).padStart(
+        2,
+        "0"
+      )}:${String(s).padStart(2, "0")}`
+    );
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [products]);
   useEffect(() => {
   if (!productsData) {
     const cached = localStorage.getItem("products");
@@ -420,8 +428,7 @@ if (loading && products.length === 0) {
           <div className="flex gap-3 overflow-x-auto">
           {products
            ?.filter((p) => {
-       if (p.hasVariants) return getVariantDiscount(p) > 0;
-        return isProductOnSale(p);
+            .filter((p) => (p as any).isSale === true)
          })
            .slice(0, 10)
              .map((p) => (
@@ -447,9 +454,9 @@ if (loading && products.length === 0) {
     ? getVariantDiscount(p) > 0
     : isProductOnSale(p)
   ) ? (
-        <div className="absolute top-1 left-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded">
-         {t.flash_sale || "Sale"}
-           </div>
+        <div className="absolute top-1 left-1 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] px-2 py-0.5 rounded shadow font-semibold animate-pulse">
+  ⚡ SALE
+      </div>
              ) : null}
 
                     <button
