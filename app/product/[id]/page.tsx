@@ -108,7 +108,6 @@ export default function ProductDetail() {
         if (!res.ok) return;
 
         const data = await res.json();
-
         if (!Array.isArray(data)) return;
 
         const normalized: RelatedProduct[] = data.map((p: any) => ({
@@ -116,10 +115,8 @@ export default function ProductDetail() {
   categoryId: p.categoryId,
   name: p.name,
   thumbnail: p.thumbnail,
-
   price: p.price,
   salePrice: p.salePrice ?? null,
-
   finalPrice: p.finalPrice,
   isSale: p.isSale,
 }));
@@ -168,8 +165,8 @@ if (!product || typeof product !== "object") {
   : product.stock ?? 0;
 
   const canBuy = hasVariants
-    ? !!selectedVariant && selectedStock > 0
-    : !(product.isOutOfStock ?? false);
+  ? !!selectedVariant && selectedStock > 0
+  : (product.stock ?? 0) > 0;
 
   const relatedProducts = products
     .filter(
