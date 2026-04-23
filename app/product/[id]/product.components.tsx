@@ -266,9 +266,6 @@ export function ProductView(props: ProductViewProps) {
               <p className="text-xl font-bold text-primary">
                 π {formatPi(product.finalPrice)}
               </p>
-
-              {isSale && (
-  <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
     -{calcSalePercent(
       hasVariants
         ? selectedVariant?.price ?? 0
