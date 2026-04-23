@@ -84,14 +84,16 @@ function ProductCard({
 
   const isSale = isProductOnSale(product);
 
-  const discount =
-    !product.hasVariants && product.price > 0
-      ? Math.round(
-          ((product.price - (product.finalPrice ?? product.price)) /
-            product.price) *
-            100
+  const discount = product.hasVariants
+  ? getVariantDiscount(product)
+  : product.price > 0
+  ? Math.round(
+      ((product.price - (product.finalPrice ?? product.price)) /
+        product.price) *
+        100
         )
-      : 0;
+       : 0;
+
 
   const soldPercent = Math.min(
     ((product.sold ?? 0) / ((product.sold ?? 0) + (product.stock ?? 1))) * 100,
@@ -117,18 +119,18 @@ function ProductCard({
 
         {/* ===== BADGE ===== */}
         {isOut ? (
-          <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-            {t.out_of_stock || "Out of stock"}
-          </div>
-        ) : isLowStock ? (
-          <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
-            {t.low_stock || "Low stock"}
-          </div>
-        ) : isSale && !product.hasVariants ? (
-          <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-            -{discount}%
-          </div>
-        ) : null}
+      <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+    {t.out_of_stock || "Out of stock"}
+  </div>
+    ) : isLowStock ? (
+  <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">
+    {t.low_stock || "Low stock"}
+  </div>
+    ) : isSale && discount > 0 ? (
+  <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
+    -{discount}%
+  </div>
+       ) : null}
 
         {/* ===== ADD TO CART ===== */}
         <button
