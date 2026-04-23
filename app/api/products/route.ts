@@ -203,7 +203,9 @@ const enriched = await Promise.all(
 
       stock,
       sold: p.sold ?? 0,
-
+     saleLeft: p.sale_stock > 0
+     ? Math.max(0, p.sale_stock - p.sale_sold)
+     : null,
       isSale: hasVariants
         ? enrichedVariants.some((v) => v.isSale)
         : isProductSale,
