@@ -104,103 +104,116 @@ export async function GET(req: Request) {
 
     const now = Date.now();
 
-    /* ================= ENRICH ================= */
-    const enriched = await Promise.all(
-      products.map(async (p) => {
-        const variants = await getVariantsByProductId(p.id);
+const enriched = await Promise.all(
+  products.map(async (p) => {
+    const variants = await getVariantsByProductId(p.id);
 
-        /* ================= SALE TIME ================= */
-        const start = p.sale_start
-          ? new Date(p.sale_start).getTime()
-          : null;
+    const start = p.sale_start
+      ? new Date(p.sale_start).getTime()
+      : null;
 
-        const end = p.sale_end
-          ? new Date(p.sale_end).getTime()
-          : null;
+    const end = p.sale_end
+      ? new Date(p.sale_end).getTime()
+      : null;
 
-        const isProductSale =
-          typeof p.sale_price === "number" &&
-          start &&
-          end &&
-          now >= start &&
-          now <= end;
+    const isProductSale =
+      typeof p.sale_price === "number" &&
+      start !== null &&
+      end !== null &&
+      now >= start &&
+      now <= end;
 
-        /* ================= VARIANTS ================= */
-        const activeVariants = variants.filter(
-          (v) => v.isActive !== false
-        );
+    /* ================= VARIANTS ================= */
+    const activeVariants = variants.filter(
+      (v) => v.isActive !== false
+    );
 
-        const enrichedVariants = activeVariants.map((v) => {
-          const base = v.price;
+    const enrichedVariants = activeVariants.map((v) => {
+      const base = v.price;
 
-          const isSale =
-         v.saleEnabled &&
-         typeof v.salePrice === "number" &&
-         start &&
-         end &&
+      const isSale =
+        v.saleEnabled === true &&
+        typeof v.salePrice === "number" &&
+        start !== null &&
+        end !== null &&
         now >= start &&
         now <= end &&
-         v.saleSold < v.saleStock;
+        (v.saleSold ?? 0) < (v.saleStock ?? 0);
 
-          const finalPrice = isSale
-            ? v.salePrice!
-            : base;
+      const finalPrice = isSale
+        ? v.salePrice!
+        : base;
 
-          return {
-  ...v,
-  finalPrice,
-  isSale,
-  saleStock: v.saleStock,
-  saleSold: v.saleSold,
-  saleLeft: Math.max(0, v.saleStock - v.saleSold),
-};
-        });
+      return {
+        ...v,
+        finalPrice,
+        isSale,
+        saleStock: v.saleStock ?? 0,
+        saleSold: v.saleSold ?? 0,
+        saleLeft: Math.max(
+          0,
+          (v.saleStock ?? 0) - (v.saleSold ?? 0)
+        ),
+      };
+    });
 
-        const hasVariants = enrichedVariants.length > 0;
+    const hasVariants = enrichedVariants.length > 0;
 
-        /* ================= STOCK ================= */
-        const stock = hasVariants
-          ? enrichedVariants.reduce((s, v) => s + v.stock, 0)
-          : p.stock ?? 0;
+    /* ================= STOCK ================= */
+    const stock = hasVariants
+      ? enrichedVariants.reduce((s, v) => s + v.stock, 0)
+      : p.stock ?? 0;
 
-        /* ================= PRODUCT PRICE ================= */
-        const productFinalPrice = isProductSale
-          ? p.sale_price
-          : p.price;
+    /* ================= PRODUCT PRICE ================= */
+    const productFinalPrice = isProductSale
+      ? p.sale_price
+      : p.price;
 
-        /* ================= PRICE RANGE ================= */
-        let minPrice: number | null = null;
-        let maxPrice: number | null = null;
+    /* ================= PRICE RANGE ================= */
+    let minPrice: number | null = null;
+    let maxPrice: number | null = null;
 
-        if (hasVariants) {
-          const prices = enrichedVariants
-         .map((v) => v.finalPrice)
-         .filter((p) => typeof p === "number");
-          minPrice = Math.min(...prices);
-          maxPrice = Math.max(...prices);
-        }
+    if (hasVariants) {
+      const prices = enrichedVariants
+        .map((v) => v.finalPrice)
+        .filter((p) => typeof p === "number");
 
-        return {
-          id: p.id,
-          sellerId: p.seller_id,
-          name: p.name,
-          price: p.price,
-          salePrice: p.sale_price,
-          finalPrice: hasVariants ? null : productFinalPrice,
-          hasVariants,
-          minPrice,
-          maxPrice,
-          stock,
-          sold: p.sold ?? 0,
+      if (prices.length) {
+        minPrice = Math.min(...prices);
+        maxPrice = Math.max(...prices);
+      }
+    }
 
-          thumbnail: p.thumbnail,
-          images: p.images ?? [],
-          categoryId: p.category_id,
-          variants: enrichedVariants,
-          shippingRates: shippingMap.get(p.id) ?? [],
-        };
-      })
-    );
+    return {
+      id: p.id,
+      sellerId: p.seller_id,
+      name: p.name,
+
+      price: p.price,
+      salePrice: p.sale_price,
+
+      finalPrice: hasVariants ? null : productFinalPrice,
+
+      hasVariants,
+      minPrice,
+      maxPrice,
+
+      stock,
+      sold: p.sold ?? 0,
+
+      isSale: hasVariants
+        ? enrichedVariants.some((v) => v.isSale)
+        : isProductSale,
+
+      thumbnail: p.thumbnail,
+      images: p.images ?? [],
+      categoryId: p.category_id,
+
+      variants: enrichedVariants,
+      shippingRates: shippingMap.get(p.id) ?? [],
+    };
+  })
+);
 
     return NextResponse.json(enriched);
   } catch (err) {
@@ -233,17 +246,26 @@ export async function POST(req: Request) {
     }
 
     const variants = normalizeVariants(body.variants);
-    const hasVariants = variants.length > 0;
+const hasVariants = variants.length > 0;
 
-    const price = hasVariants ? 0 : Number(body.price) || 0;
-    const salePrice =
-      typeof body.salePrice === "number"
-        ? body.salePrice
-        : null;
+const price = hasVariants ? 0 : Number(body.price) || 0;
 
-    const stock = hasVariants
-      ? variants.reduce((s, v) => s + v.stock, 0)
-      : Number(body.stock) || 0;
+const salePrice =
+  typeof body.salePrice === "number"
+    ? body.salePrice
+    : null;
+
+/* ✅ VALIDATION */
+if (salePrice !== null && salePrice >= price) {
+  return NextResponse.json(
+    { error: "INVALID_SALE_PRICE" },
+    { status: 400 }
+  );
+}
+
+const stock = hasVariants
+  ? variants.reduce((s, v) => s + v.stock, 0)
+  : Number(body.stock) || 0;
 
     const product = await createProduct(userId, {
       name: body.name,
@@ -307,17 +329,25 @@ export async function PUT(req: Request) {
     }
 
     const variants = normalizeVariants(body.variants);
-    const hasVariants = variants.length > 0;
+const hasVariants = variants.length > 0;
 
-    const price = hasVariants ? 0 : Number(body.price) || 0;
-    const salePrice =
-      typeof body.salePrice === "number"
-        ? body.salePrice
-        : null;
+const price = hasVariants ? 0 : Number(body.price) || 0;
 
-    const stock = hasVariants
-      ? variants.reduce((s, v) => s + v.stock, 0)
-      : Number(body.stock) || 0;
+const salePrice =
+  typeof body.salePrice === "number"
+    ? body.salePrice
+    : null;
+
+if (salePrice !== null && salePrice >= price) {
+  return NextResponse.json(
+    { error: "INVALID_SALE_PRICE" },
+    { status: 400 }
+  );
+}
+
+const stock = hasVariants
+  ? variants.reduce((s, v) => s + v.stock, 0)
+  : Number(body.stock) || 0;
 
     const updated = await updateProductBySeller(
       userId,
