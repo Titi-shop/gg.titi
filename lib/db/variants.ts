@@ -6,24 +6,18 @@ import { query, withTransaction } from "@/lib/db";
 
 export type ProductVariant = {
   id?: string;
-
   optionName?: string;
   optionValue: string;
-
   price?: number;
   salePrice?: number | null;
-
   stock: number;
   isUnlimited?: boolean;
-
   /* 🔥 FLASH SALE */
   saleStock?: number;
   saleSold?: number;
   saleEnabled?: boolean;
-
   sku?: string | null;
   image?: string | null;
-
   sortOrder?: number;
   isActive?: boolean;
 };
@@ -155,9 +149,12 @@ export async function getVariantsByProductId(productId: string) {
   sale_price,
   final_price,
   stock,
-  is_unlimited,
-  sku,
-  image,
+is_unlimited,
+sale_enabled,
+sale_stock,
+sale_sold,
+sku,
+image,
   sort_order,
   is_active,
   sold,
@@ -181,15 +178,12 @@ ORDER BY sort_order ASC
     price: Number(r.price),
     salePrice:
       r.sale_price !== null ? Number(r.sale_price) : null,
-
     finalPrice: Number(r.final_price),
-
     stock: r.is_unlimited ? 999999 : r.stock,
     isUnlimited: r.is_unlimited,
 
     sku: r.sku,
     image: r.image,
-
     sortOrder: r.sort_order,
     isActive: r.is_active,
    saleStock: r.sale_stock,
@@ -266,10 +260,10 @@ export async function replaceVariantsByProductId(
   v.stock,
   v.is_unlimited,
 
-  /* 🔥 FLASH SALE */
+  /* 🔥 FIX ORDER */
+  v.sale_enabled,
   v.sale_stock,
   v.sale_sold,
-  v.sale_enabled,
 
   v.sku,
   v.image,
@@ -285,34 +279,38 @@ export async function replaceVariantsByProductId(
     await client.query(
       `
       INSERT INTO product_variants
-      (
-        product_id,
+(
+  product_id,
+  option_1,
+  option_label_1,
 
-        option_1,
-        option_label_1,
+  option_2,
+  option_label_2,
 
-        option_2,
-        option_label_2,
+  option_3,
+  option_label_3,
 
-        option_3,
-        option_label_3,
+  name,
 
-        name,
+  price,
+  sale_price,
+  final_price,
 
-        price,
-        sale_price,
-        final_price,
+  stock,
+  is_unlimited,
 
-        stock,
-        is_unlimited,
+  /* 🔥 FLASH SALE */
+  sale_enabled,
+  sale_stock,
+  sale_sold,
 
-        sku,
-        image,
+  sku,
+  image,
 
-        sort_order,
-        is_active
-      )
-      VALUES ${placeholders.join(",")}
+  sort_order,
+  is_active
+)
+VALUES  ${placeholders.join(",")}
       `,
       values
     );
