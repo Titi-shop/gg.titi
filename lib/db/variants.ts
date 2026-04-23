@@ -147,7 +147,6 @@ export async function getVariantsByProductId(productId: string) {
 
   const res = await query(
     `
-    SELECT
       SELECT
   id,
   option_1,
@@ -157,18 +156,18 @@ export async function getVariantsByProductId(productId: string) {
   final_price,
   stock,
   is_unlimited,
-  sale_stock,
-  sale_sold,
-  sale_enabled,
   sku,
   image,
   sort_order,
   is_active,
-  sold
-    FROM product_variants
-    WHERE product_id = $1
-      AND deleted_at IS NULL
-    ORDER BY sort_order ASC
+  sold,
+  sale_enabled,
+  sale_stock,
+  sale_sold
+FROM product_variants
+WHERE product_id = $1
+  AND deleted_at IS NULL
+ORDER BY sort_order ASC
     `,
     [productId]
   );
