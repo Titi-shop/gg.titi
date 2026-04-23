@@ -117,27 +117,29 @@ const enriched = await Promise.all(
       : null;
 
     const isProductSale =
-      typeof p.sale_price === "number" &&
-      start !== null &&
-      end !== null &&
-      now >= start &&
-      now <= end;
+  p.sale_enabled === true &&
+  typeof p.sale_price === "number" &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end &&
+  (p.sale_stock === 0 || p.sale_sold < p.sale_stock);
 
     /* ================= VARIANTS ================= */
     const activeVariants = variants.filter(
       (v) => v.isActive !== false
     );
-
     const enrichedVariants = activeVariants.map((v) => {
       const base = v.price;
-
       const isSale =
-      typeof v.salePrice === "number" &&
-      v.salePrice < v.price &&
-      start !== null &&
-     end !== null &&
-      now >= start &&
-      now <= end;
+  v.saleEnabled === true &&
+  typeof v.salePrice === "number" &&
+  v.salePrice < v.price &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end &&
+  (v.saleStock === 0 || v.saleSold < v.saleStock);
 
       const finalPrice = isSale
         ? v.salePrice!
