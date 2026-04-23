@@ -237,45 +237,41 @@ export function ProductView(props: ProductViewProps) {
       <div className="bg-white p-4 flex justify-between items-start">
         <h2 className="text-lg font-medium">{product.name}</h2>
 
-        <div className="text-right">
-          {hasVariants ? (
-            selectedVariant ? (
-              <>
-                <p className="text-xl font-bold text-primary">
-                  π {formatPi(selectedVariant.finalPrice)}
-                </p>
+<div className="text-right">
+  {hasVariants ? (
+    selectedVariant ? (
+      <>
+        <p className="text-xl font-bold text-primary">
+          π {formatPi(selectedVariant.finalPrice)}
+        </p>
 
-               {selectedVariant.isSale && (
-                  <p className="text-sm text-gray-400 line-through">
-                    π {formatPi(selectedVariant.price)}
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-xl font-bold text-primary">
-                {product.minPrice === product.maxPrice
-                  ? `π {formatPi(product.minPrice ?? 0)}`
-                  : `π ${formatPi(product.minPrice)} - ${formatPi(product.maxPrice)}`}
-              </p>
-            )
-          ) : (
-            <>
-              <p className="text-xl font-bold text-primary">
-                π {formatPi(product.finalPrice)}
-              </p>
-    -{calcSalePercent(
-      hasVariants
-        ? selectedVariant?.price ?? 0
-        : product.price,
-      hasVariants
-        ? selectedVariant?.finalPrice ?? 0
-        : product.finalPrice
-    )}%
-  </div>
-)}
-            </>
-          )}
-        </div>
+        {selectedVariant.isSale && (
+          <p className="text-sm text-gray-400 line-through">
+            π {formatPi(selectedVariant.price)}
+          </p>
+        )}
+      </>
+    ) : (
+      <p className="text-xl font-bold text-primary">
+        {product.minPrice === product.maxPrice
+          ? `π ${formatPi(product.minPrice ?? 0)}`
+          : `π ${formatPi(product.minPrice ?? 0)} - ${formatPi(product.maxPrice ?? 0)}`}
+      </p>
+    )
+  ) : (
+    <>
+      <p className="text-xl font-bold text-primary">
+        π {formatPi(product.finalPrice ?? product.price)}
+      </p>
+
+      {product.finalPrice < product.price && (
+        <p className="text-sm text-gray-400 line-through">
+          π {formatPi(product.price)}
+        </p>
+      )}
+    </>
+  )}
+</div>
       </div>
 
       {/* ===== META ===== */}
