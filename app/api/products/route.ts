@@ -141,10 +141,7 @@ const enriched = await Promise.all(
   now <= end &&
   (v.saleStock === 0 || v.saleSold < v.saleStock);
 
-      const finalPrice = isSale
-        ? v.salePrice!
-        : base;
-
+      const finalPrice = isSale ? v.salePrice! : v.price;
       return {
         ...v,
         finalPrice,
@@ -162,8 +159,13 @@ const enriched = await Promise.all(
 
     /* ================= STOCK ================= */
     const stock = hasVariants
-      ? enrichedVariants.reduce((s, v) => s + v.stock, 0)
-      : p.stock ?? 0;
+  ? enrichedVariants.reduce((s, v) => {
+      if (v.isSale && v.saleStock > 0) {
+        return s + Math.max(0, v.saleStock - v.saleSold);
+      }
+      return s + v.stock;
+    }, 0)
+  : p.stock ?? 0;
 
     /* ================= PRODUCT PRICE ================= */
     const productFinalPrice = isProductSale
