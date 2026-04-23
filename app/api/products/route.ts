@@ -134,26 +134,26 @@ export async function GET(req: Request) {
           const base = v.price;
 
           const isSale =
-           v.sale_enabled &&
-           typeof v.salePrice === "number" &&
-           start &&
-           end &&
-           now >= start &&
-           now <= end &&
-           v.sale_sold < v.sale_stock;
+         v.saleEnabled &&
+         typeof v.salePrice === "number" &&
+         start &&
+         end &&
+        now >= start &&
+        now <= end &&
+         v.saleSold < v.saleStock;
 
           const finalPrice = isSale
             ? v.salePrice!
             : base;
 
           return {
-         ...v,
-         finalPrice,
-         isSale,
-         saleStock: v.sale_stock,
-         saleSold: v.sale_sold,
-         saleLeft: Math.max(0, v.sale_stock - v.sale_sold),
-       };
+  ...v,
+  finalPrice,
+  isSale,
+  saleStock: v.saleStock,
+  saleSold: v.saleSold,
+  saleLeft: Math.max(0, v.saleStock - v.saleSold),
+};
         });
 
         const hasVariants = enrichedVariants.length > 0;
@@ -173,7 +173,9 @@ export async function GET(req: Request) {
         let maxPrice: number | null = null;
 
         if (hasVariants) {
-          const prices = enrichedVariants.map((v) => v.finalPrice);
+          const prices = enrichedVariants
+         .map((v) => v.finalPrice)
+         .filter((p) => typeof p === "number");
           minPrice = Math.min(...prices);
           maxPrice = Math.max(...prices);
         }
@@ -182,23 +184,18 @@ export async function GET(req: Request) {
           id: p.id,
           sellerId: p.seller_id,
           name: p.name,
-
           price: p.price,
           salePrice: p.sale_price,
           finalPrice: hasVariants ? null : productFinalPrice,
-
           hasVariants,
           minPrice,
           maxPrice,
-
           stock,
           sold: p.sold ?? 0,
 
           thumbnail: p.thumbnail,
           images: p.images ?? [],
-
           categoryId: p.category_id,
-
           variants: enrichedVariants,
           shippingRates: shippingMap.get(p.id) ?? [],
         };
