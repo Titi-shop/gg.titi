@@ -436,14 +436,15 @@ if (loading && products.length === 0) {
                   onClick={() => router.push(`/product/${p.id}`)}
                   className="min-w-[140px] bg-white rounded-lg overflow-hidden text-black cursor-pointer"
                 >
-                  <div className="relative">
-                    <Image
-                      src={getMainImage(p)}
-                      alt={p.name}
-                      width={200}
-                      height={200}
-                      className="w-full h-28 object-cover"
-                    />
+                  <div className="relative overflow-hidden group">
+           <Image
+    src={getMainImage(product)}
+    alt={product.name}
+    width={300}
+    height={300}
+    className="w-full h-44 object-cover transition-transform duration-300 group-hover:scale-110"
+             />
+               </div>
 
                     {p.stock === 0 ? (
                <div className="absolute top-1 left-1 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded">
@@ -453,9 +454,9 @@ if (loading && products.length === 0) {
     ? getVariantDiscount(p) > 0
     : isProductOnSale(p)
   ) ? (
-        <div className="absolute top-1 left-1 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] px-2 py-0.5 rounded shadow font-semibold animate-pulse">
-  ⚡ SALE
-      </div>
+        <div className="absolute top-2 left-2 bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs px-2 py-1 rounded shadow font-semibold animate-pulse">
+        ⚡ SALE
+          </div>
              ) : null}
 
                     <button
