@@ -40,6 +40,9 @@ type ProductRow = {
   is_digital?: boolean | null;
   sale_start: string | null;
   sale_end: string | null;
+   sale_stock?: number | null;
+  sale_sold?: number | null;
+  sale_enabled?: boolean | null;
   meta_title?: string | null;
   meta_description?: string | null;
   deleted_at?: string | null;
@@ -108,6 +111,9 @@ function toAppProduct(row: ProductRow): ProductRecord {
         : null,
 
     images: Array.isArray(row.images) ? row.images : [],
+    sale_stock: row.sale_stock ?? 0,
+    sale_sold: row.sale_sold ?? 0,
+    sale_enabled: row.sale_enabled ?? false,
   };
 }
 /* =========================================================
@@ -143,13 +149,18 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   category_id,
   sale_start,
   sale_end,
+  
+  sale_stock,
+  sale_sold,
+  sale_enabled,
+
   meta_title,
   meta_description,
   created_at,
   updated_at,
   deleted_at,
   seller_id
-    FROM products
+FROM products
     WHERE is_active = true
   AND deleted_at IS NULL
     ORDER BY created_at DESC
@@ -221,7 +232,8 @@ export async function getProductsByIds(
     SELECT *
     FROM products
     WHERE id = ANY($1::uuid[])
-      AND deleted_at IS NULL
+    AND deleted_at IS NULL
+    AND is_active = true
     `,
     [ids]
   );
