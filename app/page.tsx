@@ -92,7 +92,7 @@ const isSale = isProductOnSale(product);
       onClick={() => router.push(`/product/${product.id}`)}
     className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-transform ${
   product.stock === 0
-  ? "opacity-60"
+  ? "opacity-60 pointer-events-none"
   : "cursor-pointer active:scale-[0.97]"
 }`}
     >
@@ -105,11 +105,17 @@ const isSale = isProductOnSale(product);
           className="w-full h-44 object-cover"
         />
 
-        {isSale && (
-          <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-            -{discount}%
-          </div>
-        )}
+       {product.stock === 0 ? (
+     <div className="absolute top-2 left-2 bg-gray-800 text-white text-xs px-2 py-1 rounded">
+    {t.out_of_stock || "Out of stock"}
+  </div>
+    ) : (
+  isSale && (
+    <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
+      -{discount}%
+    </div>
+      )
+      )}
 
         <button
           onClick={(e) => {
