@@ -118,7 +118,11 @@ function ProductCard({
     ((product.sold ?? 0) / ((product.sold ?? 0) + (product.stock ?? 1))) * 100,
     100
   );
+const saleStock = (product as any).saleStock ?? 0;
+const saleSold = (product as any).saleSold ?? 0;
+const saleLeft = saleStock - saleSold;
 
+const isSaleOut = saleStock > 0 && saleLeft <= 0;
   return (
     <div
       onClick={() => router.push(`/product/${product.id}`)}
