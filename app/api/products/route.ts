@@ -177,26 +177,23 @@ const activeVariants = variants.filter(
   (v) => v.isActive !== false
 );
 
-/* ✅ 2. tính giá variant theo sale time product */
-const enrichedVariants = activeVariants.map((v) => {
+/* ✅ 2. tính giá variant theo sale time product */const enrichedVariants = activeVariants.map((v) => {
   const basePrice =
     typeof v.price === "number" && v.price > 0
       ? v.price
       : p.price;
-
-  const finalPrice =
+  const isSale =
     typeof v.salePrice === "number" &&
     v.salePrice > 0 &&
     start !== null &&
     end !== null &&
     now >= start &&
-    now <= end
-      ? v.salePrice
-      : basePrice;
-
+    now <= end;
+  const finalPrice = isSale ? v.salePrice : basePrice;
   return {
     ...v,
     finalPrice,
+    isSale, // 🔥 BẮT BUỘC
   };
 });
 
