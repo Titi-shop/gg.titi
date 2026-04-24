@@ -145,11 +145,8 @@ function ProductCard({
   ? product.variants?.find((v: any) => v.isSale)
   : product;
 
-const saleStock2 = saleInfo?.saleStock ?? 0;
-const saleSold2 = saleInfo?.saleSold ?? 0;
-const saleLeft2 = saleStock2 - saleSold2;
-const saleStock = (product as any).saleStock ?? 0;
-const saleSold = (product as any).saleSold ?? 0;
+const saleStock = saleInfo?.saleStock ?? 0;
+const saleSold = saleInfo?.saleSold ?? 0;
 const saleLeft = saleStock - saleSold;
 
 const isSaleOut = saleStock > 0 && saleLeft <= 0;
