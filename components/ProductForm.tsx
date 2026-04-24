@@ -90,7 +90,7 @@ export default function ProductForm({
     const data = await res.json();
     if (!data.uploadUrl) throw new Error("NO_URL");
 return data;
-
+};
   /* =========================
      MAIN IMAGE UPLOAD
   ========================= */
@@ -171,9 +171,10 @@ return data;
     /* ================= VALIDATE ================= */
 
     if (!form.name) {
-      alert("Invalid name");
-      return;
-    }
+  alert("Invalid name");
+  setSubmitting(false);
+  return;
+}
 
     if (!form.images.length) {
       alert("Need image");
