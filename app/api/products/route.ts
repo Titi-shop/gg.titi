@@ -195,7 +195,11 @@ const enriched = await Promise.all(
       price: p.price,
       salePrice: p.sale_price,
       saleEnd: p.sale_end,
-      finalPrice: hasVariants ? null : productFinalPrice,
+      finalPrice: hasVariants
+      ? null
+      : isProductSale
+      ? p.sale_price
+      : p.price,
 
       hasVariants,
       minPrice,
