@@ -31,64 +31,52 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     .map((item, index) => {
       if (typeof item !== "object" || item === null) return null;
 
-      const row = item as Record<string, unknown>;
+      const row = item as any;
 
-      const optionValue =
-        typeof row.optionValue === "string"
-          ? row.optionValue.trim()
+      const option1 =
+        typeof row.option1 === "string"
+          ? row.option1.trim()
           : "";
 
-      if (!optionValue) return null;
+      if (!option1) return null;
 
       return {
-  id: typeof row.id === "string" ? row.id : undefined,
+        id: typeof row.id === "string" ? row.id : undefined,
 
-  optionName:
-    typeof row.optionName === "string" && row.optionName.trim()
-      ? row.optionName.trim()
-      : "size",
+        /* 🔥 MAP CHUẨN */
+        optionName:
+          typeof row.optionLabel1 === "string"
+            ? row.optionLabel1
+            : "option",
 
-  optionValue,
+        optionValue: option1,
 
-  /* 🔥 FIX QUAN TRỌNG */
-  price:
-    typeof row.price === "number" &&
-    !Number.isNaN(row.price) &&
-    row.price > 0
-      ? row.price
-      : 0,
+        price:
+          typeof row.price === "number" && row.price > 0
+            ? row.price
+            : 0,
 
-  salePrice:
-    typeof row.salePrice === "number" &&
-    !Number.isNaN(row.salePrice) &&
-    row.salePrice > 0
-      ? row.salePrice
-      : null,
+        salePrice:
+          typeof row.salePrice === "number"
+            ? row.salePrice
+            : null,
 
-  stock:
-    typeof row.stock === "number" &&
-    !Number.isNaN(row.stock) &&
-    row.stock >= 0
-      ? row.stock
-      : 0,
+        stock:
+          typeof row.stock === "number"
+            ? row.stock
+            : 0,
 
-  sku:
-    typeof row.sku === "string" && row.sku.trim()
-      ? row.sku.trim()
-      : null,
+        /* 🔥 FLASH SALE */
+        saleEnabled: row.saleEnabled ?? false,
+        saleStock: row.saleStock ?? 0,
 
-  sortOrder:
-    typeof row.sortOrder === "number"
-      ? row.sortOrder
-      : index,
-
-  isActive:
-    typeof row.isActive === "boolean"
-      ? row.isActive
-      : true,
-};
+        sku: row.sku ?? null,
+        image: row.image ?? "",
+        sortOrder: row.sortOrder ?? index,
+        isActive: row.isActive ?? true,
+      };
     })
-    .filter((i): i is ProductVariant => i !== null);
+    .filter(Boolean) as ProductVariant[];
 
   console.log("[PRODUCT][VARIANT] normalized:", result.length);
 
@@ -174,18 +162,37 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     : Number(v.price);
 
   return {
-  ...v,
-  finalPrice,
-  isSale: isVariantSale,
+    id: v.id,
 
-  /* 🔥 ADD */
-  saleStock: v.saleStock ?? 0,
-  saleSold: v.saleSold ?? 0,
-  saleLeft: Math.max(
-    0,
-    (v.saleStock ?? 0) - (v.saleSold ?? 0)
-  ),
-};
+    /* 🔥 QUAN TRỌNG: trả về đúng format FE */
+    option1: v.optionValue,
+    option2: null,
+    optionLabel1: v.optionName,
+    optionLabel2: null,
+
+    price: v.price,
+    salePrice: v.salePrice,
+
+    stock: v.stock,
+    sku: v.sku,
+    image: v.image,
+
+    isActive: v.isActive,
+    sortOrder: v.sortOrder,
+
+    /* 🔥 SALE */
+    saleEnabled: v.saleEnabled ?? false,
+    saleStock: v.saleStock ?? 0,
+    saleSold: v.saleSold ?? 0,
+
+    /* 🔥 COMPUTED */
+    finalPrice,
+    isSale: isVariantSale,
+    saleLeft: Math.max(
+      0,
+      (v.saleStock ?? 0) - (v.saleSold ?? 0)
+    ),
+  };
 });
 
     
@@ -262,7 +269,7 @@ try {
   /* 🔥 PRICE */
   price: hasVariants ? null : p.price ?? 0,
   salePrice: hasVariants ? null : p.sale_price ?? null,
-  finalPrice: hasVariants ? null : finalPrice,
+  finalPrice: hasVariants ? minPrice : finalPrice,
 
   minPrice,
   maxPrice,
