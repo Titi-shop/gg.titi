@@ -460,8 +460,9 @@ if (loading && products.length === 0) {
             </div>
           </div>
           <div className="flex gap-3 overflow-x-auto">
-          {(Array.isArray(products) ? products : []).filter(p: any) => p.isSale === true)
-           .slice(0, 10)
+          {(Array.isArray(products) ? products : [])
+             .filter((p: any) => p.isSale === true)
+             .slice(0, 10)
              .map((p) => (
                 <div
                   key={p.id}
