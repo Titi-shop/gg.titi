@@ -88,9 +88,8 @@ export default function ProductForm({
     }
 
     const data = await res.json();
-    if (!data.url) throw new Error("NO_URL");
-    return data;
-  };
+    if (!data.uploadUrl) throw new Error("NO_URL");
+return data;
 
   /* =========================
      MAIN IMAGE UPLOAD
@@ -105,10 +104,9 @@ export default function ProductForm({
       if (!baseUrl) throw new Error("ENV_ERROR");
       const uploads = files.map(async (file, i) => {
         const compressed = await compressImage(file);
-        const { url, path } = await getSignedUrl();
-        await uploadWithProgress(url, compressed, i);
-
-        return `${baseUrl}/storage/v1/object/public/products/${path}`;
+        const { uploadUrl, publicUrl } = await getSignedUrl();
+       await uploadWithProgress(uploadUrl, compressed, i);
+       return publicUrl;
       });
 
       const urls = await Promise.all(uploads);
