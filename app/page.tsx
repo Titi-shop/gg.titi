@@ -255,7 +255,6 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
     </p>
     </div>
   );
-}
 /* ================= PAGE ================= */
 
 export default function HomePage() {
