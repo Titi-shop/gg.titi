@@ -194,8 +194,10 @@ export default function ProductForm({
   const price = Number(form.price);
 
   if (Number.isNaN(sale) || sale < 0.00001) {
-    return fail("Sale price must be >= 0.00001");
-  }
+  alert("Sale price must be >= 0.00001");
+  setSubmitting(false);
+  return;
+}
 
   if (sale >= price) {
     return fail("Sale price must be less than price");
