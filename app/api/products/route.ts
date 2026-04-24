@@ -35,27 +35,29 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     .map((item: any, index) => {
       if (!item || typeof item !== "object") return null;
 
-      /* 🔥 FIX: support nhiều format FE */
-      const rawValue =
+      /* 🔥 FIX: lấy option1 làm value chính */
+      const value =
+        item.option1 ??
         item.optionValue ??
         item.value ??
-        item.option_value ??
-        item.name ??
         "";
-
-      const value = String(rawValue).trim();
 
       if (!value) return null;
 
       return {
         id: typeof item.id === "string" ? item.id : undefined,
 
-        optionName:
-          item.optionName ??
-          item.option_name ??
-          "option",
+        optionName: item.optionLabel1 ?? "Option",
+        optionValue: String(value).trim(),
 
-        optionValue: value,
+        /* 🔥 giữ full option */
+        option1: item.option1 ?? null,
+        option2: item.option2 ?? null,
+        option3: item.option3 ?? null,
+
+        label1: item.optionLabel1 ?? null,
+        label2: item.optionLabel2 ?? null,
+        label3: item.optionLabel3 ?? null,
 
         price: Number(item.price) || 0,
 
@@ -65,6 +67,9 @@ function normalizeVariants(input: unknown): ProductVariant[] {
             : null,
 
         stock: Number(item.stock) || 0,
+
+        saleEnabled: item.saleEnabled ?? false,
+        saleStock: Number(item.saleStock) || 0,
 
         sku: item.sku ?? null,
         image: item.image ?? "",
