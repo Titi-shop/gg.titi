@@ -27,9 +27,14 @@ const fetcher = async <T,>(url: string): Promise<T> => {
 interface ProductVariant {
   id: string;
   name: string;
-  price?: number;
-  finalPrice?: number;
+  price: number;
+  finalPrice: number;
+  salePrice?: number;
+  saleEnabled?: boolean;
+  saleStock?: number;
+  saleSold?: number;
   stock: number;
+
 }
 
 interface Product {
