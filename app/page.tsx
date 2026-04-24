@@ -226,6 +226,7 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
           </p>
         )}
 {/* ===== PROGRESS BAR ===== */}
+{/* ===== PROGRESS BAR ===== */}
 {saleStock > 0 ? (
   <div className="mt-2">
     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -253,8 +254,13 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
     <p className="text-[11px] text-gray-500 mt-1 text-center">
       {t.sold || "Sold"} {product.sold ?? 0}
     </p>
-    </div>
+  </div>
+)}
+        
+      </div> 
+    </div>  
   );
+}
 /* ================= PAGE ================= */
 
 export default function HomePage() {
