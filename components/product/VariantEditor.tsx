@@ -29,19 +29,23 @@ export default function VariantEditor({ variants, setVariants }: Props) {
   };
 
   const addVariant = () => {
-    setVariants([
-      ...variants,
-      {
-        optionName: "",
-        optionValue: "",
-        price: null,
-        salePrice: null,
-        stock: 0,
-        sku: "",
-        isActive: true,
-      },
-    ]);
-  };
+  setVariants([
+    ...variants,
+    {
+      optionName: "",
+      optionValue: "",
+      price: null,
+      salePrice: null,
+
+      saleEnabled: false,
+      saleStock: 0,
+      saleSold: 0,
+      stock: 0,
+      sku: "",
+      isActive: true,
+    },
+  ]);
+};
 
   return (
     <div className="space-y-4">
@@ -51,9 +55,10 @@ export default function VariantEditor({ variants, setVariants }: Props) {
 
       {variants.map((v, i) => {
         const isInvalidSale =
-          v.salePrice !== null &&
-          v.price !== null &&
-          v.salePrice >= v.price;
+  v.saleEnabled &&
+  v.salePrice !== null &&
+  v.price !== null &&
+  v.salePrice >= v.price;
 
         return (
           <div
@@ -131,7 +136,20 @@ export default function VariantEditor({ variants, setVariants }: Props) {
                 }`}
               />
             </div>
+       {/* 🔥 SALE ENABLE */}
+     <div className="flex items-center justify-between">
+  <span className="text-sm text-gray-600">
+    {t.sale_enable || "Enable Sale"}
+  </span>
 
+    <input
+    type="checkbox"
+    checked={v.saleEnabled ?? false}
+    onChange={(e) =>
+      updateVariant(i, "saleEnabled", e.target.checked)
+    }
+        />
+         </div>
             {/* ERROR */}
             {isInvalidSale && (
               <p className="text-red-500 text-xs">
