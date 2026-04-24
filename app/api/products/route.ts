@@ -105,121 +105,141 @@ export async function GET(req: Request) {
 
     const now = Date.now();
 
-const enriched = await Promise.all(
-  products.map(async (p) => {
-    const variants = await getVariantsByProductId(p.id);
+    const enriched = await Promise.all(
+      products.map(async (p) => {
+        const variants = await getVariantsByProductId(p.id);
 
-    const start = p.sale_start
-      ? new Date(p.sale_start).getTime()
-      : null;
+        const start = p.sale_start
+          ? new Date(p.sale_start).getTime()
+          : null;
 
-    const end = p.sale_end
-      ? new Date(p.sale_end).getTime()
-      : null;
+        const end = p.sale_end
+          ? new Date(p.sale_end).getTime()
+          : null;
 
-    const isProductSale =
-  p.sale_enabled === true &&
-  typeof p.sale_price === "number" &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end &&
-  (p.sale_stock === 0 || p.sale_sold < p.sale_stock);
+        /* ================= PRODUCT SALE ================= */
+        const isProductSale =
+          p.sale_enabled === true &&
+          typeof p.sale_price === "number" &&
+          start !== null &&
+          end !== null &&
+          now >= start &&
+          now <= end &&
+          (p.sale_stock === 0 || p.sale_sold < p.sale_stock);
 
-    /* ================= VARIANTS ================= */
-    const activeVariants = variants.filter(
-      (v) => v.isActive !== false
+        /* ================= VARIANTS ================= */
+        const enrichedVariants = variants
+          .filter((v) => v.isActive !== false)
+          .map((v) => {
+            const isSale =
+              v.saleEnabled === true &&
+              typeof v.salePrice === "number" &&
+              v.salePrice < v.price &&
+              start !== null &&
+              end !== null &&
+              now >= start &&
+              now <= end &&
+              (v.saleStock === 0 || v.saleSold < v.saleStock);
+
+            const finalPrice = isSale
+              ? v.salePrice!
+              : v.price;
+
+            return {
+              ...v,
+              finalPrice,
+              isSale,
+              saleStock: v.saleStock ?? 0,
+              saleSold: v.saleSold ?? 0,
+              saleLeft: Math.max(
+                0,
+                (v.saleStock ?? 0) - (v.saleSold ?? 0)
+              ),
+            };
+          });
+
+        const hasVariants = enrichedVariants.length > 0;
+
+        /* ================= STOCK ================= */
+        const stock = hasVariants
+          ? enrichedVariants.reduce((s, v) => {
+              if (v.isSale && v.saleStock > 0) {
+                return (
+                  s + Math.max(0, v.saleStock - v.saleSold)
+                );
+              }
+              return s + v.stock;
+            }, 0)
+          : p.stock ?? 0;
+
+        /* ================= PRICE ================= */
+        const productFinalPrice = isProductSale
+          ? p.sale_price
+          : p.price;
+
+        /* ================= PRICE RANGE ================= */
+        let minPrice: number | null = null;
+        let maxPrice: number | null = null;
+
+        if (hasVariants) {
+          const prices = enrichedVariants
+            .map((v) => v.finalPrice)
+            .filter((n) => typeof n === "number" && n > 0);
+
+          if (prices.length) {
+            minPrice = Math.min(...prices);
+            maxPrice = Math.max(...prices);
+          }
+        }
+
+        /* ================= FINAL SALE FLAG ================= */
+        const isSale = hasVariants
+          ? enrichedVariants.some((v) => v.isSale)
+          : isProductSale;
+
+        return {
+          id: p.id,
+          sellerId: p.seller_id,
+          name: p.name,
+
+          /* PRICE */
+          price: p.price,
+          salePrice: p.sale_price,
+          finalPrice: hasVariants
+            ? minPrice // 🔥 FIX QUAN TRỌNG
+            : productFinalPrice,
+
+          minPrice,
+          maxPrice,
+          hasVariants,
+
+          /* SALE */
+          isSale,
+          saleEnd: p.sale_end,
+
+          /* 🔥 ADD THIẾU */
+          saleStock: p.sale_stock ?? 0,
+          saleSold: p.sale_sold ?? 0,
+          saleLeft:
+            p.sale_stock > 0
+              ? Math.max(0, p.sale_stock - p.sale_sold)
+              : null,
+
+          /* STOCK */
+          stock,
+          sold: p.sold ?? 0,
+
+          /* MEDIA */
+          thumbnail: p.thumbnail,
+          images: p.images ?? [],
+
+          /* OTHER */
+          categoryId: p.category_id,
+          variants: enrichedVariants,
+          shippingRates: shippingMap.get(p.id) ?? [],
+        };
+      })
     );
-    const enrichedVariants = activeVariants.map((v) => {
-      const base = v.price;
-      const isSale =
-  v.saleEnabled === true &&
-  typeof v.salePrice === "number" &&
-  v.salePrice < v.price &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end &&
-  (v.saleStock === 0 || v.saleSold < v.saleStock);
-
-      const finalPrice = isSale ? v.salePrice! : v.price;
-      return {
-        ...v,
-        finalPrice,
-        isSale,
-        saleStock: v.saleStock ?? 0,
-        saleSold: v.saleSold ?? 0,
-        saleLeft: Math.max(
-          0,
-          (v.saleStock ?? 0) - (v.saleSold ?? 0)
-        ),
-      };
-    });
-
-    const hasVariants = enrichedVariants.length > 0;
-
-    /* ================= STOCK ================= */
-    const stock = hasVariants
-  ? enrichedVariants.reduce((s, v) => {
-      if (v.isSale && v.saleStock > 0) {
-        return s + Math.max(0, v.saleStock - v.saleSold);
-      }
-      return s + v.stock;
-    }, 0)
-  : p.stock ?? 0;
-
-    /* ================= PRODUCT PRICE ================= */
-    const productFinalPrice = isProductSale
-      ? p.sale_price
-      : p.price;
-
-    /* ================= PRICE RANGE ================= */
-    let minPrice: number | null = null;
-    let maxPrice: number | null = null;
-
-    if (hasVariants) {
-  const prices = enrichedVariants
-    .map((v) => v.finalPrice)
-    .filter((p) => typeof p === "number" && p > 0); // ✅ FIX Ở ĐÂY
-
-  if (prices.length) {
-    minPrice = Math.min(...prices);
-    maxPrice = Math.max(...prices);
-  }
-}
-
-    return {
-      id: p.id,
-      sellerId: p.seller_id,
-      name: p.name,
-
-      price: p.price,
-      salePrice: p.sale_price,
-      saleEnd: p.sale_end,
-      finalPrice: hasVariants ? null : productFinalPrice,
-
-      hasVariants,
-      minPrice,
-      maxPrice,
-      
-      stock,
-      sold: p.sold ?? 0,
-     saleLeft: p.sale_stock > 0
-     ? Math.max(0, p.sale_stock - p.sale_sold)
-     : null,
-      isSale: hasVariants
-        ? enrichedVariants.some((v) => v.isSale)
-        : isProductSale,
-
-      thumbnail: p.thumbnail,
-      images: p.images ?? [],
-      categoryId: p.category_id,
-
-      variants: enrichedVariants,
-      shippingRates: shippingMap.get(p.id) ?? [],
-    };
-  })
-);
 
     return NextResponse.json(enriched);
   } catch (err) {
