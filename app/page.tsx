@@ -142,7 +142,7 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
       {/* ================= IMAGE ================= */}
       <div className="relative">
         <Image
-          src={getMainImage(p)}
+          src={getMainImage(product)}  
           alt={product.name}
           width={300}
           height={300}
