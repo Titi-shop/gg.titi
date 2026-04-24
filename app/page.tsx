@@ -253,7 +253,6 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
     <p className="text-[11px] text-gray-500 mt-1 text-center">
       {t.sold || "Sold"} {product.sold ?? 0}
     </p>
-      </div>
     </div>
   );
 }
