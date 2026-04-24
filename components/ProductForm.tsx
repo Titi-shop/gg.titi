@@ -190,21 +190,17 @@ export default function ProductForm({
 
     /* 🔥 SALE VALIDATION */
     if (!hasVariants && form.saleEnabled) {
-      if (!form.salePrice || form.salePrice <= 0) {
-        alert("Invalid sale price");
-        return;
-      }
+  const sale = Number(form.salePrice);
+  const price = Number(form.price);
 
-      if (form.salePrice >= form.price) {
-        alert("Sale price must be less than price");
-        return;
-      }
+  if (Number.isNaN(sale) || sale < 0.00001) {
+    return fail("Sale price must be >= 0.00001");
+  }
 
-      if (form.saleStock > form.stock) {
-        alert("Sale stock cannot exceed stock");
-        return;
-      }
-    }
+  if (sale >= price) {
+    return fail("Sale price must be less than price");
+  }
+}
 
     /* ================= PAYLOAD ================= */
 
@@ -375,16 +371,18 @@ export default function ProductForm({
     {/* SALE PRICE */}
     {form.saleEnabled && (
       <input
-        type="number"
-        value={form.salePrice || ""}
-        onChange={(e) =>
-          form.setSalePrice(
-            e.target.value ? Number(e.target.value) : ""
-          )
-        }
-        placeholder="Sale price"
-        className="w-full border p-2 rounded"
-      />
+  type="number"
+  step="0.00001"
+  min="0.00001"
+  value={form.salePrice || ""}
+  onChange={(e) =>
+    form.setSalePrice(
+      e.target.value ? Number(e.target.value) : ""
+    )
+  }
+  placeholder="Sale price"
+  className="w-full border p-2 rounded"
+/>
     )}
 
     {/* 🔥 SALE STOCK */}
