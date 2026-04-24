@@ -293,22 +293,37 @@ const stock = hasVariants
   ? variants.reduce((s, v) => s + v.stock, 0)
   : Number(body.stock) || 0;
 
-    const product = await createProduct(userId, {
-      name: body.name,
-      price,
-      sale_price: hasVariants ? null : salePrice,
-      stock,
-      description: body.description ?? "",
-      detail: body.detail ?? "",
-      images: body.images ?? [],
-      thumbnail: body.thumbnail ?? "",
-      category_id: body.categoryId ?? null,
-      sale_start: body.saleStart || null,
-      sale_end: body.saleEnd || null,
-      is_active: true,
-      views: 0,
-      sold: 0,
-    });
+    const saleEnabled = body.saleEnabled === true;
+
+const saleStock = saleEnabled
+  ? Number(body.saleStock) || 0
+  : 0;
+
+const product = await createProduct(userId, {
+  name: body.name,
+  price,
+  sale_price: hasVariants ? null : salePrice,
+
+  /* ✅ SALE */
+  sale_enabled: saleEnabled,
+  sale_stock: saleStock,
+  sale_sold: 0, // luôn reset khi tạo
+
+  stock,
+
+  description: body.description ?? "",
+  detail: body.detail ?? "",
+  images: body.images ?? [],
+  thumbnail: body.thumbnail ?? "",
+  category_id: body.categoryId ?? null,
+
+  sale_start: body.saleStart || null,
+  sale_end: body.saleEnd || null,
+
+  is_active: true,
+  views: 0,
+  sold: 0,
+});
 
     if (hasVariants) {
       await replaceVariantsByProductId(product.id, variants);
@@ -375,24 +390,36 @@ const stock = hasVariants
   ? variants.reduce((s, v) => s + v.stock, 0)
   : Number(body.stock) || 0;
 
-    const updated = await updateProductBySeller(
-      userId,
-      body.id,
-      {
-        name: body.name,
-        price,
-        sale_price: hasVariants ? null : salePrice,
-        stock,
-        description: body.description ?? "",
-        detail: body.detail ?? "",
-        images: body.images ?? [],
-        thumbnail: body.thumbnail ?? "",
-        category_id: body.categoryId ?? null,
-        sale_start: body.saleStart || null,
-        sale_end: body.saleEnd || null,
-        is_active: body.isActive ?? true,
-      }
-    );
+    const saleEnabled = body.saleEnabled === true;
+
+const saleStock = saleEnabled
+  ? Number(body.saleStock) || 0
+  : 0;
+
+const updated = await updateProductBySeller(
+  userId,
+  body.id,
+  {
+    name: body.name,
+    price,
+    sale_price: hasVariants ? null : salePrice,
+    sale_enabled: saleEnabled,
+    sale_stock: saleStock,
+
+    stock,
+
+    description: body.description ?? "",
+    detail: body.detail ?? "",
+    images: body.images ?? [],
+    thumbnail: body.thumbnail ?? "",
+    category_id: body.categoryId ?? null,
+
+    sale_start: body.saleStart || null,
+    sale_end: body.saleEnd || null,
+
+    is_active: body.isActive ?? true,
+  }
+);
 
     if (!updated) {
       return NextResponse.json(
