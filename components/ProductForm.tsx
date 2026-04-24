@@ -33,7 +33,8 @@ export default function ProductForm({
   const { t } = useTranslation();
   const { user, loading } = useAuth();
   const form = useProductForm(initialData);
-
+  const [saleEnabled, setSaleEnabled] = useState(false);
+  const [saleStock, setSaleStock] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -190,7 +191,7 @@ if (!hasVariants && Number(form.price) <= 0) {
       }
 
 const payload = {
-   id: form.id,
+  id: form.id,
   name: form.name,
   categoryId: form.categoryId,
   description: form.description,
@@ -198,15 +199,31 @@ const payload = {
   images: form.images,
   thumbnail: form.images[0],
   isActive: form.isActive,
+
   price: hasVariants ? undefined : Number(form.price),
   stock: hasVariants ? undefined : Number(form.stock || 0),
-  salePrice: hasVariants ? undefined : (form.salePrice || null),
+
+  salePrice: hasVariants
+    ? undefined
+    : form.saleEnabled
+    ? form.salePrice || null
+    : null,
+
+  /* 🔥 NEW */
+  saleEnabled: hasVariants ? undefined : form.saleEnabled || false,
+  saleStock: hasVariants
+    ? undefined
+    : form.saleEnabled
+    ? Number(form.saleStock || 0)
+    : 0,
+
   saleStart: form.saleStart
-  ? toUTCFromInput(form.saleStart)
-  : null,
+    ? toUTCFromInput(form.saleStart)
+    : null,
+
   saleEnd: form.saleEnd
-  ? toUTCFromInput(form.saleEnd)
-  : null,
+    ? toUTCFromInput(form.saleEnd)
+    : null,
 
   variants: form.variants,
 
@@ -216,7 +233,6 @@ const payload = {
       price: Number(price),
     })
   ),
-
   idempotencyKey: generateKey(),
 };
 
@@ -324,16 +340,45 @@ const payload = {
       className="w-full border p-2 rounded"
     />
 
+    {/* 🔥 SALE ENABLE */}
+    <label className="flex justify-between border p-2 rounded">
+      <span>Enable Sale</span>
+      <input
+        type="checkbox"
+        checked={form.saleEnabled || false}
+        onChange={(e) =>
+          form.setSaleEnabled(e.target.checked)
+        }
+      />
+    </label>
+
     {/* SALE PRICE */}
-    <input
-      type="number"
-      value={form.salePrice || ""}
-      onChange={(e) =>
-        form.setSalePrice(e.target.value ? Number(e.target.value) : "")
-      }
-      placeholder="Sale price"
-      className="w-full border p-2 rounded"
-    />
+    {form.saleEnabled && (
+      <input
+        type="number"
+        value={form.salePrice || ""}
+        onChange={(e) =>
+          form.setSalePrice(
+            e.target.value ? Number(e.target.value) : ""
+          )
+        }
+        placeholder="Sale price"
+        className="w-full border p-2 rounded"
+      />
+    )}
+
+    {/* 🔥 SALE STOCK */}
+    {form.saleEnabled && (
+      <input
+        type="number"
+        value={form.saleStock || 0}
+        onChange={(e) =>
+          form.setSaleStock(Number(e.target.value))
+        }
+        placeholder="Sale stock"
+        className="w-full border p-2 rounded"
+      />
+    )}
   </>
 )}
 
