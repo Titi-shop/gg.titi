@@ -61,7 +61,7 @@ export type CreateProductInput = {
   detail: string;
   images: string[];
   thumbnail: string | null;
-  category_id: string | null;
+  category_id: number | null;
   price: number;
   sale_price: number | null;
   sale_start: string | null;
@@ -109,6 +109,12 @@ function toAppProduct(row: ProductRow): ProductRecord {
       row.sale_price !== undefined
         ? Number(row.sale_price)
         : null,
+
+    final_price:
+      row.final_price !== null &&
+      row.final_price !== undefined
+        ? Number(row.final_price)
+        : Number(row.price) || 0,
 
     images: Array.isArray(row.images) ? row.images : [],
     sale_stock: row.sale_stock ?? 0,
@@ -197,7 +203,7 @@ export async function getSellerProducts(
       FROM product_variants v
       WHERE v.product_id = p.id
         AND v.is_active = TRUE
-    ) AS price,
+   ) AS min_variant_price,
 
     /* ✅ SALE PRICE (optional) */
     CASE
@@ -300,56 +306,87 @@ export async function createProduct(
   sellerId: string,
   product: CreateProductInput
 ): Promise<ProductRecord> {
+
+  /* ================= CALC ================= */
+
+  const slug = product.name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-");
+
+  const finalPrice =
+    product.sale_price !== null &&
+    product.sale_price < product.price
+      ? product.sale_price
+      : product.price;
+
+  /* ================= INSERT ================= */
+
   const { rows } = await query(
     `
     INSERT INTO products (
-  name,
-  description,
-  detail,
-  images,
-  thumbnail,
-  category_id,
-  price,
-  sale_price,
-  final_price,
-  sale_start,
-  sale_end,        
-  sale_stock,
-  sale_sold,
-  sale_enabled,
-  stock,
-  is_active,
-  views,
-  sold,
-  seller_id
-)
-VALUES (
-  $1,$2,$3,$4,$5,$6,
-  $7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
-)
+      name,
+      slug,
+      description,
+      detail,
+      images,
+      thumbnail,
+      category_id,
+
+      price,
+      sale_price,
+      final_price,
+
+      sale_start,
+      sale_end,
+
+      sale_stock,
+      sale_sold,
+      sale_enabled,
+
+      stock,
+      is_active,
+
+      views,
+      sold,
+
+      seller_id
+    )
+    VALUES (
+      $1,$2,$3,$4,$5,$6,$7,
+      $8,$9,$10,
+      $11,$12,
+      $13,$14,$15,
+      $16,$17,
+      $18,$19,
+      $20
+    )
     RETURNING *
     `,
     [
-      
-  product.name.trim(),
-  product.description ?? "",
-  product.detail ?? "",
-  product.images,
-  product.thumbnail,
-  product.category_id,
-  product.price,
-  product.sale_price,
-  product.sale_start,
-  product.sale_end,
-  product.sale_stock ?? 0,
-  0,
-  product.sale_enabled ?? false,
-  product.stock,
-  product.is_active,
-  product.views ?? 0,
-  product.sold ?? 0,
-  sellerId,
-]
+      product.name.trim(),
+      slug,
+      product.description ?? "",
+      product.detail ?? "",
+      product.images ?? [],
+      product.thumbnail ?? "",
+      product.category_id ? Number(product.category_id) : null,
+
+      product.price,
+      product.sale_price,
+      finalPrice,
+
+      product.sale_start,
+      product.sale_end,
+      product.sale_stock ?? 0,
+      0,
+      product.sale_enabled ?? false,
+      product.stock,
+      product.is_active,
+      product.views ?? 0,
+      product.sold ?? 0,
+      sellerId,
+    ]
   );
 
   if (!rows.length) {
