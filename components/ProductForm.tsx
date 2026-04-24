@@ -370,16 +370,22 @@ export default function ProductForm({
 
     {/* SALE PRICE */}
     {form.saleEnabled && (
-      <input
+     <input
   type="number"
   step="0.00001"
   min="0.00001"
-  value={form.salePrice || ""}
-  onChange={(e) =>
-    form.setSalePrice(
-      e.target.value ? Number(e.target.value) : ""
-    )
-  }
+  inputMode="decimal"
+  value={form.salePrice === "" ? "" : form.salePrice}
+  onChange={(e) => {
+    const val = e.target.value;
+
+    if (val === "") {
+      form.setSalePrice("");
+      return;
+    }
+
+    form.setSalePrice(Number(val));
+  }}
   placeholder="Sale price"
   className="w-full border p-2 rounded"
 />
