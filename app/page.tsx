@@ -82,7 +82,6 @@ function isProductOnSale(p: Product) {
 function getVariantDiscount(p: Product) {
   if (!p.hasVariants || !p.variants?.length) return 0;
 
-  // lấy variant giảm mạnh nhất
   let max = 0;
 
   for (const v of p.variants) {
@@ -228,19 +227,19 @@ const isSaleOut = saleStock > 0 && saleLeft <= 0;
         )}
 
         {/* ===== FLASH SALE PROGRESS ===== */}
-{saleStock2 > 0 && (
+{saleStock > 0 && (
   <div className="mt-2">
     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
       <div
         className="h-full bg-red-500"
         style={{
-          width: `${(saleSold2 / (saleStock2 || 1)) * 100}%`,
+          width: `${(saleSold / (saleStock || 1)) * 100}%`,
         }}
       />
     </div>
 
     <p className="text-[11px] text-red-500 text-center mt-1">
-      🔥 Còn {saleLeft2}
+      🔥 Còn {saleLeft}
     </p>
   </div>
 )}
