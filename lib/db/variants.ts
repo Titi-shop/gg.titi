@@ -161,21 +161,33 @@ export async function getVariantsByProductId(productId: string) {
     `
     SELECT
       id,
+
       option_1,
+      option_2,
+      option_3,
+
       option_label_1,
+      option_label_2,
+      option_label_3,
+
       price,
       sale_price,
       final_price,
+
       stock,
       is_unlimited,
+
       sale_enabled,
       sale_stock,
       sale_sold,
+
       sku,
       image,
+
       sort_order,
       is_active,
       sold
+
     FROM product_variants
     WHERE product_id = $1
       AND deleted_at IS NULL
@@ -189,25 +201,42 @@ export async function getVariantsByProductId(productId: string) {
   return res.rows.map((r) => {
     const mapped = {
       id: r.id,
+
+      /* 🔥 OPTION (FULL SUPPORT 3 LEVEL) */
+      option1: r.option_1,
+      option2: r.option_2,
+      option3: r.option_3,
+
+      optionLabel1: r.option_label_1,
+      optionLabel2: r.option_label_2,
+      optionLabel3: r.option_label_3,
+
+      /* 🔥 BACKWARD COMPAT (cho code cũ) */
       optionName: r.option_label_1,
       optionValue: r.option_1,
 
+      /* 🔥 PRICE */
       price: Number(r.price),
       salePrice:
         r.sale_price !== null ? Number(r.sale_price) : null,
       finalPrice: Number(r.final_price),
 
+      /* 🔥 STOCK */
       stock: r.is_unlimited ? 999999 : r.stock,
       isUnlimited: r.is_unlimited,
 
-      sku: r.sku,
-      image: r.image,
-      sortOrder: r.sort_order,
-      isActive: r.is_active,
-
+      /* 🔥 FLASH SALE */
+      saleEnabled: r.sale_enabled,
       saleStock: r.sale_stock,
       saleSold: r.sale_sold,
-      saleEnabled: r.sale_enabled,
+
+      /* 🔥 MEDIA */
+      sku: r.sku,
+      image: r.image,
+
+      /* 🔥 STATUS */
+      sortOrder: r.sort_order,
+      isActive: r.is_active,
 
       sold: r.sold ?? 0,
     };
@@ -216,7 +245,6 @@ export async function getVariantsByProductId(productId: string) {
     return mapped;
   });
 }
-
 /* =========================================================
    REPLACE VARIANTS
 ========================================================= */
