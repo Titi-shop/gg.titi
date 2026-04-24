@@ -364,6 +364,17 @@ export async function PATCH(
         { status: 400 }
       );
     }
+/* ================= SALE INPUT ================= */
+
+const saleEnabled =
+  typeof body.saleEnabled === "boolean"
+    ? body.saleEnabled
+    : undefined;
+
+const saleStock =
+  typeof body.saleStock === "number" && body.saleStock >= 0
+    ? body.saleStock
+    : undefined;
 
     /* ================= VARIANTS ================= */
     const normalizedVariants = normalizeVariants(body.variants);
@@ -469,54 +480,59 @@ finalSalePrice =
     console.log("🛠️ [PATCH] UPDATE START");
 
     const updated = await updateProductBySeller(userId, id, {
-      name:
-        typeof body.name === "string"
-          ? body.name.trim()
-          : undefined,
+  name:
+    typeof body.name === "string"
+      ? body.name.trim()
+      : undefined,
 
-      description:
-        typeof body.description === "string"
-          ? body.description
-          : undefined,
+  description:
+    typeof body.description === "string"
+      ? body.description
+      : undefined,
 
-      detail:
-        typeof body.detail === "string"
-          ? body.detail
-          : undefined,
+  detail:
+    typeof body.detail === "string"
+      ? body.detail
+      : undefined,
 
-      images: Array.isArray(body.images)
-        ? body.images.filter(
-            (i: unknown): i is string => typeof i === "string"
-          )
-        : undefined,
+  images: Array.isArray(body.images)
+    ? body.images.filter(
+        (i: unknown): i is string => typeof i === "string"
+      )
+    : undefined,
 
-      thumbnail:
-        body.thumbnail !== undefined
-          ? typeof body.thumbnail === "string"
-            ? body.thumbnail
-            : null
-          : undefined,
+  thumbnail:
+    body.thumbnail !== undefined
+      ? typeof body.thumbnail === "string"
+        ? body.thumbnail
+        : null
+      : undefined,
 
-      category_id: categoryId,
+  category_id: categoryId,
 
-      /* 🔥 FIX CHUẨN */
-      price: finalPrice,
-      sale_price: finalSalePrice,
-      stock:
-        hasVariants
-          ? finalStock
-          : typeof body.stock === "number" && body.stock >= 0
-          ? body.stock
-          : undefined,
+  /* 🔥 PRICE */
+  price: finalPrice,
+  sale_price: finalSalePrice,
 
-      sale_start: saleStart,
-      sale_end: saleEnd,
+  stock:
+    hasVariants
+      ? finalStock
+      : typeof body.stock === "number" && body.stock >= 0
+      ? body.stock
+      : undefined,
 
-      is_active:
-        typeof body.isActive === "boolean"
-          ? body.isActive
-          : undefined,
-    });
+  /* 🔥 SALE SYSTEM */
+  sale_enabled: saleEnabled,
+  sale_stock: saleStock,
+
+  sale_start: saleStart,
+  sale_end: saleEnd,
+
+  is_active:
+    typeof body.isActive === "boolean"
+      ? body.isActive
+      : undefined,
+});
 
     console.log("🧾 [PATCH] UPDATED RESULT:", updated);
 
