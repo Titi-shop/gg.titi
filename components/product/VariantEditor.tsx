@@ -1,20 +1,49 @@
 "use client";
 
-import { ProductVariant } from "./types";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 
-interface Props {
-  variants: ProductVariant[];
-  setVariants: (v: ProductVariant[]) => void;
+/* ================= TYPES ================= */
+export interface ProductVariant {
+  id?: string;
+
+  option1?: string;
+  option2?: string;
+  option3?: string;
+
+  optionLabel1?: string;
+  optionLabel2?: string;
+  optionLabel3?: string;
+
+  name?: string;
+
+  price: number;
+  salePrice?: number | null;
+
+  saleEnabled?: boolean;
+  saleStock?: number;
+  saleSold?: number;
+
+  stock: number;
+
+  sku?: string;
+  isActive?: boolean;
 }
 
-export default function VariantEditor({ variants, setVariants }: Props) {
+/* ================= COMPONENT ================= */
+export default function VariantEditor({
+  variants,
+  setVariants,
+}: {
+  variants: ProductVariant[];
+  setVariants: (v: ProductVariant[]) => void;
+}) {
   const { t } = useTranslation();
 
-  const updateVariant = <K extends keyof ProductVariant>(
+  /* ================= UPDATE ================= */
+  const updateVariant = (
     index: number,
-    key: K,
-    value: ProductVariant[K]
+    key: keyof ProductVariant,
+    value: any
   ) => {
     const newVariants = [...variants];
     newVariants[index] = {
@@ -24,55 +53,61 @@ export default function VariantEditor({ variants, setVariants }: Props) {
     setVariants(newVariants);
   };
 
+  /* ================= ADD ================= */
+  const addVariant = () => {
+    setVariants([
+      ...variants,
+      {
+        option1: "",
+        option2: "",
+        option3: "",
+        optionLabel1: "Color",
+        optionLabel2: "Size",
+        optionLabel3: "",
+
+        price: 0,
+        salePrice: null,
+
+        saleEnabled: false,
+        saleStock: 0,
+        saleSold: 0,
+
+        stock: 0,
+        sku: "",
+        isActive: true,
+      },
+    ]);
+  };
+
+  /* ================= DELETE ================= */
   const removeVariant = (index: number) => {
     setVariants(variants.filter((_, i) => i !== index));
   };
 
-  const addVariant = () => {
-  setVariants([
-    ...variants,
-    {
-      optionName: "",
-      optionValue: "",
-      price: null,
-      salePrice: null,
-
-      saleEnabled: false,
-      saleStock: 0,
-      saleSold: 0,
-      stock: 0,
-      sku: "",
-      isActive: true,
-    },
-  ]);
-};
-
+  /* ================= UI ================= */
   return (
     <div className="space-y-4">
+
       <p className="font-semibold text-base">
-        {t.variant_title || "Variants"}
+        🧩 {t.variant_title || "Product Variants"}
       </p>
 
       {variants.map((v, i) => {
-        const isInvalidSale =
-  v.saleEnabled &&
-  v.salePrice !== null &&
-  v.price !== null &&
-  v.salePrice >= v.price;
+        const invalidSale =
+          v.salePrice &&
+          v.price &&
+          v.salePrice >= v.price;
 
         return (
           <div
             key={i}
             className="bg-white border rounded-xl p-4 shadow-sm space-y-3"
           >
-            {/* HEADER */}
+            {/* ===== HEADER ===== */}
             <div className="flex justify-between items-center">
-              <div className="text-sm font-medium text-gray-700">
-                {v.optionName || t.variant_type}:{" "}
-                <span className="text-black">
-                  {v.optionValue || t.variant_value}
-                </span>
-              </div>
+              <p className="text-sm font-medium">
+                Variant #{i + 1}
+              </p>
 
               <input
                 type="checkbox"
@@ -83,46 +118,51 @@ export default function VariantEditor({ variants, setVariants }: Props) {
               />
             </div>
 
-            {/* OPTION */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* ===== OPTIONS ===== */}
+            <div className="grid grid-cols-3 gap-2">
               <input
-                placeholder={t.variant_type_placeholder}
-                value={v.optionName || ""}
+                placeholder="Color"
+                value={v.option1 || ""}
                 onChange={(e) =>
-                  updateVariant(i, "optionName", e.target.value)
+                  updateVariant(i, "option1", e.target.value)
                 }
                 className="border p-2 rounded text-sm"
               />
 
               <input
-                placeholder={t.variant_value_placeholder}
-                value={v.optionValue}
+                placeholder="Size"
+                value={v.option2 || ""}
                 onChange={(e) =>
-                  updateVariant(i, "optionValue", e.target.value)
+                  updateVariant(i, "option2", e.target.value)
+                }
+                className="border p-2 rounded text-sm"
+              />
+
+              <input
+                placeholder="Material"
+                value={v.option3 || ""}
+                onChange={(e) =>
+                  updateVariant(i, "option3", e.target.value)
                 }
                 className="border p-2 rounded text-sm"
               />
             </div>
 
-            {/* PRICE */}
+            {/* ===== PRICE ===== */}
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="number"
-                placeholder={t.variant_price}
+                placeholder="Price"
                 value={v.price ?? ""}
                 onChange={(e) =>
-                  updateVariant(
-                    i,
-                    "price",
-                    e.target.value ? Number(e.target.value) : null
-                  )
+                  updateVariant(i, "price", Number(e.target.value))
                 }
                 className="border p-2 rounded text-sm"
               />
 
               <input
                 type="number"
-                placeholder={t.variant_sale_price}
+                placeholder="Sale price"
                 value={v.salePrice ?? ""}
                 onChange={(e) =>
                   updateVariant(
@@ -132,53 +172,53 @@ export default function VariantEditor({ variants, setVariants }: Props) {
                   )
                 }
                 className={`border p-2 rounded text-sm ${
-                  isInvalidSale ? "border-red-500" : ""
+                  invalidSale ? "border-red-500" : ""
                 }`}
               />
             </div>
-       {/* 🔥 SALE ENABLE */}
-     <div className="flex items-center justify-between">
-  <span className="text-sm text-gray-600">
-    {t.sale_enable || "Enable Sale"}
-  </span>
 
-    <input
-    type="checkbox"
-    checked={v.saleEnabled ?? false}
-    onChange={(e) =>
-      updateVariant(i, "saleEnabled", e.target.checked)
-    }
-        />
-         </div>
-            {v.saleEnabled && (
-  <div className="grid grid-cols-2 gap-2">
-    <input
-      type="number"
-      placeholder="Sale stock"
-      value={v.saleStock ?? 0}
-      onChange={(e) =>
-        updateVariant(i, "saleStock", Number(e.target.value))
-      }
-      className="border p-2 rounded text-sm"
-    />
-
-    <div className="flex items-center text-xs text-gray-400">
-      🔒 Sold auto
-    </div>
-  </div>
-)}
-            {/* ERROR */}
-            {isInvalidSale && (
+            {invalidSale && (
               <p className="text-red-500 text-xs">
-                {t.variant_sale_invalid}
+                Sale price must be lower than price
               </p>
             )}
 
-            {/* STOCK + SKU */}
+            {/* ===== SALE ENABLE ===== */}
+            <label className="flex justify-between items-center border p-2 rounded text-sm">
+              <span>🔥 Enable Flash Sale</span>
+              <input
+                type="checkbox"
+                checked={v.saleEnabled || false}
+                onChange={(e) =>
+                  updateVariant(i, "saleEnabled", e.target.checked)
+                }
+              />
+            </label>
+
+            {/* ===== SALE STOCK ===== */}
+            {v.saleEnabled && (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="Sale stock"
+                  value={v.saleStock ?? 0}
+                  onChange={(e) =>
+                    updateVariant(i, "saleStock", Number(e.target.value))
+                  }
+                  className="border p-2 rounded text-sm"
+                />
+
+                <div className="flex items-center text-xs text-gray-400">
+                  🔒 Sold auto ({v.saleSold ?? 0})
+                </div>
+              </div>
+            )}
+
+            {/* ===== STOCK + SKU ===== */}
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="number"
-                placeholder={t.variant_stock}
+                placeholder="Stock"
                 value={v.stock}
                 onChange={(e) =>
                   updateVariant(i, "stock", Number(e.target.value))
@@ -187,7 +227,7 @@ export default function VariantEditor({ variants, setVariants }: Props) {
               />
 
               <input
-                placeholder={t.variant_sku}
+                placeholder="SKU"
                 value={v.sku || ""}
                 onChange={(e) =>
                   updateVariant(i, "sku", e.target.value)
@@ -196,25 +236,25 @@ export default function VariantEditor({ variants, setVariants }: Props) {
               />
             </div>
 
-            {/* DELETE */}
+            {/* ===== DELETE ===== */}
             <button
               type="button"
               onClick={() => removeVariant(i)}
               className="text-red-500 text-sm w-full border border-red-300 rounded py-2 hover:bg-red-50"
             >
-              {t.variant_delete}
+              Delete variant
             </button>
           </div>
         );
       })}
 
-      {/* ADD */}
+      {/* ===== ADD BUTTON ===== */}
       <button
         type="button"
         onClick={addVariant}
-        className="w-full bg-green-500 text-white py-3 rounded-xl font-medium active:scale-95 transition"
+        className="w-full bg-green-500 text-white py-3 rounded-xl font-medium active:scale-95"
       >
-        {t.variant_add}
+        ➕ Add Variant
       </button>
     </div>
   );
