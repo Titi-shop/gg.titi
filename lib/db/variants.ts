@@ -2,23 +2,30 @@
 import { query, withTransaction } from "@/lib/db";
 
 /* =========================================================
-   TYPES (MATCH DB)
+   TYPES
 ========================================================= */
 
 export type ProductVariant = {
   id?: string;
   optionName?: string;
   optionValue: string;
+
   price?: number;
   salePrice?: number | null;
+  finalPrice?: number;
+
   stock: number;
   isUnlimited?: boolean;
-  /* 🔥 FLASH SALE */
+
   saleStock?: number;
   saleSold?: number;
   saleEnabled?: boolean;
+
+  sold?: number;
+
   sku?: string | null;
   image?: string | null;
+
   sortOrder?: number;
   isActive?: boolean;
 };
@@ -28,14 +35,16 @@ export type ProductVariant = {
 ========================================================= */
 
 function validateVariants(input: unknown): ProductVariant[] {
+  console.log("🧪 [VARIANT][VALIDATE] RAW:", input);
+
   if (!Array.isArray(input)) {
     console.warn("⚠️ [VARIANT] input is not array");
     return [];
   }
 
-  const valid = input.filter((v): v is ProductVariant => {
+  const valid = input.filter((v, i): v is ProductVariant => {
     if (typeof v !== "object" || v === null) {
-      console.warn("❌ [VARIANT] invalid object:", v);
+      console.warn(`❌ [VARIANT] invalid object at index ${i}:`, v);
       return false;
     }
 
@@ -45,23 +54,24 @@ function validateVariants(input: unknown): ProductVariant[] {
         : "";
 
     if (!value) {
-      console.warn("❌ [VARIANT] empty optionValue:", v);
+      console.warn(`❌ [VARIANT] empty optionValue at index ${i}:`, v);
       return false;
     }
 
     return true;
   });
 
-  console.log("🧩 [VARIANT] VALID COUNT:", valid.length);
-
+  console.log("✅ [VARIANT] VALID COUNT:", valid.length);
   return valid;
 }
 
 /* =========================================================
-   NORMALIZE (MATCH DB)
+   NORMALIZE
 ========================================================= */
 
 function normalizeVariant(v: ProductVariant, index: number) {
+  console.log(`🔧 [VARIANT][NORMALIZE] index=${index}`, v);
+
   const value =
     typeof v.optionValue === "string"
       ? v.optionValue.trim()
@@ -77,60 +87,67 @@ function normalizeVariant(v: ProductVariant, index: number) {
       : "option";
 
   const price =
-    typeof v.price === "number" && v.price >= 0
+    typeof v.price === "number" && !isNaN(v.price) && v.price >= 0
       ? v.price
       : 0;
 
   const salePrice =
-    typeof v.salePrice === "number" && v.salePrice >= 0
+    typeof v.salePrice === "number" &&
+    !isNaN(v.salePrice) &&
+    v.salePrice >= 0
       ? v.salePrice
       : null;
 
-  /* ✅ FINAL PRICE (QUAN TRỌNG) */
   const finalPrice =
     salePrice !== null && salePrice < price
       ? salePrice
       : price;
-   const saleStock =
-  typeof v.saleStock === "number" && v.saleStock >= 0
-    ? v.saleStock
-    : 0;
 
-const saleSold =
-  typeof v.saleSold === "number" && v.saleSold >= 0
-    ? v.saleSold
-    : 0;
+  const saleStock =
+    typeof v.saleStock === "number" && v.saleStock >= 0
+      ? v.saleStock
+      : 0;
 
-const saleEnabled =
-  typeof v.saleEnabled === "boolean"
-    ? v.saleEnabled
-    : false;
+  const saleSold =
+    typeof v.saleSold === "number" && v.saleSold >= 0
+      ? v.saleSold
+      : 0;
 
-  return {
-  option_1: value,
-  option_label_1: label,
-  option_2: null,
-  option_label_2: null,
-  option_3: null,
-  option_label_3: null,
-  name: value,
+  const saleEnabled =
+    typeof v.saleEnabled === "boolean"
+      ? v.saleEnabled
+      : false;
 
-  price,
-  sale_price: salePrice,
-  final_price: finalPrice,
-  stock: v.stock >= 0 ? v.stock : 0,
-  is_unlimited: v.isUnlimited ?? false,
-  /* 🔥 FLASH SALE */
-  sale_stock: saleStock,
-  sale_sold: saleSold,
-  sale_enabled: saleEnabled,
+  const normalized = {
+    option_1: value,
+    option_label_1: label,
+    option_2: null,
+    option_label_2: null,
+    option_3: null,
+    option_label_3: null,
+    name: value,
 
-  sku: v.sku ?? null,
-  image: v.image ?? "",
+    price,
+    sale_price: salePrice,
+    final_price: finalPrice,
 
-  sort_order: v.sortOrder ?? index,
-  is_active: v.isActive ?? true,
-};
+    stock: v.stock >= 0 ? v.stock : 0,
+    is_unlimited: v.isUnlimited ?? false,
+
+    sale_enabled: saleEnabled,
+    sale_stock: saleStock,
+    sale_sold: saleSold,
+
+    sku: v.sku ?? null,
+    image: v.image ?? "",
+
+    sort_order: v.sortOrder ?? index,
+    is_active: v.isActive ?? true,
+  };
+
+  console.log("✅ [VARIANT][NORMALIZED]:", normalized);
+
+  return normalized;
 }
 
 /* =========================================================
@@ -142,60 +159,66 @@ export async function getVariantsByProductId(productId: string) {
 
   const res = await query(
     `
-      SELECT
-  id,
-  option_1,
-  option_label_1,
-  price,
-  sale_price,
-  final_price,
-  stock,
-is_unlimited,
-sale_enabled,
-sale_stock,
-sale_sold,
-sku,
-image,
-  sort_order,
-  is_active,
-  sold,
-  sale_enabled,
-  sale_stock,
-  sale_sold
-FROM product_variants
-WHERE product_id = $1
-  AND deleted_at IS NULL
-ORDER BY sort_order ASC
+    SELECT
+      id,
+      option_1,
+      option_label_1,
+      price,
+      sale_price,
+      final_price,
+      stock,
+      is_unlimited,
+      sale_enabled,
+      sale_stock,
+      sale_sold,
+      sku,
+      image,
+      sort_order,
+      is_active,
+      sold
+    FROM product_variants
+    WHERE product_id = $1
+      AND deleted_at IS NULL
+    ORDER BY sort_order ASC
     `,
     [productId]
   );
 
-  return res.rows.map((r) => ({
-    id: r.id,
+  console.log("📦 [VARIANT][GET] rows:", res.rows.length);
 
-    optionName: r.option_label_1,
-    optionValue: r.option_1,
+  return res.rows.map((r) => {
+    const mapped = {
+      id: r.id,
+      optionName: r.option_label_1,
+      optionValue: r.option_1,
 
-    price: Number(r.price),
-    salePrice:
-      r.sale_price !== null ? Number(r.sale_price) : null,
-    finalPrice: Number(r.final_price),
-    stock: r.is_unlimited ? 999999 : r.stock,
-    isUnlimited: r.is_unlimited,
+      price: Number(r.price),
+      salePrice:
+        r.sale_price !== null ? Number(r.sale_price) : null,
+      finalPrice: Number(r.final_price),
 
-    sku: r.sku,
-    image: r.image,
-    sortOrder: r.sort_order,
-    isActive: r.is_active,
-   saleStock: r.sale_stock,
-    saleSold: r.sale_sold,
-    saleEnabled: r.sale_enabled,
-    sold: r.sold ?? 0,
-  }));
+      stock: r.is_unlimited ? 999999 : r.stock,
+      isUnlimited: r.is_unlimited,
+
+      sku: r.sku,
+      image: r.image,
+      sortOrder: r.sort_order,
+      isActive: r.is_active,
+
+      saleStock: r.sale_stock,
+      saleSold: r.sale_sold,
+      saleEnabled: r.sale_enabled,
+
+      sold: r.sold ?? 0,
+    };
+
+    console.log("🧩 [VARIANT][MAP]:", mapped);
+    return mapped;
+  });
 }
 
 /* =========================================================
-   REPLACE VARIANTS (ATOMIC)
+   REPLACE VARIANTS
 ========================================================= */
 
 export async function replaceVariantsByProductId(
@@ -211,121 +234,142 @@ export async function replaceVariantsByProductId(
   }
 
   await withTransaction(async (client) => {
-    /* ================= DELETE OLD ================= */
-    console.log("🗑️ [VARIANT] delete old");
+    console.log("🧱 [VARIANT] BEGIN TRANSACTION");
 
+    /* DELETE OLD */
+    console.log("🗑️ deleting old variants...");
     await client.query(
       `DELETE FROM product_variants WHERE product_id = $1`,
       [productId]
     );
 
     if (valid.length === 0) {
-      console.log("⚠️ [VARIANT] no variants to insert");
+      console.warn("⚠️ no variants to insert");
       return;
     }
 
-    /* ================= NORMALIZE ================= */
-    const normalized = valid.map(normalizeVariant);
+    /* NORMALIZE */
+    const normalized = valid.map((v, i) =>
+      normalizeVariant(v, i)
+    );
 
-    console.log("🧩 [VARIANT] normalized:", normalized);
+    console.log("🧩 normalized count:", normalized.length);
 
-    /* ================= BUILD INSERT ================= */
+    /* BUILD INSERT */
+    const FIELD_COUNT = 20;
     const values: unknown[] = [];
     const placeholders: string[] = [];
 
     normalized.forEach((v, i) => {
-      const idx = i * 20;
+      const idx = i * FIELD_COUNT;
 
-      placeholders.push(
-  `($${idx + 1},$${idx + 2},$${idx + 3},$${idx + 4},$${idx + 5},$${idx + 6},$${idx + 7},$${idx + 8},$${idx + 9},$${idx + 10},$${idx + 11},$${idx + 12},$${idx + 13},$${idx + 14},$${idx + 15},$${idx + 16},$${idx + 17},$${idx + 18},$${idx + 19},$${idx + 20})`
-    );
+      const row = Array.from(
+        { length: FIELD_COUNT },
+        (_, k) => `$${idx + k + 1}`
+      ).join(",");
+
+      placeholders.push(`(${row})`);
 
       values.push(
-  productId,
+        productId,
 
-  v.option_1,
-  v.option_label_1,
+        v.option_1,
+        v.option_label_1,
 
-  v.option_2,
-  v.option_label_2,
+        v.option_2,
+        v.option_label_2,
 
-  v.option_3,
-  v.option_label_3,
+        v.option_3,
+        v.option_label_3,
 
-  v.name,
+        v.name,
 
-  v.price,
-  v.sale_price,
-  v.final_price,
+        v.price,
+        v.sale_price,
+        v.final_price,
 
-  v.stock,
-  v.is_unlimited,
+        v.stock,
+        v.is_unlimited,
 
-  /* 🔥 FIX ORDER */
-  v.sale_enabled,
-  v.sale_stock,
-  v.sale_sold,
+        v.sale_enabled,
+        v.sale_stock,
+        v.sale_sold,
 
-  v.sku,
-  v.image,
+        v.sku,
+        v.image,
 
-  v.sort_order,
-  v.is_active
-);
+        v.sort_order,
+        v.is_active
+      );
     });
 
-    /* ================= INSERT ================= */
-    console.log("📦 [VARIANT] inserting:", normalized.length);
+    console.log("📦 inserting variants...");
+    console.log("PLACEHOLDERS:", placeholders.length);
+    console.log("VALUES LENGTH:", values.length);
 
-    await client.query(
-      `
-      INSERT INTO product_variants
-(
-  product_id,
-  option_1,
-  option_label_1,
+    try {
+      await client.query(
+        `
+        INSERT INTO product_variants
+        (
+          product_id,
+          option_1,
+          option_label_1,
 
-  option_2,
-  option_label_2,
+          option_2,
+          option_label_2,
 
-  option_3,
-  option_label_3,
+          option_3,
+          option_label_3,
 
-  name,
+          name,
 
-  price,
-  sale_price,
-  final_price,
+          price,
+          sale_price,
+          final_price,
 
-  stock,
-  is_unlimited,
+          stock,
+          is_unlimited,
 
-  /* 🔥 FLASH SALE */
-  sale_enabled,
-  sale_stock,
-  sale_sold,
+          sale_enabled,
+          sale_stock,
+          sale_sold,
 
-  sku,
-  image,
+          sku,
+          image,
 
-  sort_order,
-  is_active
-)
-VALUES  ${placeholders.join(",")}
-      `,
-      values
-    );
+          sort_order,
+          is_active
+        )
+        VALUES ${placeholders.join(",")}
+        `,
+        values
+      );
 
-    console.log("✅ [VARIANT] inserted success");
+      console.log("✅ INSERT SUCCESS");
+    } catch (err) {
+      console.error("❌ INSERT ERROR");
+      console.error("VALUES:", values);
+      console.error("ERROR:", err);
+      throw err;
+    }
   });
 }
+
+/* =========================================================
+   DECREASE STOCK
+========================================================= */
 
 export async function decreaseVariantStock(
   variantId: string,
   quantity: number
 ) {
+  console.log("📉 [VARIANT][DECREASE]", {
+    variantId,
+    quantity,
+  });
+
   return withTransaction(async (client) => {
-    /* 🔒 LOCK ROW */
     const res = await client.query(
       `
       SELECT
@@ -342,28 +386,30 @@ export async function decreaseVariantStock(
     );
 
     if (!res.rows.length) {
+      console.error("❌ VARIANT NOT FOUND:", variantId);
       throw new Error("VARIANT_NOT_FOUND");
     }
 
     const v = res.rows[0];
 
-    /* ================= NORMAL STOCK ================= */
-    if (!v.is_unlimited) {
-      if (v.stock < quantity) {
-        throw new Error("OUT_OF_STOCK");
-      }
+    console.log("🔒 LOCKED VARIANT:", v);
+
+    if (!v.is_unlimited && v.stock < quantity) {
+      console.error("❌ OUT OF STOCK");
+      throw new Error("OUT_OF_STOCK");
     }
 
-    /* ================= FLASH SALE ================= */
     if (v.sale_enabled) {
-      const left = (v.sale_stock ?? 0) - (v.sale_sold ?? 0);
+      const left =
+        (v.sale_stock ?? 0) - (v.sale_sold ?? 0);
+
+      console.log("🔥 FLASH LEFT:", left);
 
       if (left < quantity) {
+        console.error("❌ FLASH SALE SOLD OUT");
         throw new Error("FLASH_SALE_SOLD_OUT");
       }
     }
-
-    /* ================= UPDATE ================= */
 
     await client.query(
       `
@@ -373,17 +419,17 @@ export async function decreaseVariantStock(
           WHEN is_unlimited THEN stock
           ELSE stock - $2
         END,
-
         sale_sold = CASE
           WHEN sale_enabled THEN sale_sold + $2
           ELSE sale_sold
         END,
-
         updated_at = NOW()
       WHERE id = $1
       `,
       [variantId, quantity]
     );
+
+    console.log("✅ STOCK UPDATED");
 
     return { success: true };
   });
