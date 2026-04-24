@@ -264,47 +264,97 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (!body.name) {
+    /* =========================================================
+       VALIDATE BASIC
+    ========================================================= */
+
+    if (!body.name || typeof body.name !== "string") {
       return NextResponse.json(
         { error: "INVALID_NAME" },
         { status: 400 }
       );
     }
 
+    /* =========================================================
+       VARIANTS
+    ========================================================= */
+
     const variants = normalizeVariants(body.variants);
     const hasVariants = variants.length > 0;
 
-    const price = hasVariants ? 0 : Number(body.price) || 0;
+    /* =========================================================
+       PRICE (🔥 FIX QUAN TRỌNG)
+    ========================================================= */
+
+    let price = 0;
+
+    if (hasVariants) {
+      const prices = variants
+        .map((v) => Number(v.price))
+        .filter((n) => n > 0);
+
+      if (!prices.length) {
+        return NextResponse.json(
+          { error: "INVALID_VARIANT_PRICE" },
+          { status: 400 }
+        );
+      }
+
+      price = Math.min(...prices); // ✅ FIX DB CHECK
+    } else {
+      price = Number(body.price) || 0;
+
+      if (price < 0.00001) {
+        return NextResponse.json(
+          { error: "INVALID_PRICE" },
+          { status: 400 }
+        );
+      }
+    }
+
+    /* =========================================================
+       SALE
+    ========================================================= */
+
+    const saleEnabled = body.saleEnabled === true;
 
     const salePrice =
-      typeof body.salePrice === "number"
+      !hasVariants && typeof body.salePrice === "number"
         ? body.salePrice
         : null;
 
-    if (salePrice !== null && salePrice >= price) {
-      return NextResponse.json(
-        { error: "INVALID_SALE_PRICE" },
-        { status: 400 }
-      );
+    if (!hasVariants && salePrice !== null) {
+      if (salePrice >= price) {
+        return NextResponse.json(
+          { error: "INVALID_SALE_PRICE" },
+          { status: 400 }
+        );
+      }
     }
-
-    const stock = hasVariants
-      ? variants.reduce((s, v) => s + v.stock, 0)
-      : Number(body.stock) || 0;
-
-    const saleEnabled = body.saleEnabled === true;
 
     const saleStock = saleEnabled
       ? Number(body.saleStock) || 0
       : 0;
 
-    /* ================= CREATE PRODUCT ================= */
+    /* =========================================================
+       STOCK
+    ========================================================= */
+
+    const stock = hasVariants
+      ? variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+      : Number(body.stock) || 0;
+
+    /* =========================================================
+       CREATE PRODUCT
+    ========================================================= */
 
     const product = await createProduct(userId, {
-      name: body.name,
+      name: body.name.trim(),
+
       description: body.description ?? "",
       detail: body.detail ?? "",
-      images: body.images ?? [],
+
+      images: Array.isArray(body.images) ? body.images : [],
       thumbnail: body.thumbnail ?? "",
 
       category_id: body.categoryId
@@ -320,6 +370,7 @@ export async function POST(req: Request) {
       stock,
       is_active: true,
 
+      /* 🔥 SALE */
       sale_enabled: saleEnabled,
       sale_stock: saleStock,
 
@@ -327,13 +378,17 @@ export async function POST(req: Request) {
       sold: 0,
     });
 
-    /* ================= VARIANTS ================= */
+    /* =========================================================
+       VARIANTS
+    ========================================================= */
 
     if (hasVariants) {
       await replaceVariantsByProductId(product.id, variants);
     }
 
-    /* ================= SHIPPING ================= */
+    /* =========================================================
+       SHIPPING
+    ========================================================= */
 
     if (Array.isArray(body.shippingRates)) {
       await upsertShippingRates({
@@ -342,6 +397,10 @@ export async function POST(req: Request) {
       });
     }
 
+    /* =========================================================
+       SUCCESS
+    ========================================================= */
+
     return NextResponse.json({
       success: true,
       data: { id: product.id },
@@ -349,6 +408,7 @@ export async function POST(req: Request) {
 
   } catch (err) {
     console.error("💥 API ERROR:", err);
+
     return NextResponse.json(
       { error: "FAILED_TO_CREATE_PRODUCT" },
       { status: 500 }
