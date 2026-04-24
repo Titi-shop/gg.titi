@@ -103,17 +103,14 @@ function ProductCard({
   const isLowStock =
     (product.stock ?? 0) > 0 && (product.stock ?? 0) <= 5;
 
-  const isSale = isProductOnSale(product);
+  const final = product.finalPrice ?? product.price;
 
-  const discount = product.hasVariants
-  ? getVariantDiscount(product)
-  : product.price > 0
-  ? Math.round(
-      ((product.price - (product.finalPrice ?? product.price)) /
-        product.price) *
-        100
-        )
-       : 0;
+const discount =
+  product.hasVariants
+    ? getVariantDiscount(product)
+    : product.price > 0 && final < product.price
+    ? Math.round(((product.price - final) / product.price) * 100)
+    : 0;
 
   const soldPercent = Math.min(
     ((product.sold ?? 0) / ((product.sold ?? 0) + (product.stock ?? 1))) * 100,
