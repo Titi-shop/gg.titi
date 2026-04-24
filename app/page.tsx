@@ -467,8 +467,8 @@ if (loading && products.length === 0) {
                 >
                   <div className="relative overflow-hidden group">
            <Image
-    src={getMainImage(product)}
-    alt={product.name}
+  src={getMainImage(p)}
+  alt={p.name}
     width={300}
     height={300}
     className="w-full h-44 object-cover transition-transform duration-300 group-hover:scale-110"
