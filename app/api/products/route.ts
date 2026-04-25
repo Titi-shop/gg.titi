@@ -31,50 +31,48 @@ export const dynamic = "force-dynamic";
 function normalizeVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
-  const toNumber = (v: any) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  const toNullableNumber = (v: any) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  };
-
   return input
     .map((item: any, index) => {
       if (!item || typeof item !== "object") return null;
 
-      const option1 = item.option1 ?? item.optionValue ?? item.value ?? "";
+      const option1 = String(item.option1 ?? "").trim();
       if (!option1) return null;
 
       return {
         id: typeof item.id === "string" ? item.id : undefined,
 
-        optionName: item.optionLabel1 ?? "Option",
-        optionValue: String(option1).trim(),
+        /* ================= OPTIONS (DB STYLE) ================= */
+        option1,
+        option2: item.option2 ?? null,
+        option3: item.option3 ?? null,
+
+        optionLabel1: item.optionLabel1 ?? "Option",
+        optionLabel2: item.optionLabel2 ?? null,
+        optionLabel3: item.optionLabel3 ?? null,
 
         /* ================= CORE ================= */
-        price: toNumber(item.price),
+        price: Number(item.price) || 0,
+        salePrice:
+          item.salePrice !== undefined && item.salePrice !== null
+            ? Number(item.salePrice)
+            : null,
 
-        /* 🔥 FIX CRITICAL TYPE LOSS */
-        salePrice: toNullableNumber(
-          item.salePrice ?? item.sale_price
-        ),
+        finalPrice: Number(item.finalPrice ?? item.price ?? 0),
 
-        stock: toNumber(item.stock),
+        /* ================= STOCK ================= */
+        stock: Number(item.stock) || 0,
+        isUnlimited: Boolean(item.isUnlimited),
 
         /* ================= SALE ================= */
-        saleEnabled: item.saleEnabled === true || item.sale_enabled === true,
+        saleEnabled: Boolean(item.saleEnabled),
+        saleStock: Number(item.saleStock || 0),
+        saleSold: Number(item.saleSold || 0),
 
-        saleStock: toNumber(
-          item.saleStock ?? item.sale_stock
-        ),
-
+        /* ================= META ================= */
         sku: item.sku ?? null,
         image: item.image ?? "",
 
-        sortOrder: typeof item.sortOrder === "number" ? item.sortOrder : index,
+        sortOrder: Number(item.sortOrder ?? index),
         isActive: item.isActive !== false,
       };
     })
