@@ -203,8 +203,7 @@ export async function getVariantsByProductId(productId: string) {
   return res.rows.map((r) => {
     const mapped = {
       id: r.id,
-
-      /option1: r.option_1,
+option1: r.option_1,
 option2: r.option_2,
 option3: r.option_3,
 
