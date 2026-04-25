@@ -152,13 +152,11 @@ if (!product || typeof product !== "object") {
 }
   /* ================= LOGIC ================= */
 
-  const hasVariants =
-    Array.isArray(product.variants) &&
-    product.variants.length > 0;
+  const hasVariants = (product?.variants?.length ?? 0) > 0;
 
   const availableVariants = product.variants?.filter(
-  (v: Variant) => (v.isActive ?? true) && v.optionValue
-) ?? [];
+  (v: Variant) => (v.isActive ?? true) && (v.optionValue || v.option1 || v.option2)
+  ) ?? [];
 
   const selectedStock = hasVariants
   ? selectedVariant?.stock ?? 0
