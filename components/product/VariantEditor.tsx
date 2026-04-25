@@ -34,35 +34,35 @@ export default function VariantEditor({
       for (const a of v1) {
         for (const b of v2) {
           result.push({
-            option1: a,
-            option2: b,
-            optionLabel1: label1,
-            optionLabel2: label2,
+  option_1: a,
+  option_2: b,
+  option_label_1: label1,
+  option_label_2: label2,
 
-            price: 0,
-            stock: 0,
+  price: 0,
+  stock: 0,
 
-            saleEnabled: false,
-            saleStock: 0,
+  sale_enabled: false,
+  sale_stock: 0,
 
-            isActive: true,
-          });
+  is_active: true,
+       });
         }
       }
     } else if (v1.length) {
       for (const a of v1) {
         result.push({
-          option1: a,
-          optionLabel1: label1,
+        option_1: a,
+  option_label_1: label1,
 
-          price: 0,
-          stock: 0,
+  price: 0,
+  stock: 0,
 
-          saleEnabled: false,
-          saleStock: 0,
+  sale_enabled: false,
+  sale_stock: 0,
 
-          isActive: true,
-        });
+  is_active: true,
+     });
       }
     }
 
