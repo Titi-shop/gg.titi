@@ -31,52 +31,86 @@ export const dynamic = "force-dynamic";
 function normalizeVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
-  return input
-    .map((item: any, index) => {
+  console.log("🧪 [NORMALIZE] INPUT:", input);
+
+  const result = input
+    .map((item, index) => {
       if (!item || typeof item !== "object") return null;
 
-      const option1 = String(item.option1 ?? "").trim();
-      if (!option1) return null;
+      const v: any = item;
 
-      return {
-        id: typeof item.id === "string" ? item.id : undefined,
+      const option1 = (v.option1 ?? v.optionValue ?? "").toString().trim();
+      const option2 = (v.option2 ?? "").toString().trim() || null;
+      const option3 = (v.option3 ?? "").toString().trim() || null;
 
-        /* ================= OPTIONS (DB STYLE) ================= */
+      if (!option1) {
+        console.warn(`⚠️ [NORMALIZE] SKIP EMPTY option1 index=${index}`);
+        return null;
+      }
+
+      const price = Number(v.price ?? 0);
+      const salePrice =
+        v.salePrice !== null &&
+        v.salePrice !== undefined &&
+        v.salePrice !== ""
+          ? Number(v.salePrice)
+          : null;
+
+      const saleEnabled = Boolean(v.saleEnabled);
+
+      const normalized: ProductVariant = {
+        id: typeof v.id === "string" ? v.id : undefined,
+
         option1,
-        option2: item.option2 ?? null,
-        option3: item.option3 ?? null,
+        option2,
+        option3,
 
-        optionLabel1: item.optionLabel1 ?? "Option",
-        optionLabel2: item.optionLabel2 ?? null,
-        optionLabel3: item.optionLabel3 ?? null,
+        optionLabel1: v.optionLabel1 ?? null,
+        optionLabel2: v.optionLabel2 ?? null,
+        optionLabel3: v.optionLabel3 ?? null,
 
-        /* ================= CORE ================= */
-        price: Number(item.price) || 0,
-        salePrice:
-          item.salePrice !== undefined && item.salePrice !== null
-            ? Number(item.salePrice)
-            : null,
+        name:
+          v.name ??
+          [option1, option2, option3].filter(Boolean).join(" - "),
 
-        finalPrice: Number(item.finalPrice ?? item.price ?? 0),
+        sku: v.sku ?? null,
 
-        /* ================= STOCK ================= */
-        stock: Number(item.stock) || 0,
-        isUnlimited: Boolean(item.isUnlimited),
+        price,
+        salePrice,
 
-        /* ================= SALE ================= */
-        saleEnabled: Boolean(item.saleEnabled),
-        saleStock: Number(item.saleStock || 0),
-        saleSold: Number(item.saleSold || 0),
+        finalPrice:
+          saleEnabled &&
+          salePrice !== null &&
+          salePrice > 0 &&
+          salePrice < price
+            ? salePrice
+            : price,
 
-        /* ================= META ================= */
-        sku: item.sku ?? null,
-        image: item.image ?? "",
+        saleEnabled,
+        saleStock: Number(v.saleStock ?? 0),
+        saleSold: Number(v.saleSold ?? 0),
 
-        sortOrder: Number(item.sortOrder ?? index),
-        isActive: item.isActive !== false,
+        stock: Number(v.stock ?? 0),
+        isUnlimited: Boolean(v.isUnlimited),
+
+        image: v.image ?? "",
+
+        isActive: v.isActive !== false,
+        sortOrder:
+          typeof v.sortOrder === "number" ? v.sortOrder : index,
+
+        sold: Number(v.sold ?? 0),
       };
+
+      console.log(`✅ [NORMALIZE][${index}]`, normalized);
+
+      return normalized;
     })
     .filter(Boolean) as ProductVariant[];
+
+  console.log("🎯 [NORMALIZE] OUTPUT:", result);
+
+  return result;
 }
 /* =========================================================
    GET PRODUCTS
