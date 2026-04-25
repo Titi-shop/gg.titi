@@ -9,22 +9,32 @@ interface Props {
   setVariants: (v: ProductVariant[]) => void;
 }
 
+/* =========================================================
+   CORE TYPE SAFE PARSE
+========================================================= */
+
+const parse = (v: string) =>
+  v
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+
 export default function VariantEditor({
   variants,
   setVariants,
 }: Props) {
-  /* ================= OPTION INPUT ================= */
+  /* ================= INPUT ================= */
   const [label1, setLabel1] = useState("Color");
   const [values1, setValues1] = useState("");
 
   const [label2, setLabel2] = useState("Size");
   const [values2, setValues2] = useState("");
 
-  /* ================= PARSE ================= */
-  const parse = (v: string) =>
-    v.split(",").map((x) => x.trim()).filter(Boolean);
+  /* =========================================================
+     GENERATE VARIANTS (CORE FIX)
+     -> CHUẨN DB FORMAT (option_1, option_label_1)
+  ========================================================= */
 
-  /* ================= GENERATE ================= */
   const generateVariants = () => {
     const v1 = parse(values1);
     const v2 = parse(values2);
@@ -37,6 +47,7 @@ export default function VariantEditor({
           result.push({
             option1: a,
             option2: b,
+
             optionLabel1: label1,
             optionLabel2: label2,
 
@@ -44,6 +55,7 @@ export default function VariantEditor({
             stock: 0,
 
             saleEnabled: false,
+            salePrice: null,
             saleStock: 0,
 
             isActive: true,
@@ -54,12 +66,17 @@ export default function VariantEditor({
       for (const a of v1) {
         result.push({
           option1: a,
+
           optionLabel1: label1,
+
+          option2: null,
+          optionLabel2: null,
 
           price: 0,
           stock: 0,
 
           saleEnabled: false,
+          salePrice: null,
           saleStock: 0,
 
           isActive: true,
@@ -70,35 +87,44 @@ export default function VariantEditor({
     setVariants(result);
   };
 
-  /* ================= UPDATE ================= */
+  /* =========================================================
+     UPDATE SINGLE FIELD (SAFE + FIX SALE LOGIC)
+  ========================================================= */
+
   const update = (
     index: number,
     key: keyof ProductVariant,
     value: any
   ) => {
     const copy = [...variants];
-    copy[index] = { ...copy[index], [key]: value };
+    const v = { ...copy[index], [key]: value };
 
-    /* 🔥 FIX SALE STOCK */
+    /* ================= SALE STOCK RULE ================= */
     if (
-      key === "saleStock" &&
-      copy[index].saleStock! > copy[index].stock
+      v.saleStock &&
+      v.stock &&
+      v.saleStock > v.stock
     ) {
-      copy[index].saleStock = copy[index].stock;
+      v.saleStock = v.stock;
     }
 
-    /* 🔥 FIX SALE PRICE */
+    /* ================= SALE PRICE RULE ================= */
     if (
-      key === "salePrice" &&
-      copy[index].salePrice! >= (copy[index].price || 0)
+      v.salePrice !== null &&
+      v.price &&
+      v.salePrice >= v.price
     ) {
-      copy[index].salePrice = null;
+      v.salePrice = null;
     }
 
+    copy[index] = v;
     setVariants(copy);
   };
 
-  /* ================= BULK ================= */
+  /* =========================================================
+     BULK UPDATE
+  ========================================================= */
+
   const bulkSet = (key: keyof ProductVariant, value: any) => {
     setVariants(
       variants.map((v) => ({
@@ -108,26 +134,37 @@ export default function VariantEditor({
     );
   };
 
-  /* ================= DELETE ================= */
+  /* =========================================================
+     DELETE
+  ========================================================= */
+
   const remove = (index: number) => {
     setVariants(variants.filter((_, i) => i !== index));
   };
 
-  /* ================= UI ================= */
+  /* =========================================================
+     UI
+  ========================================================= */
+
   return (
     <div className="space-y-4">
 
-      <h2 className="font-semibold text-lg">Variants</h2>
+      <h2 className="font-semibold text-lg">
+        Product Variants
+      </h2>
 
       {/* ================= GENERATOR ================= */}
-      <div className="border p-3 rounded space-y-2 bg-gray-50">
+      <div className="border p-3 rounded bg-gray-50 space-y-2">
+
         <div className="grid grid-cols-2 gap-2">
+
           <input
             value={label1}
             onChange={(e) => setLabel1(e.target.value)}
             className="border p-2 rounded"
-            placeholder="Option 1 (Color)"
+            placeholder="Option 1 label (Color)"
           />
+
           <input
             value={values1}
             onChange={(e) => setValues1(e.target.value)}
@@ -139,14 +176,16 @@ export default function VariantEditor({
             value={label2}
             onChange={(e) => setLabel2(e.target.value)}
             className="border p-2 rounded"
-            placeholder="Option 2 (Size)"
+            placeholder="Option 2 label (Size)"
           />
+
           <input
             value={values2}
             onChange={(e) => setValues2(e.target.value)}
             className="border p-2 rounded"
             placeholder="S, M"
           />
+
         </div>
 
         <button
@@ -161,38 +200,42 @@ export default function VariantEditor({
       {/* ================= BULK ================= */}
       {variants.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
+
           <input
             type="number"
             placeholder="Bulk price"
+            className="border p-2 rounded"
             onBlur={(e) =>
               bulkSet("price", Number(e.target.value))
             }
-            className="border p-2 rounded"
           />
 
           <input
             type="number"
             placeholder="Bulk stock"
+            className="border p-2 rounded"
             onBlur={(e) =>
               bulkSet("stock", Number(e.target.value))
             }
-            className="border p-2 rounded"
           />
 
           <button
             type="button"
-            onClick={() => bulkSet("saleEnabled", true)}
             className="bg-orange-500 text-white rounded"
+            onClick={() => bulkSet("saleEnabled", true)}
           >
             Enable Sale All
           </button>
+
         </div>
       )}
 
       {/* ================= TABLE ================= */}
       {variants.length > 0 && (
         <div className="overflow-x-auto">
+
           <table className="w-full text-sm border">
+
             <thead>
               <tr className="bg-gray-100">
                 <th className="p-2">Variant</th>
@@ -206,15 +249,18 @@ export default function VariantEditor({
             <tbody>
               {variants.map((v, i) => (
                 <tr key={i} className="border-t">
+
+                  {/* VARIANT NAME */}
                   <td className="p-2">
-                    {v.option1} {v.option2 && `- ${v.option2}`}
+                    {v.option1}
+                    {v.option2 ? ` - ${v.option2}` : ""}
                   </td>
 
                   {/* PRICE */}
                   <td className="p-2">
                     <input
                       type="number"
-                      value={v.price || 0}
+                      value={v.price}
                       onChange={(e) =>
                         update(i, "price", Number(e.target.value))
                       }
@@ -236,20 +282,24 @@ export default function VariantEditor({
 
                   {/* SALE */}
                   <td className="p-2 space-y-1">
-                    <input
-                      type="checkbox"
-                      checked={v.saleEnabled || false}
-                      onChange={(e) =>
-                        update(i, "saleEnabled", e.target.checked)
-                      }
-                    />
+
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={v.saleEnabled}
+                        onChange={(e) =>
+                          update(i, "saleEnabled", e.target.checked)
+                        }
+                      />
+                      Sale
+                    </label>
 
                     {v.saleEnabled && (
                       <>
                         <input
                           type="number"
                           placeholder="Sale price"
-                          value={v.salePrice || ""}
+                          value={v.salePrice ?? ""}
                           onChange={(e) =>
                             update(
                               i,
@@ -263,7 +313,7 @@ export default function VariantEditor({
                         <input
                           type="number"
                           placeholder="Sale stock"
-                          value={v.saleStock || 0}
+                          value={v.saleStock}
                           onChange={(e) =>
                             update(
                               i,
@@ -275,6 +325,7 @@ export default function VariantEditor({
                         />
                       </>
                     )}
+
                   </td>
 
                   {/* DELETE */}
@@ -286,10 +337,13 @@ export default function VariantEditor({
                       ✕
                     </button>
                   </td>
+
                 </tr>
               ))}
             </tbody>
+
           </table>
+
         </div>
       )}
     </div>
