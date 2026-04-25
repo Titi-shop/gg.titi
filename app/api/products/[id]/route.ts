@@ -24,19 +24,17 @@ export const dynamic = "force-dynamic";
 function normalizeVariants(input: unknown): ProductVariant[] {
   if (!Array.isArray(input)) return [];
 
-  const result = input
+  return input
     .map((item, index) => {
       if (!item || typeof item !== "object") return null;
 
       const v: any = item;
 
-      const option1 =
-        (v.option1 ?? v.optionValue ?? "").toString().trim();
+      const option1 = (v.option1 ?? v.optionValue ?? "").toString().trim();
+      const option2 = (v.option2 ?? "").toString().trim() || null;
+      const option3 = (v.option3 ?? "").toString().trim() || null;
 
-      const option2 = (v.option2 ?? "").toString().trim();
-      const option3 = (v.option3 ?? "").toString().trim();
-
-      if (!option1 && !option2) return null;
+      if (!option1) return null;
 
       return {
         id: typeof v.id === "string" ? v.id : undefined,
@@ -45,44 +43,39 @@ function normalizeVariants(input: unknown): ProductVariant[] {
         optionValue: option1,
 
         option_1: option1,
-        option_2: option2 || null,
-        option_3: option3 || null,
+        option_2: option2,
+        option_3: option3,
 
         option_label_1: v.optionLabel1 ?? null,
         option_label_2: v.optionLabel2 ?? null,
         option_label_3: v.optionLabel3 ?? null,
 
-        price: Number(v.price) || 0,
+        name: v.name ?? option1,
 
-        salePrice:
-          v.salePrice !== undefined && v.salePrice !== null
-            ? Number(v.salePrice)
-            : null,
+        price: Number(v.price) || 0,
+        sale_price:
+          v.salePrice != null ? Number(v.salePrice) : null,
+
+        final_price:
+          v.finalPrice != null ? Number(v.finalPrice) : Number(v.price) || 0,
 
         stock: Number(v.stock) || 0,
+        is_unlimited: Boolean(v.isUnlimited),
 
-        saleEnabled: !!v.saleEnabled,
-
-        saleStock: Number(v.saleStock ?? v.sale_stock ?? 0),
+        sale_enabled: Boolean(v.saleEnabled),
+        sale_stock: Number(v.saleStock ?? 0),
+        sale_sold: Number(v.saleSold ?? 0),
 
         sku: v.sku ?? null,
         image: v.image ?? "",
 
-        sortOrder: v.sortOrder ?? index,
-        isActive: v.isActive ?? true,
+        sort_order: v.sortOrder ?? index,
+        is_active: v.isActive ?? true,
+
+        sold: Number(v.sold ?? 0),
       };
     })
-    .filter(Boolean) as ProductVariant[];
-
-  console.log("[PRODUCT][VARIANT] normalized:", result.length);
-
-  return result;
-}
-
-function getTotalVariantStock(variants: ProductVariant[]) {
-  const total = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-  console.log("[PRODUCT][STOCK] variant total:", total);
-  return total;
+    .filter(Boolean);
 }
 
 /* =========================================================
