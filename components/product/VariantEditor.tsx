@@ -157,13 +157,45 @@ useEffect(() => {
   ========================================================= */
 
   const bulkSet = (key: keyof ProductVariant, value: any) => {
-    setVariants(
-      variants.map((v) => ({
-        ...v,
-        [key]: value,
-      }))
-    );
-  };
+  setVariants(
+    variants.map((old) => {
+      const v: any = { ...old, [key]: value };
+
+      if (
+        typeof v.saleStock === "number" &&
+        typeof v.stock === "number" &&
+        v.saleStock > v.stock
+      ) {
+        v.saleStock = v.stock;
+      }
+
+      if (
+        v.salePrice !== null &&
+        typeof v.salePrice === "number" &&
+        typeof v.price === "number" &&
+        v.salePrice >= v.price
+      ) {
+        v.salePrice = null;
+      }
+
+      v.optionValue = v.option1 || "";
+      v.optionName = v.optionLabel1 || "";
+      v.name = [v.option1, v.option2, v.option3]
+        .filter(Boolean)
+        .join(" - ");
+
+      v.finalPrice =
+        v.saleEnabled &&
+        v.salePrice != null &&
+        v.salePrice > 0 &&
+        v.salePrice < (v.price || 0)
+          ? v.salePrice
+          : v.price || 0;
+
+      return v;
+    })
+  );
+};
 
   /* =========================================================
      DELETE
