@@ -37,20 +37,14 @@ export default function VariantEditor({
 useEffect(() => {
   if (!variants.length) return;
 
+  // chỉ set lần đầu
+  if (values1 || values2) return;
+
   setLabel1(variants[0].optionLabel1 || "Color");
   setLabel2(variants[0].optionLabel2 || "Size");
 
-  const uniq1 = [
-    ...new Set(
-      variants.map((v) => v.option1).filter(Boolean)
-    ),
-  ];
-
-  const uniq2 = [
-    ...new Set(
-      variants.map((v) => v.option2).filter(Boolean)
-    ),
-  ];
+  const uniq1 = [...new Set(variants.map(v => v.option1).filter(Boolean))];
+  const uniq2 = [...new Set(variants.map(v => v.option2).filter(Boolean))];
 
   setValues1(uniq1.join(", "));
   setValues2(uniq2.join(", "));
@@ -156,28 +150,7 @@ useEffect(() => {
   copy[index] = v;
   setVariants(copy);
 };
-
-    /* ================= SALE STOCK RULE ================= */
-    if (
-      v.saleStock &&
-      v.stock &&
-      v.saleStock > v.stock
-    ) {
-      v.saleStock = v.stock;
-    }
-
-    /* ================= SALE PRICE RULE ================= */
-    if (
-      v.salePrice !== null &&
-      v.price &&
-      v.salePrice >= v.price
-    ) {
-      v.salePrice = null;
-    }
-
-    copy[index] = v;
-    setVariants(copy);
-  };
+    
 
   /* =========================================================
      BULK UPDATE
