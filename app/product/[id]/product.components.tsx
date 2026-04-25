@@ -317,7 +317,7 @@ onTouchMove={(e) => {
       </div>
 
       {/* ===== VARIANTS ===== */}
-      {hasVariants && (
+      {availableVariants?.length > 0 && (
         <div className="bg-white px-4 pb-4">
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {availableVariants.map((v) => {
