@@ -317,62 +317,65 @@ onTouchMove={(e) => {
       </div>
 
       {/* ===== VARIANTS ===== */}
-      {availableVariants?.length > 0 && (
-        <div className="bg-white px-4 pb-4">
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {availableVariants.map((v) => {
-              const isSelected = selectedVariant?.id === v.id;
-              const isDisabled = v.stock <= 0;
+     {hasVariants && availableVariants?.length > 0 && (
+  <div className="bg-white px-4 pb-4">
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
 
-              return (
-                <button
-                  key={v.id}
-                  disabled={isDisabled}
-                  onClick={() => {
-                 if (!isDisabled) {
+      {availableVariants.map((v) => {
+        const isSelected = selectedVariant?.id === v.id;
+        const isDisabled = v.stock <= 0;
+
+        return (
+          <button
+            key={v.id}
+            disabled={isDisabled}
+            onClick={() => {
+              if (!isDisabled) {
                 setSelectedVariant(v);
-           if ((v as any).image) {
-         setActiveImage((v as any).image);
-    } else {
-      setActiveImage(null);
-           }
-             }
-               }}
-                  className={`rounded border px-2 py-2 text-sm transition
-                    ${
-                      isDisabled
-                        ? "bg-gray-100 text-gray-400"
-                        : isSelected
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-gray-300 bg-white"
-                    }
-                  `}
-                >
-                 <div className="flex flex-col items-center gap-1">
-  {v.image && (
-    <img
-      src={v.image}
-      className="w-6 h-6 rounded-full object-cover border"
-    />
-  )}
 
-  <span className="text-[11px]">
-    {v.option1 || v.optionValue || "Option"}
-  </span>
+                if ((v as any).image) {
+                  setActiveImage((v as any).image);
+                } else {
+                  setActiveImage(null);
+                }
+              }
+            }}
+            className={`
+              rounded border px-2 py-2 text-sm transition
+              ${
+                isDisabled
+                  ? "bg-gray-100 text-gray-400"
+                  : isSelected
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-gray-300 bg-white"
+              }
+            `}
+          >
+            <div className="flex flex-col items-center gap-1">
 
-  <span className="text-[10px] text-gray-400">
-    {v.stock}
-  </span>
-</div>
-                  <div className="text-[11px]">
-                    {v.stock}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              {v.image && (
+                <img
+                  src={v.image}
+                  className="w-6 h-6 rounded-full object-cover border"
+                />
+              )}
+
+              <span className="text-[11px]">
+                {v.option1 || v.name || "Option"}
+              </span>
+
+              <span className="text-[10px] text-gray-400">
+                {v.stock}
+              </span>
+
+            </div>
+          </button>
+        );
+      })}
+
+    </div>
+  </div>
+)}
 
       {/* ===== DESCRIPTION ===== */}
       <div className="bg-white p-4">
