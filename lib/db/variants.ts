@@ -223,6 +223,8 @@ export function mapVariantToDB(
 export async function getVariantsByProductId(
   productId: string
 ): Promise<ProductVariant[]> {
+  console.log("🔍 [DB][VARIANTS][GET] PRODUCT:", productId);
+
   const res = await query(
     `
     SELECT *
@@ -234,7 +236,40 @@ export async function getVariantsByProductId(
     [productId]
   );
 
-  return res.rows.map(mapVariantToApp);
+  console.log("📦 [DB][VARIANTS][RAW ROW COUNT]:", res.rows.length);
+
+  res.rows.forEach((row: any, i: number) => {
+    console.log(`📄 [DB][VARIANT RAW ${i}]`, {
+      id: row.id,
+
+      option_1: row.option_1,
+      option_2: row.option_2,
+      option_3: row.option_3,
+
+      option_label_1: row.option_label_1,
+      option_label_2: row.option_label_2,
+      option_label_3: row.option_label_3,
+
+      price: row.price,
+      sale_price: row.sale_price,
+      final_price: row.final_price,
+
+      sale_enabled: row.sale_enabled,
+      sale_stock: row.sale_stock,
+      sale_sold: row.sale_sold,
+
+      stock: row.stock,
+      is_unlimited: row.is_unlimited,
+    });
+  });
+
+  const mapped = res.rows.map(mapVariantToApp);
+
+  mapped.forEach((row, i) => {
+    console.log(`🧠 [DB][VARIANT APP ${i}]`, row);
+  });
+
+  return mapped;
 }
 
 /* =========================================================
