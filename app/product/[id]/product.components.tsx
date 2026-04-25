@@ -82,6 +82,7 @@ type ProductViewProps = {
   relatedProducts: RelatedProduct[];
 };
 export function ProductView(props: ProductViewProps) {
+  const [activeImage, setActiveImage] = useState<string | null>(null);
   const {
     product,
     t,
@@ -204,23 +205,17 @@ export function ProductView(props: ProductViewProps) {
             }}
 
             /* ===== TOUCH MOVE ===== */
-            onTouchMove={(e) => {
-              /* PINCH */
-              if (e.touches.length === 2) {
-                const dx =
-                  e.touches[0].clientX - e.touches[1].clientX;
-                const dy =
-                  e.touches[0].clientY - e.touches[1].clientY;
+            onTouchEnd={() => {
+         const now = Date.now();
 
-                const distance = Math.sqrt(dx * dx + dy * dy);
+  if (now - lastTap < 300) {
+    setScale((prev) => (prev === 1 ? 2 : 1));
+    setPosition({ x: 0, y: 0 });
+  }
 
-                let newScale =
-                  initialScale * (distance / initialDistance);
-
-                newScale = Math.max(1, Math.min(newScale, 6));
-
-                setScale(newScale);
-              }
+        setDragging(false);
+        setLastTap(now);
+           }}
 
               /* DRAG */
               if (e.touches.length === 1 && dragging && scale > 1) {
@@ -232,8 +227,6 @@ export function ProductView(props: ProductViewProps) {
                 });
               }
             }}
-
-            onTouchEnd={() => setDragging(false)}
 
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
@@ -324,7 +317,7 @@ export function ProductView(props: ProductViewProps) {
       {/* ===== VARIANTS ===== */}
       {hasVariants && (
         <div className="bg-white px-4 pb-4">
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {availableVariants.map((v) => {
               const isSelected = selectedVariant?.id === v.id;
               const isDisabled = v.stock <= 0;
@@ -351,19 +344,16 @@ export function ProductView(props: ProductViewProps) {
                     }
                   `}
                 >
-                  <div className="font-medium">
-                    {v.optionValue}
-                  </div>
-                {v.image ? (
-           <img
-        src={v.image}
-    className="w-6 h-6 rounded-full object-cover border"
-        />
-         ) : (
-           <div className="font-medium">
-            {v.optionValue}
-             </div>
-                )}
+                 {v.image ? (
+              <img
+              src={v.image}
+            className="w-6 h-6 rounded-full object-cover border"
+          />
+        ) : (
+         <div className="font-medium">
+          {v.optionValue}
+           </div>
+             )}
                   <div className="text-[11px]">
                     {v.stock}
                   </div>
@@ -458,18 +448,20 @@ export function ProductView(props: ProductViewProps) {
     </button>
 
     <button
-      onClick={() => {
-     if (hasVariants && !selectedVariant) return;
-     buy();
-    }}
-      className="
-        flex-1 h-8
-        bg-primary-dark text-white
-        rounded-lg
-        text-xs font-semibold
-        active:scale-95 transition
-      "
-    >
+  onClick={() => {
+    if (hasVariants && !selectedVariant) return;
+    buy();
+  }}
+  disabled={hasVariants && !selectedVariant}
+  className={`
+    flex-1 h-8 rounded-lg text-xs font-semibold transition
+    ${
+      hasVariants && !selectedVariant
+        ? "bg-gray-300 text-gray-500"
+        : "bg-primary-dark text-white active:scale-95"
+    }
+  `}
+>
       {t.buy_now}
     </button>
   </div>
