@@ -18,11 +18,22 @@ import "swiper/css";
 import "swiper/css/pagination";
 type Variant = {
   id: string;
-  optionValue: string;
+
+  option1?: string;
+  option2?: string;
+  option3?: string;
+
+  optionLabel1?: string;
+  optionLabel2?: string;
+  optionLabel3?: string;
+
+  optionValue?: string;
+  optionName?: string;
+
   price: number;
   salePrice?: number | null;
-  finalPrice: number;  
-  isSale: boolean;     
+  finalPrice: number;
+  isSale: boolean;
   stock: number;
   isActive?: boolean;
 };
