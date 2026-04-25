@@ -226,10 +226,7 @@ onTouchMove={(e) => {
   }
 }}
 
-onTouchEnd={() => {
-  setDragging(false);
-}}
-
+            
             /* ===== TOUCH MOVE ===== */
             onTouchEnd={() => {
          const now = Date.now();
