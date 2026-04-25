@@ -281,12 +281,20 @@ export async function replaceVariantsByProductId(
   input: ProductVariant[]
 ) {
   return withTransaction(async (client) => {
+    console.log("🚀 [DB][REPLACE VARIANTS] PRODUCT:", productId);
+    console.log("📥 [DB][REPLACE VARIANTS] INPUT:", input);
+
     await client.query(
       `DELETE FROM product_variants WHERE product_id = $1`,
       [productId]
     );
 
-    if (!input.length) return;
+    console.log("🗑️ OLD VARIANTS DELETED");
+
+    if (!input.length) {
+      console.log("⚠️ NO VARIANTS TO INSERT");
+      return;
+    }
 
     const FIELD_COUNT = 22;
     const values: any[] = [];
@@ -294,6 +302,8 @@ export async function replaceVariantsByProductId(
 
     input.forEach((v, i) => {
       const db = mapVariantToDB(v, productId, i);
+
+      console.log(`🧠 [DB VARIANT ${i}]`, db);
 
       const row = Array.from(
         { length: FIELD_COUNT },
@@ -304,73 +314,55 @@ export async function replaceVariantsByProductId(
 
       values.push(
         db.product_id,
-
         db.option_1,
         db.option_2,
         db.option_3,
-
         db.option_label_1,
         db.option_label_2,
         db.option_label_3,
-
         db.name,
-
         db.sku,
-
         db.price,
         db.sale_price,
         db.final_price,
-
         db.sale_enabled,
         db.sale_stock,
         db.sale_sold,
-
         db.stock,
         db.is_unlimited,
-
         db.image,
-
         db.is_active,
         db.sort_order,
-
         db.sold,
         db.currency
       );
     });
 
+    console.log("🧾 [DB INSERT VALUES]:", values);
+
     await client.query(
       `
       INSERT INTO product_variants (
         product_id,
-
         option_1,
         option_2,
         option_3,
-
         option_label_1,
         option_label_2,
         option_label_3,
-
         name,
-
         sku,
-
         price,
         sale_price,
         final_price,
-
         sale_enabled,
         sale_stock,
         sale_sold,
-
         stock,
         is_unlimited,
-
         image,
-
         is_active,
         sort_order,
-
         sold,
         currency
       )
@@ -378,9 +370,10 @@ export async function replaceVariantsByProductId(
       `,
       values
     );
+
+    console.log("✅ [DB][REPLACE VARIANTS] INSERT SUCCESS");
   });
 }
-
 /* =========================================================
    DECREASE STOCK WHEN ORDER SUCCESS
 ========================================================= */
