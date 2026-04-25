@@ -41,16 +41,20 @@ useEffect(() => {
   setLabel2(variants[0].optionLabel2 || "Size");
 
   const uniq1 = [
-    ...new Set(variants.map((v) => v.option1).filter(Boolean)),
+    ...new Set(
+      variants.map((v) => v.option1).filter(Boolean)
+    ),
   ];
 
   const uniq2 = [
-    ...new Set(variants.map((v) => v.option2).filter(Boolean)),
+    ...new Set(
+      variants.map((v) => v.option2).filter(Boolean)
+    ),
   ];
 
   setValues1(uniq1.join(", "));
   setValues2(uniq2.join(", "));
-}, []);
+}, [variants]);
   const generateVariants = () => {
     const v1 = parse(values1);
     const v2 = parse(values2);
