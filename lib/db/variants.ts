@@ -137,48 +137,45 @@ export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
    MAP: APP → DB
 ========================================================= */
 
-export function mapVariantToDB(
-  v: ProductVariant,
-  productId: string,
-  index: number
-): ProductVariantDB {
+export function mapVariantToDB(v: ProductVariant): ProductVariantDB {
   return {
-    product_id: productId,
+    id: v.id,
 
-    option_1: v.option1,
-    option_2: v.option2,
-    option_3: v.option3,
+    product_id: "",
 
-    option_label_1: v.optionLabel1,
-    option_label_2: v.optionLabel2,
-    option_label_3: v.optionLabel3,
+    option_1: v.option_1,
+    option_2: v.option_2,
+    option_3: v.option_3,
+
+    option_label_1: v.option_label_1,
+    option_label_2: v.option_label_2,
+    option_label_3: v.option_label_3,
 
     name: v.name,
 
     sku: v.sku,
 
     price: v.price,
-    sale_price: v.salePrice,
-    final_price: v.finalPrice,
+    sale_price: v.sale_price,
+    final_price: v.final_price,
 
-    sale_enabled: v.saleEnabled,
-    sale_stock: v.saleStock,
-    sale_sold: v.saleSold,
+    sale_enabled: v.sale_enabled,
+    sale_stock: v.sale_stock,
+    sale_sold: v.sale_sold,
 
     stock: v.stock,
-    is_unlimited: v.isUnlimited,
+    is_unlimited: v.is_unlimited,
 
     image: v.image,
 
-    is_active: v.isActive,
-    sort_order: v.sortOrder ?? index,
+    is_active: v.is_active,
+    sort_order: v.sort_order,
 
-    sold: v.sold ?? 0,
+    sold: v.sold,
 
     currency: "PI",
   };
 }
-
 /* =========================================================
    GET VARIANTS
 ========================================================= */
