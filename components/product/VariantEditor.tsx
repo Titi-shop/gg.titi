@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ProductVariant } from "./types";
 
 interface Props {
@@ -34,7 +34,23 @@ export default function VariantEditor({
      GENERATE VARIANTS (CORE FIX)
      -> CHUẨN DB FORMAT (option_1, option_label_1)
   ========================================================= */
+useEffect(() => {
+  if (!variants.length) return;
 
+  setLabel1(variants[0].optionLabel1 || "Color");
+  setLabel2(variants[0].optionLabel2 || "Size");
+
+  const uniq1 = [
+    ...new Set(variants.map((v) => v.option1).filter(Boolean)),
+  ];
+
+  const uniq2 = [
+    ...new Set(variants.map((v) => v.option2).filter(Boolean)),
+  ];
+
+  setValues1(uniq1.join(", "));
+  setValues2(uniq2.join(", "));
+}, []);
   const generateVariants = () => {
     const v1 = parse(values1);
     const v2 = parse(values2);
@@ -92,12 +108,50 @@ export default function VariantEditor({
   ========================================================= */
 
   const update = (
-    index: number,
-    key: keyof ProductVariant,
-    value: any
-  ) => {
-    const copy = [...variants];
-    const v = { ...copy[index], [key]: value };
+  index: number,
+  key: keyof ProductVariant,
+  value: any
+) => {
+  const copy = [...variants];
+  const v = { ...copy[index], [key]: value };
+
+  /* SALE STOCK RULE */
+  if (
+    typeof v.saleStock === "number" &&
+    typeof v.stock === "number" &&
+    v.saleStock > v.stock
+  ) {
+    v.saleStock = v.stock;
+  }
+
+  /* SALE PRICE RULE */
+  if (
+    v.salePrice !== null &&
+    typeof v.salePrice === "number" &&
+    typeof v.price === "number" &&
+    v.salePrice >= v.price
+  ) {
+    v.salePrice = null;
+  }
+
+  /* AUTO FIELDS */
+  v.optionValue = v.option1 || "";
+  v.optionName = v.optionLabel1 || "";
+  v.name = [v.option1, v.option2, v.option3]
+    .filter(Boolean)
+    .join(" - ");
+
+  v.finalPrice =
+    v.saleEnabled &&
+    v.salePrice != null &&
+    v.salePrice > 0 &&
+    v.salePrice < (v.price || 0)
+      ? v.salePrice
+      : v.price || 0;
+
+  copy[index] = v;
+  setVariants(copy);
+};
 
     /* ================= SALE STOCK RULE ================= */
     if (
