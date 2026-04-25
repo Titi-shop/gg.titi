@@ -1,3 +1,5 @@
+
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import { upsertShippingRates, getShippingRatesByProduct } from "@/lib/db/shipping";
@@ -20,55 +22,60 @@ export const dynamic = "force-dynamic";
 ========================================================= */
 
 function normalizeVariants(input: unknown): ProductVariant[] {
-  if (!Array.isArray(input)) return [];
+  console.log("[PRODUCT][VARIANT] normalize start");
 
-  return input
-    .map((item: any, index) => {
-      if (!item || typeof item !== "object") return null;
+  if (!Array.isArray(input)) {
+    console.log("[PRODUCT][VARIANT] not array");
+    return [];
+  }
+
+  const result = input
+    .map((item, index) => {
+      if (typeof item !== "object" || item === null) return null;
+
+      const row = item as any;
 
       const option1 =
-        typeof item.option1 === "string"
-          ? item.option1.trim()
+        typeof row.option1 === "string"
+          ? row.option1.trim()
           : "";
 
       if (!option1) return null;
 
       return {
-        id: item.id ?? undefined,
+        id: typeof row.id === "string" ? row.id : undefined,
 
-        /* DB OPTIONS */
-        option_1: option1,
-        option_2: item.option2 ?? null,
-        option_3: item.option3 ?? null,
+        /* 🔥 MAP CHUẨN */
+        optionName:
+          typeof row.optionLabel1 === "string"
+            ? row.optionLabel1
+            : "option",
 
-        option_label_1: item.optionLabel1 ?? "Option",
-        option_label_2: item.optionLabel2 ?? null,
-        option_label_3: item.optionLabel3 ?? null,
+        optionValue: option1,
 
-        name:
-          item.name ??
-          option1,
+        price:
+          typeof row.price === "number" && row.price > 0
+            ? row.price
+            : 0,
 
-        /* PRICE */
-        price: Number(item.price) || 0,
-        sale_price: item.salePrice ?? null,
+        salePrice:
+          typeof row.salePrice === "number"
+            ? row.salePrice
+            : null,
 
-        /* STOCK */
-        stock: Number(item.stock) || 0,
-        is_unlimited: item.isUnlimited ?? false,
+        stock:
+          typeof row.stock === "number"
+            ? row.stock
+            : 0,
 
-        /* SALE */
-        sale_enabled: item.saleEnabled ?? false,
-        sale_stock: item.saleStock ?? 0,
-        sale_sold: item.saleSold ?? 0,
+        /* 🔥 FLASH SALE */
+        saleEnabled: row.saleEnabled ?? false,
+        saleStock: row.saleStock ?? 0,
 
-        /* MEDIA */
-        image: item.image ?? "",
-
-        /* META */
-        sku: item.sku ?? null,
-        sort_order: index,
-        is_active: item.isActive ?? true,
+        sku: row.sku ?? null,
+        image: row.image ?? "",
+        sortOrder: row.sortOrder ?? index,
+        isActive: row.isActive ?? true,
       };
     })
     .filter(Boolean) as ProductVariant[];
@@ -87,7 +94,6 @@ function getTotalVariantStock(variants: ProductVariant[]) {
 /* =========================================================
    GET
 ========================================================= */
-
 
     export async function GET(
   req: NextRequest,
@@ -145,59 +151,63 @@ function getTotalVariantStock(variants: ProductVariant[]) {
 
     const variants = rawVariants.map((v) => {
   const isVariantSale =
-    v.sale_enabled === true &&
-    typeof v.sale_price === "number" &&
-    v.sale_price > 0 &&
+    typeof v.salePrice === "number" &&
+    v.salePrice > 0 &&
     start !== null &&
     end !== null &&
     now >= start &&
     now <= end;
 
-  const finalPrice =
-    isVariantSale
-      ? Number(v.sale_price)
-      : Number(v.price);
+  const finalPrice = isVariantSale
+    ? Number(v.salePrice)
+    : Number(v.price);
 
   return {
-    id: v.id,
+  id: v.id,
 
-    /* OPTIONS (DB chuẩn) */
-    option1: v.option_1,
-    option2: v.option_2,
-    option3: v.option_3,
+  /* ================= OPTIONS (SHOPEE STYLE) ================= */
+  option1: v.option_1,
+  option2: v.option_2,
+  option3: v.option_3,
 
-    optionLabel1: v.option_label_1,
-    optionLabel2: v.option_label_2,
-    optionLabel3: v.option_label_3,
+  optionLabel1: v.option_label_1,
+  optionLabel2: v.option_label_2,
+  optionLabel3: v.option_label_3,
 
-    name: v.name,
+  name: v.name,
 
-    /* PRICE (CHUẨN DB) */
-    price: Number(v.price),
-    salePrice: v.sale_price,
-    finalPrice,
+  /* ================= SKU ================= */
+  sku: v.sku,
 
-    /* SALE */
-    saleEnabled: v.sale_enabled,
-    saleStock: v.sale_stock,
-    saleSold: v.sale_sold,
+  /* ================= PRICE ================= */
+  price: Number(v.price),
+  salePrice: v.sale_price,
+  finalPrice: Number(v.final_price),
 
-    /* STOCK */
-    stock: v.stock,
-    isUnlimited: v.is_unlimited,
+  saleEnabled: v.sale_enabled,
+  saleStock: v.sale_stock,
+  saleSold: v.sale_sold,
+  currency: v.currency,
 
-    /* MEDIA */
-    image: v.image,
+  /* ================= STOCK ================= */
+  stock: v.stock,
+  isUnlimited: v.is_unlimited,
 
-    /* STATUS */
-    isActive: v.is_active,
+  /* ================= MEDIA ================= */
+  image: v.image,
 
-    sortOrder: v.sort_order,
-    sold: v.sold,
+  /* ================= STATUS ================= */
+  isActive: v.is_active,
 
-    /* COMPUTED */
-    isSale: isVariantSale,
-  };
+  /* ================= SORT ================= */
+  sortOrder: v.sort_order,
+
+  /* ================= ANALYTICS ================= */
+  sold: v.sold,
+
+  /* ================= COMPUTED ================= */
+  isSale: v.sale_enabled && v.sale_price > 0,
+};
 });
 
     
