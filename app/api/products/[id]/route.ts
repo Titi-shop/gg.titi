@@ -162,37 +162,51 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     : Number(v.price);
 
   return {
-    id: v.id,
+  id: v.id,
 
-    /* 🔥 QUAN TRỌNG: trả về đúng format FE */
-    option1: v.optionValue,
-    option2: null,
-    optionLabel1: v.optionName,
-    optionLabel2: null,
+  /* ================= OPTIONS (SHOPEE STYLE) ================= */
+  option1: v.option_1,
+  option2: v.option_2,
+  option3: v.option_3,
 
-    price: v.price,
-    salePrice: v.salePrice,
+  optionLabel1: v.option_label_1,
+  optionLabel2: v.option_label_2,
+  optionLabel3: v.option_label_3,
 
-    stock: v.stock,
-    sku: v.sku,
-    image: v.image,
+  name: v.name,
 
-    isActive: v.isActive,
-    sortOrder: v.sortOrder,
+  /* ================= SKU ================= */
+  sku: v.sku,
 
-    /* 🔥 SALE */
-    saleEnabled: v.saleEnabled ?? false,
-    saleStock: v.saleStock ?? 0,
-    saleSold: v.saleSold ?? 0,
+  /* ================= PRICE ================= */
+  price: Number(v.price),
+  salePrice: v.sale_price,
+  finalPrice: Number(v.final_price),
 
-    /* 🔥 COMPUTED */
-    finalPrice,
-    isSale: isVariantSale,
-    saleLeft: Math.max(
-      0,
-      (v.saleStock ?? 0) - (v.saleSold ?? 0)
-    ),
-  };
+  saleEnabled: v.sale_enabled,
+  saleStock: v.sale_stock,
+  saleSold: v.sale_sold,
+  currency: v.currency,
+
+  /* ================= STOCK ================= */
+  stock: v.stock,
+  isUnlimited: v.is_unlimited,
+
+  /* ================= MEDIA ================= */
+  image: v.image,
+
+  /* ================= STATUS ================= */
+  isActive: v.is_active,
+
+  /* ================= SORT ================= */
+  sortOrder: v.sort_order,
+
+  /* ================= ANALYTICS ================= */
+  sold: v.sold,
+
+  /* ================= COMPUTED ================= */
+  isSale: v.sale_enabled && v.sale_price > 0,
+};
 });
 
     
