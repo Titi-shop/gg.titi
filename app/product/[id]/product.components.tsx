@@ -223,32 +223,7 @@ onTouchMove={(e) => {
       x: touch.clientX - start.x,
       y: touch.clientY - start.y,
     });
-  }
-}}
-
-            
-            /* ===== TOUCH MOVE ===== */
-            onTouchEnd={() => {
-         const now = Date.now();
-
-  if (now - lastTap < 300) {
-    setScale((prev) => (prev === 1 ? 2 : 1));
-    setPosition({ x: 0, y: 0 });
-  }
-
-        setDragging(false);
-        setLastTap(now);
-           }}
-
-              /* DRAG */
-              if (e.touches.length === 1 && dragging && scale > 1) {
-                const touch = e.touches[0];
-
-                setPosition({
-                  x: touch.clientX - start.x,
-                  y: touch.clientY - start.y,
-                });
-              }
+  
             }}
 
             style={{
