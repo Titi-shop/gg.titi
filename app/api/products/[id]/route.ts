@@ -146,63 +146,64 @@ function getTotalVariantStock(variants: ProductVariant[]) {
     const rawVariants = await getVariantsByProductId(id);
 
     const variants = rawVariants.map((v) => {
-  const isVariantSale =
-  Number(v.sale_price ?? v.salePrice) > 0 &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end;
+  const salePrice = Number(v.sale_price ?? 0);
+  const saleStock = Number(v.sale_stock ?? 0);
+  const saleSold = Number(v.sale_sold ?? 0);
+  const price = Number(v.price ?? 0);
 
-  const finalPrice = isVariantSale
-    ? Number(v.salePrice)
-    : Number(v.price);
+  const isVariantSale =
+    Boolean(v.sale_enabled) &&
+    salePrice > 0 &&
+    start !== null &&
+    end !== null &&
+    now >= start &&
+    now <= end;
 
   return {
-  id: v.id,
+    id: v.id,
 
-  /* ================= OPTIONS (SHOPEE STYLE) ================= */
-  option1: v.option_1 ?? v.option1 ?? "",
-option2: v.option_2 ?? v.option2 ?? null,
-option3: v.option_3 ?? v.option3 ?? null,
+    /* ================= OPTIONS ================= */
+    option1: v.option_1 ?? "",
+    option2: v.option_2 ?? null,
+    option3: v.option_3 ?? null,
 
-optionLabel1: v.option_label_1 ?? v.optionLabel1 ?? null,
-optionLabel2: v.option_label_2 ?? v.optionLabel2 ?? null,
-optionLabel3: v.option_label_3 ?? v.optionLabel3 ?? null,
+    optionLabel1: v.option_label_1 ?? null,
+    optionLabel2: v.option_label_2 ?? null,
+    optionLabel3: v.option_label_3 ?? null,
 
-  name: v.name,
+    /* ================= CORE ================= */
+    name: v.name ?? "",
 
-  /* ================= SKU ================= */
-  sku: v.sku,
+    sku: v.sku ?? null,
 
-  /* ================= PRICE ================= */
-  price: Number(v.price),
-  salePrice: v.sale_price,
-  finalPrice: Number(v.final_price),
+    /* ================= PRICE (FIXED) ================= */
+    price,
+    salePrice,
+    finalPrice: isVariantSale ? salePrice : price,
 
-  saleEnabled: v.sale_enabled,
-  saleStock: v.sale_stock,
-  saleSold: v.sale_sold,
-  currency: v.currency,
+    /* ================= SALE (FIXED) ================= */
+    saleEnabled: Boolean(v.sale_enabled),
+    saleStock,
+    saleSold,
+    saleLeft: saleStock > 0 ? Math.max(0, saleStock - saleSold) : null,
 
-  /* ================= STOCK ================= */
-  stock: v.stock,
-  isUnlimited: v.is_unlimited,
+    /* ================= STOCK ================= */
+    stock: Number(v.stock ?? 0),
+    isUnlimited: Boolean(v.is_unlimited),
 
-  /* ================= MEDIA ================= */
-  image: v.image,
+    /* ================= MEDIA ================= */
+    image: v.image ?? null,
 
-  /* ================= STATUS ================= */
-  isActive: v.is_active,
+    /* ================= STATUS ================= */
+    isActive: Boolean(v.is_active),
 
-  /* ================= SORT ================= */
-  sortOrder: v.sort_order,
+    sortOrder: Number(v.sort_order ?? 0),
 
-  /* ================= ANALYTICS ================= */
-  sold: v.sold,
+    sold: Number(v.sold ?? 0),
 
-  /* ================= COMPUTED ================= */
-  isSale: v.sale_enabled && v.sale_price > 0,
-};
+    /* ================= COMPUTED ================= */
+    isSale: isVariantSale,
+  };
 });
 
     
