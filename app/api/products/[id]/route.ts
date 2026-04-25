@@ -36,46 +36,66 @@ function normalizeVariants(input: unknown): ProductVariant[] {
 
       if (!option1) return null;
 
+      const price = Number(v.price) || 0;
+
+      const salePrice =
+        v.salePrice != null && !Number.isNaN(Number(v.salePrice))
+          ? Number(v.salePrice)
+          : null;
+
+      const saleEnabled = Boolean(v.saleEnabled);
+
+      const finalPrice =
+        saleEnabled &&
+        salePrice !== null &&
+        salePrice > 0 &&
+        salePrice < price
+          ? salePrice
+          : price;
+
       return {
         id: typeof v.id === "string" ? v.id : undefined,
+
+        /* ✅ CAMEL CASE ONLY */
+        option1,
+        option2,
+        option3,
+
+        optionLabel1: v.optionLabel1 ?? null,
+        optionLabel2: v.optionLabel2 ?? null,
+        optionLabel3: v.optionLabel3 ?? null,
 
         optionName: v.optionLabel1 ?? "option",
         optionValue: option1,
 
-        option_1: option1,
-        option_2: option2,
-        option_3: option3,
-
-        option_label_1: v.optionLabel1 ?? null,
-        option_label_2: v.optionLabel2 ?? null,
-        option_label_3: v.optionLabel3 ?? null,
-
-        name: v.name ?? option1,
-
-        price: Number(v.price) || 0,
-        sale_price:
-          v.salePrice != null ? Number(v.salePrice) : null,
-
-        final_price:
-          v.finalPrice != null ? Number(v.finalPrice) : Number(v.price) || 0,
-
-        stock: Number(v.stock) || 0,
-        is_unlimited: Boolean(v.isUnlimited),
-
-        sale_enabled: Boolean(v.saleEnabled),
-        sale_stock: Number(v.saleStock ?? 0),
-        sale_sold: Number(v.saleSold ?? 0),
+        name:
+          v.name ??
+          [option1, option2, option3]
+            .filter(Boolean)
+            .join(" - "),
 
         sku: v.sku ?? null,
+
+        price,
+        salePrice,
+        finalPrice,
+
+        stock: Number(v.stock) || 0,
+        isUnlimited: Boolean(v.isUnlimited),
+
+        saleEnabled,
+        saleStock: Number(v.saleStock ?? 0),
+        saleSold: Number(v.saleSold ?? 0),
+
         image: v.image ?? "",
 
-        sort_order: v.sortOrder ?? index,
-        is_active: v.isActive ?? true,
+        sortOrder: Number(v.sortOrder ?? index),
+        isActive: v.isActive !== false,
 
         sold: Number(v.sold ?? 0),
       };
     })
-    .filter(Boolean);
+    .filter(Boolean) as ProductVariant[];
 }
 
 /* =========================================================
