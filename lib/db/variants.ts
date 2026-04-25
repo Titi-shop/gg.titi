@@ -465,42 +465,4 @@ export async function decreaseVariantStock(
     return { success: true };
   });
 }
-export async function deleteProductById(
-  productId: string,
-  userId: string
-) {
-  return withTransaction(async (client) => {
-    // 1. check ownership
-    const check = await client.query(
-      `SELECT id FROM products WHERE id = $1 AND seller_id = $2`,
-      [productId, userId]
-    );
 
-    if (!check.rows.length) {
-      return { ok: false, error: "NOT_FOUND" };
-    }
-
-    // 2. DELETE VARIANTS FIRST (🔥 FIX)
-    await client.query(
-      `DELETE FROM product_variants WHERE product_id = $1`,
-      [productId]
-    );
-
-    // 3. DELETE SHIPPING (nếu có)
-    await client.query(
-      `DELETE FROM shipping_rates WHERE product_id = $1`,
-      [productId]
-    );
-
-    // 4. DELETE PRODUCT
-    await client.query(
-      `DELETE FROM products WHERE id = $1`,
-      [productId]
-    );
-
-    return {
-      ok: true,
-      paths: [], // giữ nguyên logic storage
-    };
-  });
-}
