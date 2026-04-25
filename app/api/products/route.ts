@@ -306,82 +306,51 @@ export async function POST(req: Request) {
     ========================================================= */
 
     const variants = normalizeVariants(body.variants);
-    const hasVariants =
-  variants.length > 0 ||
-  (Array.isArray(body.variants) && body.variants.length > 0);
+const hasVariants = variants.length > 0;
 
-    console.log("🧩 VARIANTS:", variants);
-    console.log("📦 hasVariants:", hasVariants);
+/* ================= PRICE ================= */
 
-    /* =========================================================
-       PRICE (🔥 FIX QUAN TRỌNG)
-    ========================================================= */
+let price = 0;
 
-    let price = 0;
+if (hasVariants) {
+  const prices = variants
+    .map((v) => Number(v.price))
+    .filter((n) => Number.isFinite(n) && n > 0);
 
-    if (hasVariants) {
-      const prices = variants
-        .map((v) => Number(v.price))
-        .filter((n) => n > 0);
+  if (!prices.length) {
+    return bad("INVALID_VARIANT_PRICE", variants);
+  }
 
-      console.log("💰 variant prices:", prices);
+  price = Math.min(...prices);
+} else {
+  price = Number(body.price);
 
-      if (!prices.length) {
-        return bad("INVALID_VARIANT_PRICE", variants);
-      }
+  if (!Number.isFinite(price) || price <= 0) {
+    return bad("INVALID_PRICE", price);
+  }
+}
 
-      price = Math.min(...prices);
-    } else {
-      price = Number(body.price) || 0;
+/* ================= SALE ================= */
 
-      console.log("💰 product price:", price);
+const saleEnabled = Boolean(body.saleEnabled);
 
-      if (price < 0.00001) {
-        return bad("INVALID_PRICE", price);
-      }
-    }
+const salePrice =
+  !hasVariants && Number.isFinite(body.salePrice)
+    ? Number(body.salePrice)
+    : null;
 
-    /* =========================================================
-       SALE
-    ========================================================= */
+if (!hasVariants && salePrice !== null && salePrice >= price) {
+  return bad("INVALID_SALE_PRICE", {
+    salePrice,
+    price,
+  });
+}
 
-    const saleEnabled = body.saleEnabled === true;
+/* ================= STOCK ================= */
 
-    const salePrice =
-      !hasVariants && typeof body.salePrice === "number"
-        ? body.salePrice
-        : null;
-
-    console.log("🏷 saleEnabled:", saleEnabled);
-    console.log("🏷 salePrice:", salePrice);
-
-    if (!hasVariants && salePrice !== null) {
-      if (salePrice >= price) {
-        return bad("INVALID_SALE_PRICE", {
-          salePrice,
-          price,
-        });
-      }
-    }
-
-    const saleStock = saleEnabled
-      ? Number(body.saleStock) || 0
-      : 0;
-
-    console.log("📦 saleStock:", saleStock);
-
-    /* =========================================================
-       STOCK
-    ========================================================= */
-
-    const stock = hasVariants
-      ? variants.reduce(
-          (s, v) => s + (Number(v.stock) || 0),
-          0
-        )
-      : Number(body.stock) || 0;
-
-    console.log("📦 total stock:", stock);
+const stock = hasVariants
+  ? variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+  : Number(body.stock) || 0;
 
     /* =========================================================
        CREATE PRODUCT
