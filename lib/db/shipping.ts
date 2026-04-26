@@ -57,122 +57,175 @@ export async function upsertShippingRates({
   productId: string;
   rates: ShippingRateInput[];
 }) {
-  console.log("🚀 [DB][SHIPPING][UPSERT] START");
+  console.log("\n🚀 [SHIPPING][UPSERT] START");
+  console.log("📌 productId:", productId);
+  console.log("📦 input rates:", rates);
 
   if (!isUUID(productId)) {
+    console.error("❌ INVALID_PRODUCT_ID");
     throw new Error("INVALID_PRODUCT_ID");
   }
 
-  if (!Array.isArray(rates)) return;
+  if (!Array.isArray(rates) || rates.length === 0) {
+    console.warn("⚠️ EMPTY RATES -> SKIP UPSERT");
+    return;
+  }
 
+  /* ================= CLEAN ================= */
   const cleanRates = rates.filter((r) => {
-    return (
+    const ok =
       r &&
       typeof r.zone === "string" &&
       typeof r.price === "number" &&
       !Number.isNaN(r.price) &&
       r.price >= 0 &&
-      isValidRegion(r.zone)
-    );
+      isValidRegion(r.zone);
+
+    if (!ok) {
+      console.warn("⚠️ INVALID RATE SKIPPED:", r);
+    }
+
+    return ok;
   });
 
-  console.log("📦 CLEAN:", cleanRates);
+  console.log("🧼 CLEAN RATES:", cleanRates);
 
-  /* DELETE OLD */
+  /* ================= DELETE OLD ================= */
+  console.log("🗑️ DELETE old shipping_rates...");
   await query(
-    `
-    DELETE FROM shipping_rates
-    WHERE product_id = $1
-    `,
+    `DELETE FROM shipping_rates WHERE product_id = $1`,
     [productId]
   );
 
-  if (!cleanRates.length) return;
+  if (cleanRates.length === 0) {
+    console.warn("⚠️ NO VALID RATES AFTER CLEAN -> STOP");
+    return;
+  }
 
-  /* GET ZONES */
+  /* ================= GET ZONES ================= */
+  const zones = cleanRates.map((r) => r.zone);
+
+  console.log("🌍 LOOKUP ZONES:", zones);
+
   const zoneRes = await query<{ id: string; code: string }>(
     `
     SELECT id, code
     FROM shipping_zones
     WHERE code = ANY($1)
     `,
-    [cleanRates.map((r) => r.zone)]
+    [zones]
   );
+
+  console.log("🧠 DB ZONES FOUND:", zoneRes.rows);
+
+  if (zoneRes.rows.length === 0) {
+    console.error("❌ NO SHIPPING_ZONES FOUND IN DB");
+    return;
+  }
 
   const zoneMap = new Map(zoneRes.rows.map((z) => [z.code, z.id]));
 
+  console.log("🧩 ZONE MAP:", [...zoneMap.entries()]);
+
+  /* ================= BUILD INSERT ================= */
   const rows: string[] = [];
-const values: unknown[] = [];
+  const values: unknown[] = [];
 
-for (const r of cleanRates) {
-  const zoneId = zoneMap.get(r.zone);
-  if (!zoneId) continue;
+  for (const r of cleanRates) {
+    const zoneId = zoneMap.get(r.zone);
 
-  const isDomestic = r.zone === "domestic";
+    if (!zoneId) {
+      console.error("❌ MISSING zoneId for zone:", r.zone);
+      continue;
+    }
 
-  rows.push(
-    `($${values.length + 1}, $${values.length + 2}, $${values.length + 3}, $${values.length + 4})`
+    const isDomestic = r.zone === "domestic";
+
+    rows.push(
+      `($${values.length + 1}, $${values.length + 2}, $${values.length + 3}, $${values.length + 4})`
+    );
+
+    values.push(
+      productId,
+      zoneId,
+      r.price,
+      isDomestic ? r.domesticCountryCode ?? null : null
+    );
+  }
+
+  console.log("🧱 INSERT ROWS COUNT:", rows.length);
+  console.log("📦 VALUES:", values);
+
+  /* ================= SAFETY CHECK ================= */
+  if (rows.length === 0) {
+    console.error("❌ NO VALID ROWS TO INSERT (ZONE MAP FAILED)");
+    return;
+  }
+
+  /* ================= INSERT ================= */
+  const result = await query(
+    `
+    INSERT INTO shipping_rates (
+      product_id,
+      zone_id,
+      price,
+      domestic_country_code
+    )
+    VALUES ${rows.join(",")}
+    `,
+    values
   );
 
-  values.push(
-    productId,
-    zoneId,
-    r.price,
-    isDomestic ? r.domesticCountryCode ?? null : null
-  );
+  console.log("✅ INSERT DONE");
+  console.log("📊 ROWS AFFECTED:", result.rowCount);
+
+  if (!result.rowCount) {
+    console.error("❌ INSERT FAILED OR ZERO ROWS INSERTED");
+  }
+
+  console.log("🎉 [SHIPPING][UPSERT] SUCCESS\n");
 }
-
-await query(
-  `
-  INSERT INTO shipping_rates (
-    product_id,
-    zone_id,
-    price,
-    domestic_country_code
-  )
-  VALUES ${rows.join(",")}
-  `,
-  values
-);
-
-  console.log("🎉 SHIPPING UPSERT DONE");
-}
-
 /* =========================================================
    GET SHIPPING BY PRODUCT
 ========================================================= */
 
-export async function getShippingRatesByProduct(
-  productId: string
-): Promise<ShippingRateInput[]> {
-  console.log("🚀 [DB][SHIPPING][GET]", productId);
+export async function getShippingRatesByProduct(productId: string) {
+  console.log("\n🚀 [SHIPPING][GET] START:", productId);
 
   if (!isUUID(productId)) {
+    console.error("❌ INVALID_PRODUCT_ID");
     throw new Error("INVALID_PRODUCT_ID");
   }
 
   const { rows } = await query<ShippingRateRow>(
-  `
-  SELECT
-    sr.product_id,
-    sz.code AS zone,
-    sr.price,
-    sr.domestic_country_code AS domestic_country_code
-  FROM shipping_rates sr
-  JOIN shipping_zones sz
-    ON sz.id = sr.zone_id
-  WHERE sr.product_id = $1
-  `,
-  [productId]
-);
+    `
+    SELECT
+      sr.product_id,
+      sz.code AS zone,
+      sr.price,
+      sr.domestic_country_code
+    FROM shipping_rates sr
+    JOIN shipping_zones sz
+      ON sz.id = sr.zone_id
+    WHERE sr.product_id = $1
+    `,
+    [productId]
+  );
 
-  return rows
-    .filter((r) => isValidRegion(r.code))
+  console.log("📦 RAW DB ROWS:", rows);
+
+  const mapped = rows
+    .filter((r) => isValidRegion(r.zone))
     .map((r) => ({
-      zone: r.code as Region,
+      zone: r.zone as Region,
       price: Number(r.price),
       domesticCountryCode: r.domestic_country_code,
     }));
+
+  console.log("🎯 FINAL SHIPPING RESULT:", mapped);
+  console.log("🏁 [SHIPPING][GET] END\n");
+
+  return mapped;
 }
 
 /* =========================================================
