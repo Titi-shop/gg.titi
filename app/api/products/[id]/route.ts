@@ -571,20 +571,31 @@ finalSalePrice =
     }
 
     /* ================= SHIPPING + VARIANTS ================= */
-    console.log("🚚 [PATCH] UPSERT SHIPPING & VARIANTS");
+console.log("🚚 [PATCH] UPSERT SHIPPING & VARIANTS");
 
-    await Promise.all([
-      Array.isArray(body.shippingRates)
-        ? upsertShippingRates({
-            productId: id,
-            rates: body.shippingRates,
-          })
-        : Promise.resolve(),
+const domesticCountryCode = body.domesticCountryCode ?? null;
 
-      hasVariants
-        ? replaceVariantsByProductId(id, normalizedVariants)
-        : Promise.resolve(),
-    ]);
+await Promise.all([
+  Array.isArray(body.shippingRates)
+    ? upsertShippingRates({
+        productId: id,
+        rates: body.shippingRates.map((r: any) => ({
+          zone: r.zone,
+          price: Number(r.price || 0),
+
+          // 🔥 FIX QUAN TRỌNG
+          domesticCountryCode:
+            r.zone === "domestic"
+              ? domesticCountryCode || r.domesticCountryCode || null
+              : null,
+        })),
+      })
+    : Promise.resolve(),
+
+  hasVariants
+    ? replaceVariantsByProductId(id, normalizedVariants)
+    : Promise.resolve(),
+]);
 
     console.log("✅ [PATCH] RELATIONS UPDATED");
 
