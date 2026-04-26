@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -27,7 +28,6 @@ import {
   validateBeforePay,
   useCheckoutPay,
 } from "./checkout.logic";
-
 
 /* ========================= */
 
@@ -199,29 +199,10 @@ useEffect(() => {
   const unitPrice = item?.finalPrice ?? 0;
 
   const availableRegions = useMemo(() => {
-  if (!shipping?.country) return [];
-
-  const buyer = shipping.country.toUpperCase();
-
-  return (Array.isArray(product?.shippingRates) ? product.shippingRates : []).filter((r) => {
-    if (r.zone === "domestic") {
-      return r.domesticCountryCode?.toUpperCase() === buyer;
-    }
-
-    // buyer VN chỉ được sea
-    if (buyerZone === "sea") return r.zone === "sea";
-
-    if (buyerZone === "asia") return r.zone === "asia";
-
-    if (buyerZone === "europe") return r.zone === "europe";
-
-    if (buyerZone === "north_america") return r.zone === "north_america";
-
-    if (buyerZone === "rest_of_world") return r.zone === "rest_of_world";
-
-    return false;
-  });
-}, [product?.shippingRates, shipping?.country, buyerZone]);
+  return Array.isArray(product?.shippingRates)
+    ? product.shippingRates
+    : [];
+}, [product?.shippingRates]);
 
   const total = preview?.total ?? 0;
 
