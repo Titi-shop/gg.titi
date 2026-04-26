@@ -116,11 +116,10 @@ export function useProductForm(initialData?: ProductPayload) {
   type ShippingRate = {
   zone: string;
   price: number | "";
-  countryCode?: string | null;
 };
 
 const [shippingRates, setShippingRates] = useState<ShippingRate[]>([
-  { zone: "domestic", price: "", countryCode: "" },
+  { zone: "domestic", price: "" },
   { zone: "sea", price: "" },
   { zone: "asia", price: "" },
   { zone: "europe", price: "" },
@@ -196,7 +195,6 @@ setShippingRates(
     return {
       zone,
       price: existing?.price ?? "",
-      countryCode: existing?.countryCode ?? "",
     };
   })
 );
