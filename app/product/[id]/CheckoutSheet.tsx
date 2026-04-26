@@ -176,7 +176,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const unitPrice = item?.finalPrice ?? 0;
   // ================= SHIPPING RATES CLEAN =================
-const shippingRates = useMemo(() => {
+const rates = useMemo(() => {
   return Array.isArray(product?.shippingRates)
     ? product.shippingRates
     : [];
@@ -189,10 +189,17 @@ const domesticCountry = useMemo(() => {
       ?.domesticCountryCode || ""
   );
 }, [rates]);
-  const availableRegions = useMemo(() => {
+
+// ================= AVAILABLE REGIONS =================
+const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
 
-  return rates;
+  const country = shipping.country.toUpperCase();
+
+  return rates.filter((r) => {
+    // logic filter sau này nếu cần
+    return true;
+  });
 }, [shipping?.country, rates]);
 
   const country = shipping.country.toUpperCase();
