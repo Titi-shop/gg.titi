@@ -305,8 +305,10 @@ setZone(r.zone);
         `}
       >
         <div className="font-medium">
-          {labelMap[r.zone] ?? r.zone}
-        </div>
+  {r.zone === "domestic"
+    ? `Domestic (${r.domestic_country_code ?? "—"})`
+    : (labelMap[r.zone] ?? r.zone)}
+</div>
 
         <div className="text-[11px] opacity-80">
           {formatPi(r.price)} π
