@@ -67,14 +67,14 @@ export interface ProductPayload {
   categoryId: string;
 
   stock: number;
-
-  /* 🔥 FIX */
   isActive: boolean;
 
   variants?: ProductVariant[];
 
   shippingRates?: {
-  zone: string;
-  price: number;
+    zone: string;
+    price: number;
+  }[];
+
   domesticCountryCode?: string | null;
-}[];
+}
