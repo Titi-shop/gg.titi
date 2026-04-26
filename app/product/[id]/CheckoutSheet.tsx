@@ -17,18 +17,17 @@ import type {
   AddressApiResponse, 
 } from "./checkout.types";
 
-import { previewFetcher } from "./checkout.api";
+import {
+  previewFetcher,
+  fetchDefaultAddress,
+  getCountryDisplay,
+} from "./checkout.api";
 import {
   getErrorKey,
   validateBeforePay,
   useCheckoutPay,
 } from "./checkout.logic";
 
-/* ========================= */
-
-function getCountryDisplay(country?: string) {
-  return country ?? "";
-}
 
 /* ========================= */
 
@@ -138,27 +137,9 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   useEffect(() => {
   async function loadAddress() {
-    try {
-      const res = await apiAuthFetch("/api/address");
-
-      if (!res.ok) return;
-
-      const data: AddressApiResponse = await res.json();
-      const def = data.items?.find((a) => a.is_default);
-      if (!def) return;
-      setShipping({
-  name: def.full_name,
-  phone: def.phone,
-  address_line: def.address_line,
-  region: def.region,
-  district: def.district ?? "",
-  ward: def.ward ?? "",
-  country: def.country,
-  postal_code: def.postal_code ?? null,
-   });
-    } catch (err) {
-      console.error(err);
-    }
+    const def = await fetchDefaultAddress();
+    if (!def) return;
+    setShipping(def);
   }
 
   if (!open || !user) return;
@@ -178,19 +159,10 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const unitPrice = item?.finalPrice ?? 0;
 
   const availableRegions = useMemo(() => {
-  if (!shipping?.country) return [];
-
-  const country = shipping.country.toUpperCase();
-
-  const rates = Array.isArray(product?.shippingRates)
+  return Array.isArray(product?.shippingRates)
     ? product.shippingRates
     : [];
-
-  return rates.filter((r) => {
-    if (country === "VN") return r.zone === "domestic";
-    return true;
-  });
-}, [shipping?.country, product?.shippingRates]);
+}, [product?.shippingRates]);
 
   const total = preview?.total ?? 0;
 
@@ -306,8 +278,8 @@ setZone(r.zone);
       >
         <div className="font-medium">
   {r.zone === "domestic"
-    ? `Domestic (${r.domestic_country_code ?? "—"})`
-    : (labelMap[r.zone] ?? r.zone)}
+  ? `Domestic (${r.domesticCountryCode ?? "—"})`
+  : (labelMap[r.zone] ?? r.zone)}
 </div>
 
         <div className="text-[11px] opacity-80">
