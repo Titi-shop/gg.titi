@@ -4,32 +4,19 @@ import { useState, useEffect } from "react";
 import { ProductPayload, ProductVariant } from "./types";
 
 /* =========================================================
-   SHIPPING MAP
+   SHIPPING DEFAULT STATE
 ========================================================= */
-function mapShippingRates(rates: any[]) {
-  const base: Record<string, number | ""> = {
-    domestic: "",
-    sea: "",
-    asia: "",
-    europe: "",
-    north_america: "",
-    rest_of_world: "",
-  };
-
-  if (!Array.isArray(rates)) return base;
-
-  for (const r of rates) {
-    if (!r?.zone) continue;
-
-    const price = Number(r.price);
-    base[r.zone] = !Number.isNaN(price) ? price : "";
-  }
-
-  return base;
-}
+const DEFAULT_SHIPPING = {
+  domestic: "",
+  sea: "",
+  asia: "",
+  europe: "",
+  north_america: "",
+  rest_of_world: "",
+};
 
 /* =========================================================
-   VARIANT SAFE NORMALIZE
+   VARIANT NORMALIZE SAFE
 ========================================================= */
 function normalizeInitVariants(input: any[]): ProductVariant[] {
   if (!Array.isArray(input)) return [];
@@ -44,9 +31,6 @@ function normalizeInitVariants(input: any[]): ProductVariant[] {
     optionLabel1: v.optionLabel1 ?? null,
     optionLabel2: v.optionLabel2 ?? null,
     optionLabel3: v.optionLabel3 ?? null,
-
-    optionValue: v.optionValue ?? v.option1 ?? "",
-    optionName: v.optionName ?? v.optionLabel1 ?? "",
 
     name:
       v.name ??
@@ -93,10 +77,13 @@ export function useProductForm(initialData?: ProductPayload) {
   const [description, setDescription] = useState("");
   const [images, setImages] = useState<string[]>([]);
 
+  /* ================= DETAIL ================= */
+  const [detail, setDetail] = useState("");
+
   /* ================= SALE ================= */
   const [saleEnabled, setSaleEnabled] = useState(false);
   const [salePrice, setSalePrice] = useState<number | "">("");
-  const [saleStock, setSaleStock] = useState<number>(0);
+  const [saleStock, setSaleStock] = useState(0);
   const [saleStart, setSaleStart] = useState("");
   const [saleEnd, setSaleEnd] = useState("");
 
@@ -106,30 +93,23 @@ export function useProductForm(initialData?: ProductPayload) {
   /* ================= STATUS ================= */
   const [isActive, setIsActive] = useState(true);
 
-  /* ================= DETAIL ================= */
-  const [detail, setDetail] = useState("");
-
   /* ================= VARIANTS ================= */
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   /* ================= SHIPPING ================= */
-  const [shippingRates, setShippingRates] = useState<Record<string, number | "">>({
-  domestic: "",
-  sea: "",
-  asia: "",
-  europe: "",
-  north_america: "",
-  rest_of_world: "",
-});
-const [primaryShippingCountry, setPrimaryShippingCountry] =
-  useState<string>("");
+  const [shippingRates, setShippingRates] =
+    useState<Record<string, number | "">>(DEFAULT_SHIPPING);
+
+  const [primaryShippingCountry, setPrimaryShippingCountry] =
+    useState<string>("");
+
   /* =========================================================
-     INIT DATA (EDIT MODE)
+     INIT DATA
   ========================================================= */
   useEffect(() => {
     if (!initialData) return;
 
-    console.log("📦 [FORM INIT PRODUCT]:", initialData);
+    console.log("📦 INIT PRODUCT:", initialData);
 
     /* ================= BASIC ================= */
     setId(initialData.id || "");
@@ -138,6 +118,7 @@ const [primaryShippingCountry, setPrimaryShippingCountry] =
     setCategoryId(String(initialData.categoryId || ""));
     setDescription(initialData.description || "");
     setImages(Array.isArray(initialData.images) ? initialData.images : []);
+    setDetail(initialData.detail || "");
 
     /* ================= SALE ================= */
     const hasSale =
@@ -160,49 +141,40 @@ const [primaryShippingCountry, setPrimaryShippingCountry] =
         : true
     );
 
-    /* ================= DETAIL ================= */
-    setDetail(initialData.detail || "");
-
-    /* ================= VARIANTS SAFE ================= */
-    const safeVariants = normalizeInitVariants(initialData.variants || []);
-
-    console.log("🧩 [FORM SAFE VARIANTS]:", safeVariants);
+    /* ================= VARIANTS ================= */
+    const safeVariants = normalizeInitVariants(
+      initialData.variants || []
+    );
 
     setVariants(safeVariants);
 
     /* ================= SHIPPING ================= */
-    const zones = [
-  "domestic",
-  "sea",
-  "asia",
-  "europe",
-  "north_america",
-  "rest_of_world",
-];
+    const rateMap = new Map(
+      (initialData.shippingRates || []).map((r: any) => [
+        r.zone,
+        r.price,
+      ])
+    );
 
-const map = new Map(
-  (initialData.shippingRates || []).map((r: any) => [r.zone, r])
-);
+    setShippingRates({
+      domestic: rateMap.get("domestic") ?? "",
+      sea: rateMap.get("sea") ?? "",
+      asia: rateMap.get("asia") ?? "",
+      europe: rateMap.get("europe") ?? "",
+      north_america: rateMap.get("north_america") ?? "",
+      rest_of_world: rateMap.get("rest_of_world") ?? "",
+    });
 
-const rateMap = new Map(
-  (initialData.shippingRates || []).map((r: any) => [
-    r.zone,
-    r.price,
-  ])
-);
-
-setShippingRates({
-  domestic: rateMap.get("domestic") ?? "",
-  sea: rateMap.get("sea") ?? "",
-  asia: rateMap.get("asia") ?? "",
-  europe: rateMap.get("europe") ?? "",
-  north_america: rateMap.get("north_america") ?? "",
-  rest_of_world: rateMap.get("rest_of_world") ?? "",
-});
+    /* ================= DOMESTIC COUNTRY ================= */
+    setPrimaryShippingCountry(
+      initialData.shippingRates?.find(
+        (r: any) => r.zone === "domestic"
+      )?.countryCode ?? ""
+    );
   }, [initialData]);
 
   /* =========================================================
-     AUTO FIX: PRODUCT SALE RESET
+     AUTO FIX: SALE RESET
   ========================================================= */
   useEffect(() => {
     if (!saleEnabled) {
@@ -212,30 +184,21 @@ setShippingRates({
   }, [saleEnabled]);
 
   /* =========================================================
-     AUTO FIX: SALE STOCK <= STOCK
+     AUTO FIX: STOCK CHECK
   ========================================================= */
   useEffect(() => {
     if (typeof stock === "number" && saleStock > stock) {
-      console.warn("⚠️ FIX saleStock > stock");
       setSaleStock(stock);
     }
   }, [stock, saleStock]);
 
   /* =========================================================
-     AUTO FIX: IF VARIANTS EXIST => DISABLE PRODUCT SALE
+     AUTO DISABLE SALE IF VARIANTS EXIST
   ========================================================= */
   useEffect(() => {
     if (variants.length > 0 && saleEnabled) {
-      console.warn("⚠️ Disable product-level sale because variants exist");
       setSaleEnabled(false);
     }
-  }, [variants]);
-
-  /* =========================================================
-     DEBUG WATCH
-  ========================================================= */
-  useEffect(() => {
-    console.log("🧨 [FORM VARIANTS STATE]:", variants);
   }, [variants]);
 
   /* =========================================================
@@ -245,35 +208,28 @@ setShippingRates({
     /* BASIC */
     id,
     setId,
-
     name,
     setName,
-
     price,
     setPrice,
-
     categoryId,
     setCategoryId,
-
     description,
     setDescription,
-
     images,
     setImages,
+    detail,
+    setDetail,
 
     /* SALE */
     saleEnabled,
     setSaleEnabled,
-
     salePrice,
     setSalePrice,
-
     saleStock,
     setSaleStock,
-
     saleStart,
     setSaleStart,
-
     saleEnd,
     setSaleEnd,
 
@@ -285,10 +241,6 @@ setShippingRates({
     isActive,
     setIsActive,
 
-    /* DETAIL */
-    detail,
-    setDetail,
-
     /* VARIANTS */
     variants,
     setVariants,
@@ -296,5 +248,8 @@ setShippingRates({
     /* SHIPPING */
     shippingRates,
     setShippingRates,
+
+    primaryShippingCountry,
+    setPrimaryShippingCountry,
   };
 }
