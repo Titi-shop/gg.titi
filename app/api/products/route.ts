@@ -442,15 +442,18 @@ const stock = hasVariants
     /* =========================================================
        SHIPPING
     ========================================================= */
-
 if (Array.isArray(body.shippingRates)) {
   console.log("🚀 Shipping rates:", body.shippingRates);
+
+  const domesticCountryCode = body.domesticCountryCode ?? null;
 
   await upsertShippingRates({
     productId: product.id,
     rates: body.shippingRates.map((r: any) => ({
       zone: r.zone,
       price: Number(r.price || 0),
+      domesticCountryCode:
+        r.zone === "domestic" ? domesticCountryCode : null,
     })),
   });
 
