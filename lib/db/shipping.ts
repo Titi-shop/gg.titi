@@ -101,42 +101,39 @@ export async function upsertShippingRates({
 
   const zoneMap = new Map(zoneRes.rows.map((z) => [z.code, z.id]));
 
-  const placeholders: string[] = [];
-  const values: unknown[] = [];
-  let idx = 1;
+  const rows: string[] = [];
+const values: unknown[] = [];
 
-  for (const r of cleanRates) {
-    const zoneId = zoneMap.get(r.zone);
-    if (!zoneId) continue;
+for (const r of cleanRates) {
+  const zoneId = zoneMap.get(r.zone);
+  if (!zoneId) continue;
 
-    const isDomestic = r.zone === "domestic";
+  const isDomestic = r.zone === "domestic";
 
-    placeholders.push(
-      `($${idx++}, $${idx++}, $${idx++}, $${idx++})`
-    );
-
-    values.push(
-      productId,
-      zoneId,
-      r.price,
-      isDomestic ? (r.domesticCountryCode || null) : null
-    );
-  }
-
-  if (!values.length) return;
-
-  await query(
-    `
-    INSERT INTO shipping_rates (
-      product_id,
-      zone_id,
-      price,
-      domestic_country_code
-    )
-    VALUES ${placeholders.join(",")}
-    `,
-    values
+  rows.push(
+    `($${values.length + 1}, $${values.length + 2}, $${values.length + 3}, $${values.length + 4})`
   );
+
+  values.push(
+    productId,
+    zoneId,
+    r.price,
+    isDomestic ? r.domesticCountryCode ?? null : null
+  );
+}
+
+await query(
+  `
+  INSERT INTO shipping_rates (
+    product_id,
+    zone_id,
+    price,
+    domestic_country_code
+  )
+  VALUES ${rows.join(",")}
+  `,
+  values
+);
 
   console.log("🎉 SHIPPING UPSERT DONE");
 }
