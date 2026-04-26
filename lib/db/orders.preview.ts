@@ -88,22 +88,21 @@ export async function previewOrder(
 
   const productIds = cleanItems.map((i) => i.product_id);
 
-  /* ================= CHECK ZONE ================= */
-
   /* ================= CHECK BUYER ZONE ================= */
 
 let realZone = zone;
-
 /* ---------- DOMESTIC SPECIAL ---------- */
 if (zone === "domestic") {
   const { rows: domesticRows } = await query<{
     product_id: string;
     domestic_country_code: string | null;
+    price: number;
   }>(
     `
     SELECT
       sr.product_id,
-      sr.domestic_country_code
+      sr.domestic_country_code,
+      sr.price
     FROM shipping_rates sr
     JOIN shipping_zones sz
       ON sz.id = sr.zone_id
@@ -116,18 +115,26 @@ if (zone === "domestic") {
   const domesticMap = new Map(
     domesticRows.map((r) => [
       r.product_id,
-      r.domestic_country_code?.toUpperCase() ?? null,
+      {
+        country: r.domestic_country_code?.toUpperCase() ?? null,
+        price: Number(r.price),
+      },
     ])
   );
 
   for (const pid of productIds) {
-    const sellerDomestic = domesticMap.get(pid);
+    const domestic = domesticMap.get(pid);
 
-    if (!sellerDomestic || sellerDomestic !== country.toUpperCase()) {
-      console.error("❌ [PREVIEW] DOMESTIC NOT AVAILABLE", {
+    if (!domestic) {
+      console.error("❌ [PREVIEW] DOMESTIC SHIPPING RATE MISSING", pid);
+      throw new Error("DOMESTIC_NOT_AVAILABLE");
+    }
+
+    if (!domestic.country || domestic.country !== country.toUpperCase()) {
+      console.error("❌ [PREVIEW] DOMESTIC COUNTRY NOT MATCH", {
         productId: pid,
         buyerCountry: country,
-        sellerDomestic,
+        sellerDomestic: domestic.country,
       });
 
       throw new Error("DOMESTIC_NOT_AVAILABLE");
@@ -135,30 +142,6 @@ if (zone === "domestic") {
   }
 
   console.log("🏠 [ORDER][PREVIEW] DOMESTIC VERIFIED");
-}
-
-/* ---------- NORMAL ZONE ---------- */
-else {
-  const { rows: zoneRows } = await query<{ code: string }>(
-    `
-    SELECT sz.code
-    FROM shipping_zone_countries szc
-    JOIN shipping_zones sz ON sz.id = szc.zone_id
-    WHERE szc.country_code = $1
-    LIMIT 1
-    `,
-    [country.toUpperCase()]
-  );
-
-  if (!zoneRows.length) throw new Error("INVALID_COUNTRY");
-
-  realZone = zoneRows[0].code;
-
-  if (realZone !== zone) {
-    throw new Error("INVALID_REGION");
-  }
-
-  console.log("🌍 [ORDER][PREVIEW] REGION VERIFIED:", realZone);
 }
 
   /* ================= LOAD PRODUCTS ================= */
