@@ -152,27 +152,27 @@ export async function getShippingRatesByProduct(
   }
 
   const { rows } = await query<ShippingRateRow>(
-  `
-  SELECT
-    sr.product_id,
-    sz.code AS zone,
-    sr.price,
-    sr.domestic_country_code AS "domesticCountryCode"
-  FROM shipping_rates sr
-  JOIN shipping_zones sz
-    ON sz.id = sr.zone_id
-  WHERE sr.product_id = $1
-  `,
-  [productId]
-);
+    `
+    SELECT
+      sr.product_id,
+      sz.code,
+      sr.price,
+      sr.domestic_country_code
+    FROM shipping_rates sr
+    JOIN shipping_zones sz
+      ON sz.id = sr.zone_id
+    WHERE sr.product_id = $1
+    `,
+    [productId]
+  );
 
   return rows
-  .filter((r) => isValidRegion(r.zone))
-  .map((r) => ({
-    zone: r.zone as Region,
-    price: Number(r.price),
-    domesticCountryCode: r.domesticCountryCode ?? null,
-  }));
+    .filter((r) => isValidRegion(r.code))
+    .map((r) => ({
+      zone: r.code as Region,
+      price: Number(r.price),
+      domesticCountryCode: r.domestic_country_code,
+    }));
 }
 
 /* =========================================================
