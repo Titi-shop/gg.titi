@@ -17,12 +17,14 @@ export type Region =
 export type ShippingRateInput = {
   zone: Region;
   price: number;
+  domesticCountryCode?: string | null;
 };
 
 type ShippingRateRow = {
   product_id: string;
   code: string;
   price: number;
+  domestic_country_code: string | null;
 };
 
 /* =========================================================
@@ -107,9 +109,18 @@ export async function upsertShippingRates({
     const zoneId = zoneMap.get(r.zone);
     if (!zoneId) continue;
 
-    placeholders.push(`($${idx++}, $${idx++}, $${idx++})`);
+    const isDomestic = r.zone === "domestic";
 
-    values.push(productId, zoneId, r.price);
+    placeholders.push(
+      `($${idx++}, $${idx++}, $${idx++}, $${idx++})`
+    );
+
+    values.push(
+      productId,
+      zoneId,
+      r.price,
+      isDomestic ? (r.domesticCountryCode || null) : null
+    );
   }
 
   if (!values.length) return;
@@ -119,7 +130,8 @@ export async function upsertShippingRates({
     INSERT INTO shipping_rates (
       product_id,
       zone_id,
-      price
+      price,
+      domestic_country_code
     )
     VALUES ${placeholders.join(",")}
     `,
@@ -147,7 +159,8 @@ export async function getShippingRatesByProduct(
     SELECT
       sr.product_id,
       sz.code,
-      sr.price
+      sr.price,
+      sr.domestic_country_code
     FROM shipping_rates sr
     JOIN shipping_zones sz
       ON sz.id = sr.zone_id
@@ -156,16 +169,13 @@ export async function getShippingRatesByProduct(
     [productId]
   );
 
-  const result = rows
+  return rows
     .filter((r) => isValidRegion(r.code))
     .map((r) => ({
       zone: r.code as Region,
       price: Number(r.price),
+      domesticCountryCode: r.domestic_country_code,
     }));
-
-  console.log("✅ RESULT:", result);
-
-  return result;
 }
 
 /* =========================================================
@@ -179,6 +189,7 @@ export async function getShippingRatesByProducts(
     product_id: string;
     zone: Region;
     price: number;
+    domesticCountryCode?: string | null;
   }[]
 > {
   const validIds = productIds.filter(isUUID);
@@ -189,7 +200,8 @@ export async function getShippingRatesByProducts(
     SELECT
       sr.product_id,
       sz.code,
-      sr.price
+      sr.price,
+      sr.domestic_country_code
     FROM shipping_rates sr
     JOIN shipping_zones sz
       ON sz.id = sr.zone_id
@@ -204,6 +216,7 @@ export async function getShippingRatesByProducts(
       product_id: r.product_id,
       zone: r.code as Region,
       price: Number(r.price),
+      domesticCountryCode: r.domestic_country_code,
     }));
 }
 
@@ -234,7 +247,7 @@ export async function getZoneByCountry(
 }
 
 /* =========================================================
-   SHIPPING RESOLVER (SHOPIFY STYLE)
+   SHIPPING RESOLVER (FINAL FIXED)
 ========================================================= */
 
 export async function resolveShippingPrice({
@@ -250,22 +263,34 @@ export async function resolveShippingPrice({
 
   if (!rates.length) return 0;
 
-  const zone = await getZoneByCountry(
-    buyerCountryCode.toUpperCase()
+  const buyer = buyerCountryCode.toUpperCase();
+
+  /* ================= DOMESTIC FIRST ================= */
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domesticCountryCode?.toUpperCase() === buyer
   );
+
+  if (domestic) {
+    console.log("🏠 DOMESTIC MATCH:", domestic.price);
+    return domestic.price;
+  }
+
+  /* ================= NORMAL ZONE ================= */
+  const zone = await getZoneByCountry(buyer);
 
   console.log("🌍 ZONE:", zone);
 
-  /* MATCH ZONE */
   if (zone) {
     const match = rates.find((r) => r.zone === zone);
     if (match) {
-      console.log("✅ MATCH:", match.price);
+      console.log("✅ ZONE MATCH:", match.price);
       return match.price;
     }
   }
 
-  /* FALLBACK */
+  /* ================= FALLBACK ================= */
   const fallback = rates.find(
     (r) => r.zone === "rest_of_world"
   );
