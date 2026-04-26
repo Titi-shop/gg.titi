@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/guard";
 import { previewOrder } from "@/lib/db/orders";
-import { getShippingRatesByProductId } from "@/lib/db/shipping";
+import { getShippingRatesByProduct } from "@/lib/db/shipping";
 
 export const runtime = "nodejs";
 
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
     /* ================= VERIFY DOMESTIC SHIPPING ================= */
 
     for (const item of cleanItems) {
-      const shippingRates = await getShippingRatesByProductId(item.product_id);
+      const shippingRates = await getShippingRatesByProduct(item.product_id);
 
       const domesticRate = shippingRates.find((r) => r.zone === "domestic");
 
