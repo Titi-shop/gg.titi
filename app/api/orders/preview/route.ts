@@ -148,30 +148,42 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("🧾 [ORDER][PREVIEW] FINAL ITEMS:", cleanItems);
+    /* ================= VERIFY SHIPPING AVAILABLE ================= */
 
-    /* ================= VERIFY DOMESTIC SHIPPING ================= */
+for (const item of cleanItems) {
+  const shippingRates = await getShippingRatesByProduct(item.product_id);
 
-    for (const item of cleanItems) {
-      const shippingRates = await getShippingRatesByProduct(item.product_id);
+  const selectedRate = shippingRates.find((r) => r.zone === zone);
 
-      const domesticRate = shippingRates.find((r) => r.zone === "domestic");
+  if (!selectedRate) {
+    console.log("🔴 [ORDER][PREVIEW] SHIPPING ZONE NOT AVAILABLE", {
+      productId: item.product_id,
+      selectedZone: zone,
+    });
 
-      if (
-        zone === "domestic" &&
-        domesticRate?.domesticCountryCode &&
-        domesticRate.domesticCountryCode.toUpperCase() !== country.toUpperCase()
-      ) {
-        console.log("🔴 [ORDER][PREVIEW] DOMESTIC COUNTRY NOT MATCH", {
-          userCountry: country,
-          sellerDomestic: domesticRate.domesticCountryCode,
-        });
+    return NextResponse.json(
+      { error: "SHIPPING_NOT_AVAILABLE" },
+      { status: 400 }
+    );
+  }
 
-        return NextResponse.json(
-          { error: "DOMESTIC_NOT_AVAILABLE" },
-          { status: 400 }
-        );
-      }
-    }
+  // domestic special country lock
+  if (
+    zone === "domestic" &&
+    selectedRate.domesticCountryCode &&
+    selectedRate.domesticCountryCode.toUpperCase() !== country.toUpperCase()
+  ) {
+    console.log("🔴 [ORDER][PREVIEW] DOMESTIC COUNTRY NOT MATCH", {
+      userCountry: country,
+      sellerDomestic: selectedRate.domesticCountryCode,
+    });
+
+    return NextResponse.json(
+      { error: "DOMESTIC_NOT_AVAILABLE" },
+      { status: 400 }
+    );
+  }
+}
 
     /* ================= CALL DB ================= */
 
