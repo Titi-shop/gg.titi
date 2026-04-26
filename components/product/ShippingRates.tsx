@@ -4,7 +4,7 @@ import { countries } from "@/data/countries";
 
 interface Props {
   shippingRates: Record<string, number | "">;
-  setShippingRates: any;
+  setShippingRates: (v: any) => void;
 
   primaryShippingCountry: string;
   setPrimaryShippingCountry: (v: string) => void;
@@ -13,6 +13,8 @@ interface Props {
 export default function ShippingRates({
   shippingRates,
   setShippingRates,
+  primaryShippingCountry,
+  setPrimaryShippingCountry,
 }: Props) {
   const zones = [
     { key: "sea", label: "Southeast Asia" },
@@ -22,54 +24,49 @@ export default function ShippingRates({
     { key: "rest_of_world", label: "Rest of World" },
   ];
 
-  console.log("🚚 [UI] shippingRates:", shippingRates);
-  console.log("🌍 [UI] primaryShippingCountry:", primaryShippingCountry);
-
   return (
     <div className="space-y-3">
       <p className="font-medium">🚚 Shipping Fee</p>
 
-      {/* PRIMARY COUNTRY SHIPPING */}
+      {/* PRIMARY COUNTRY */}
       <div className="border rounded-xl p-3 bg-gray-50 space-y-2">
-  <p className="text-sm font-medium">Domestic Shipping</p>
+        <p className="text-sm font-medium text-gray-700">
+          Priority Country Shipping
+        </p>
 
-  <select
-    value={shippingRates.domestic?.countryCode || ""}
-    onChange={(e) =>
-      setShippingRates((prev: any) => ({
-        ...prev,
-        domestic: {
-          ...prev.domestic,
-          countryCode: e.target.value,
-        },
-      }))
-    }
-    className="border p-2 rounded w-full"
-  >
-    {countries.map((c) => (
-      <option key={c.code} value={c.code}>
-        {c.name}
-      </option>
-    ))}
-  </select>
+        <div className="grid grid-cols-2 gap-3">
+          <select
+            value={primaryShippingCountry}
+            onChange={(e) => setPrimaryShippingCountry(e.target.value)}
+            className="border p-2 rounded"
+          >
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
+              </option>
+            ))}
+          </select>
 
-  <input
-    type="number"
-    step="0.00001"
-    value={shippingRates.domestic?.price || ""}
-    onChange={(e) =>
-      setShippingRates((prev: any) => ({
-        ...prev,
-        domestic: {
-          ...prev.domestic,
-          price: Number(e.target.value),
-        },
-      }))
-    }
-    className="border p-2 rounded w-full"
-    placeholder="Domestic price"
-  />
-</div>
+          <input
+            type="number"
+            step="0.00001"
+            placeholder="Priority Country Price"
+            value={
+              typeof shippingRates.primary_country === "number"
+                ? shippingRates.primary_country
+                : 0
+            }
+            onChange={(e) => {
+              const val = Number(e.target.value);
+
+              setShippingRates((prev: any) => ({
+                ...prev,
+                primary_country: Number.isNaN(val) ? 0 : val,
+              }));
+            }}
+            className="border p-2 rounded"
+          />
+        </div>
       </div>
 
       {/* INTERNATIONAL ZONES */}
@@ -88,9 +85,9 @@ export default function ShippingRates({
                 const val = Number(e.target.value);
 
                 setShippingRates((prev: any) => ({
-            ...prev,
-           [z.key]: Number(val),
-          }));
+                  ...prev,
+                  [z.key]: Number.isNaN(val) ? 0 : val,
+                }));
               }}
               className="border p-2 rounded"
             />
