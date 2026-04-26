@@ -411,7 +411,6 @@ const stock = hasVariants
 
       price,
       sale_price: hasVariants ? null : salePrice,
-
       sale_start: body.saleStart || null,
       sale_end: body.saleEnd || null,
 
@@ -453,11 +452,10 @@ const stock = hasVariants
     zone: r.zone,
     price: Number(r.price || 0),
 
-    domesticCountryCode:
-      r.zone === "domestic"
-        ? r.countryCode || r.domesticCountryCode || null
-        : null,
-  })),
+    rates: body.shippingRates.map((r: any) => ({
+  zone: r.zone,
+  price: Number(r.price || 0),
+})),
 });
       console.log("✅ SHIPPING SAVED");
     }
