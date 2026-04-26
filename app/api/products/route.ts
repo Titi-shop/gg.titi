@@ -443,22 +443,19 @@ const stock = hasVariants
        SHIPPING
     ========================================================= */
 
-    if (Array.isArray(body.shippingRates)) {
-      console.log("🚀 Shipping rates:", body.shippingRates);
+if (Array.isArray(body.shippingRates)) {
+  console.log("🚀 Shipping rates:", body.shippingRates);
 
-      await upsertShippingRates({
-  productId: product.id,
-  rates: body.shippingRates.map((r: any) => ({
-    zone: r.zone,
-    price: Number(r.price || 0),
-
+  await upsertShippingRates({
+    productId: product.id,
     rates: body.shippingRates.map((r: any) => ({
-  zone: r.zone,
-  price: Number(r.price || 0),
-})),
-});
-      console.log("✅ SHIPPING SAVED");
-    }
+      zone: r.zone,
+      price: Number(r.price || 0),
+    })),
+  });
+
+  console.log("✅ SHIPPING SAVED");
+}
 
     /* =========================================================
        SUCCESS
