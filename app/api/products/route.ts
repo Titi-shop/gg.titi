@@ -420,7 +420,7 @@ const stock = hasVariants
       /* 🔥 SALE */
       sale_enabled: saleEnabled,
       sale_stock: saleStock,
-
+     domestic_country_code: body.domesticCountryCode ?? null,
       views: 0,
       sold: 0,
     });
