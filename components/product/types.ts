@@ -73,9 +73,8 @@ export interface ProductPayload {
 
   variants?: ProductVariant[];
 
-  /* 🔥 FIX naming */
   shippingRates?: {
-    zone: string;
-    price: number;
-  }[];
-}
+  zone: string;
+  price: number;
+  domesticCountryCode?: string | null;
+}[];
