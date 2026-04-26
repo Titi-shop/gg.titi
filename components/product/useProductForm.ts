@@ -123,7 +123,7 @@ export function useProductForm(initialData?: ProductPayload) {
     north_america: "",
     rest_of_world: "",
   });
-
+const [primaryShippingCountry, setPrimaryShippingCountry] = useState("");
   /* =========================================================
      INIT DATA (EDIT MODE)
   ========================================================= */
@@ -272,5 +272,7 @@ export function useProductForm(initialData?: ProductPayload) {
     /* SHIPPING */
     shippingRates,
     setShippingRates,
+    primaryShippingCountry,
+   setPrimaryShippingCountry,
   };
 }
