@@ -22,11 +22,11 @@ export type ShippingRateInput = {
 
 type ShippingRateRow = {
   product_id: string;
+  zone: string;
   code: string;
   price: number;
   domestic_country_code: string | null;
 };
-
 /* =========================================================
    VALIDATE
 ========================================================= */
