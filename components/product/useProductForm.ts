@@ -118,14 +118,14 @@ export function useProductForm(initialData?: ProductPayload) {
   price: number | "";
 };
 
-const [shippingRates, setShippingRates] = useState<ShippingRate[]>([
-  { zone: "domestic", price: "" },
-  { zone: "sea", price: "" },
-  { zone: "asia", price: "" },
-  { zone: "europe", price: "" },
-  { zone: "north_america", price: "" },
-  { zone: "rest_of_world", price: "" },
-]);
+const [shippingRates, setShippingRates] = useState<Record<string, number | "">>({
+  domestic: "",
+  sea: "",
+  asia: "",
+  europe: "",
+  north_america: "",
+  rest_of_world: "",
+});
 
   /* =========================================================
      INIT DATA (EDIT MODE)
