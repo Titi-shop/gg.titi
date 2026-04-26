@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -172,28 +173,24 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     showMessage(t[key] ?? key);
   }, [previewError]);
 
+  /* ========================= */
+
   const unitPrice = item?.finalPrice ?? 0;
 
-/* ================= SHIPPING RATES CLEAN ================= */
-const shippingRates = useMemo(() => {
-  return Array.isArray(product?.shippingRates)
+  const availableRegions = useMemo(() => {
+  if (!shipping?.country) return [];
+
+  const country = shipping.country.toUpperCase();
+
+  const rates = Array.isArray(product?.shippingRates)
     ? product.shippingRates
     : [];
-}, [product?.shippingRates]);
 
-/* ================= DOMESTIC COUNTRY ================= */
-const domesticCountry = useMemo(() => {
-  return (
-    shippingRates.find((r) => r.zone === "domestic")
-      ?.domesticCountryCode || ""
-  );
-}, [shippingRates]);
-
-/* ================= AVAILABLE REGIONS ================= */
-const availableRegions = useMemo(() => {
-  if (!shipping?.country) return [];
-  return shippingRates;
-}, [shipping?.country, shippingRates]);
+  return rates.filter((r) => {
+    if (country === "VN") return r.zone === "domestic";
+    return true;
+  });
+}, [shipping?.country, product?.shippingRates]);
 
   const total = preview?.total ?? 0;
 
@@ -266,7 +263,7 @@ const availableRegions = useMemo(() => {
             {[shipping.ward, shipping.district, shipping.region]
             .filter(Boolean)
             .join(", ")}{" "}
-           – {domesticCountry || shipping.country} – {shipping.postal_code ?? ""}
+           – {getCountryDisplay(shipping.country)} – {shipping.postal_code ?? ""}
                 </p>
               </>
             ) : (
@@ -308,10 +305,8 @@ setZone(r.zone);
         `}
       >
         <div className="font-medium">
-       {r.zone === "domestic"
-    ? `Domestic (${domesticCountry})`
-    : (labelMap[r.zone] ?? r.zone)}
-     </div>
+          {labelMap[r.zone] ?? r.zone}
+        </div>
 
         <div className="text-[11px] opacity-80">
           {formatPi(r.price)} π
