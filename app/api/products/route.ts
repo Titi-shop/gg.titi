@@ -146,9 +146,10 @@ export async function GET(req: Request) {
         shippingMap.set(r.product_id, []);
       }
       shippingMap.get(r.product_id)!.push({
-        zone: r.zone,
-        price: r.price,
-      });
+  zone: r.zone,
+  price: r.price,
+  domesticCountryCode: r.domestic_country_code,
+  });
     }
 
     const now = Date.now();
@@ -447,10 +448,17 @@ const stock = hasVariants
       console.log("🚀 Shipping rates:", body.shippingRates);
 
       await upsertShippingRates({
-        productId: product.id,
-        rates: body.shippingRates,
-      });
+  productId: product.id,
+  rates: body.shippingRates.map((r: any) => ({
+    zone: r.zone,
+    price: Number(r.price || 0),
 
+    domesticCountryCode:
+      r.zone === "domestic"
+        ? r.countryCode || r.domesticCountryCode || null
+        : null,
+  })),
+});
       console.log("✅ SHIPPING SAVED");
     }
 
@@ -576,9 +584,16 @@ const updated = await updateProductBySeller(
 
     if (Array.isArray(body.shippingRates)) {
       await upsertShippingRates({
-        productId: body.id,
-        rates: body.shippingRates,
-      });
+  productId: body.id,
+  rates: (body.shippingRates || []).map((r: any) => ({
+    zone: r.zone,
+    price: Number(r.price || 0),
+    domesticCountryCode:
+      r.zone === "domestic"
+        ? r.countryCode || r.domesticCountryCode || null
+        : null,
+  })),
+});
     }
 
     return NextResponse.json({ success: true });
