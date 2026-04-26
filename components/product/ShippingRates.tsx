@@ -36,10 +36,9 @@ export default function ShippingRates({
 
         <div className="grid grid-cols-2 gap-3">
           <select
-            value={primaryShippingCountry}
-            onChange={(e) => setPrimaryShippingCountry(e.target.value)}
-            className="border p-2 rounded"
-          >
+       value={primaryShippingCountry}
+      onChange={(e) => setPrimaryShippingCountry(e.target.value)}
+        />
             {countries.map((c) => (
               <option key={c.code} value={c.code}>
                 {c.name}
@@ -68,20 +67,16 @@ export default function ShippingRates({
       <div className="grid grid-cols-2 gap-3">
         {zones.map((z) => (
           <input
-            key={z.key}
-            type="number"
-            step="0.00001"
-            placeholder={z.label}
-            value={shippingRates[z.key] || ""}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setShippingRates((prev: any) => ({
-                ...prev,
-                [z.key]: Number.isNaN(val) ? 0 : val,
-              }));
-            }}
-            className="border p-2 rounded"
-          />
+  value={shippingRates[z.key] ?? ""}
+  onChange={(e) => {
+    const val = Number(e.target.value);
+
+    setShippingRates((prev) => ({
+      ...prev,
+      [z.key]: Number.isNaN(val) ? 0 : val,
+    }));
+  }}
+/>
         ))}
       </div>
     </div>
