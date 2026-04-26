@@ -122,27 +122,81 @@ if (!addressCountry) {
 
 console.log("🟢 [DB] COUNTRY FINAL", addressCountry);
 
-console.log("🟡 [DB] STEP ZONE CHECK", { addressCountry });
+console.log("🟡 [DB] STEP SHIPPING ZONE RESOLVE", {
+  addressCountry,
+  productId: params.productId,
+});
 
-const zoneRes = await client.query(
+/* =========================================================
+   1. LOAD PRODUCT SHIPPING RATES
+========================================================= */
+
+const shippingRateCheck = await client.query<{
+  zone: string;
+  domestic_country_code: string | null;
+}>(
   `
-  SELECT sz.code
-  FROM shipping_zone_countries szc
-  JOIN shipping_zones sz ON sz.id = szc.zone_id
-  WHERE szc.country_code = $1
-  LIMIT 1
+  SELECT
+    sz.code AS zone,
+    sr.domestic_country_code
+  FROM shipping_rates sr
+  JOIN shipping_zones sz
+    ON sz.id = sr.zone_id
+  WHERE sr.product_id = $1
   `,
-  [addressCountry]
+  [params.productId]
 );
 
-if (!zoneRes.rows.length) {
-  console.error("❌ [DB] INVALID_COUNTRY", addressCountry);
-  throw new Error("INVALID_COUNTRY");
+if (!shippingRateCheck.rows.length) {
+  throw new Error("SHIPPING_NOT_AVAILABLE");
 }
 
-const realZone = zoneRes.rows[0].code;
+console.log("🧪 [DB] PRODUCT SHIPPING RATES", shippingRateCheck.rows);
 
-console.log("🟢 [DB] ZONE OK", { realZone });
+/* =========================================================
+   2. DOMESTIC FIRST
+========================================================= */
+
+let realZone: string | null = null;
+
+const domesticMatch = shippingRateCheck.rows.find(
+  (r) =>
+    r.zone === "domestic" &&
+    r.domestic_country_code &&
+    r.domestic_country_code.trim().toUpperCase() === addressCountry
+);
+
+if (domesticMatch) {
+  realZone = "domestic";
+  console.log("🏠 [DB] DOMESTIC MATCH", { addressCountry });
+}
+
+/* =========================================================
+   3. GLOBAL ZONE FALLBACK
+========================================================= */
+
+if (!realZone) {
+  const zoneRes = await client.query<{ code: string }>(
+    `
+    SELECT sz.code
+    FROM shipping_zone_countries szc
+    JOIN shipping_zones sz ON sz.id = szc.zone_id
+    WHERE szc.country_code = $1
+    LIMIT 1
+    `,
+    [addressCountry]
+  );
+
+  if (!zoneRes.rows.length) {
+    console.error("❌ [DB] INVALID_COUNTRY", addressCountry);
+    throw new Error("INVALID_COUNTRY");
+  }
+
+  realZone = zoneRes.rows[0].code;
+  console.log("🌍 [DB] GLOBAL ZONE MATCH", { realZone });
+}
+
+console.log("🟢 [DB] FINAL REALZONE", { realZone });
     await client.query(
   `
   INSERT INTO pi_payments (
