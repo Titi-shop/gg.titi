@@ -56,8 +56,6 @@ export async function upsertShippingRates({
   rates: ShippingRateInput[];
 }) {
   console.log("🚀 [DB][SHIPPING][UPSERT] START");
-  console.log("📌 PRODUCT:", productId);
-  console.log("📦 RATES:", rates);
 
   if (!isUUID(productId)) {
     throw new Error("INVALID_PRODUCT_ID");
@@ -76,8 +74,9 @@ export async function upsertShippingRates({
     );
   });
 
-  console.log("✅ CLEAN:", cleanRates);
+  console.log("📦 CLEAN:", cleanRates);
 
+  /* DELETE OLD */
   await query(
     `
     DELETE FROM shipping_rates
@@ -88,6 +87,7 @@ export async function upsertShippingRates({
 
   if (!cleanRates.length) return;
 
+  /* GET ZONES */
   const zoneRes = await query<{ id: string; code: string }>(
     `
     SELECT id, code
@@ -97,28 +97,22 @@ export async function upsertShippingRates({
     [cleanRates.map((r) => r.zone)]
   );
 
-  const zoneMap = new Map(
-    zoneRes.rows.map((z) => [z.code, z.id])
-  );
+  const zoneMap = new Map(zoneRes.rows.map((z) => [z.code, z.id]));
 
   const placeholders: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
 
   for (const r of cleanRates) {
-  const zoneId = zoneMap.get(r.zone);
-  if (!zoneId) continue;
+    const zoneId = zoneMap.get(r.zone);
+    if (!zoneId) continue;
 
-  placeholders.push(
-    `($${idx++}, $${idx++}, $${idx++})`
-  );
+    placeholders.push(`($${idx++}, $${idx++}, $${idx++})`);
 
-  values.push(
-    productId,
-    zoneId,
-    r.price
-  );
-}
+    values.push(productId, zoneId, r.price);
+  }
+
+  if (!values.length) return;
 
   await query(
     `
@@ -142,7 +136,7 @@ export async function upsertShippingRates({
 export async function getShippingRatesByProduct(
   productId: string
 ): Promise<ShippingRateInput[]> {
-  console.log("🚀 [DB][SHIPPING][GET]:", productId);
+  console.log("🚀 [DB][SHIPPING][GET]", productId);
 
   if (!isUUID(productId)) {
     throw new Error("INVALID_PRODUCT_ID");
@@ -153,8 +147,7 @@ export async function getShippingRatesByProduct(
     SELECT
       sr.product_id,
       sz.code,
-      sr.price,
-      sr.domestic_country_code
+      sr.price
     FROM shipping_rates sr
     JOIN shipping_zones sz
       ON sz.id = sr.zone_id
@@ -166,17 +159,17 @@ export async function getShippingRatesByProduct(
   const result = rows
     .filter((r) => isValidRegion(r.code))
     .map((r) => ({
-  zone: r.code as Region,
-  price: Number(r.price),
-   }));
+      zone: r.code as Region,
+      price: Number(r.price),
+    }));
 
-  console.log("✅ SHIPPING GET RESULT:", result);
+  console.log("✅ RESULT:", result);
 
   return result;
 }
 
 /* =========================================================
-   GET SHIPPING BY MULTIPLE PRODUCTS
+   GET MULTI PRODUCTS
 ========================================================= */
 
 export async function getShippingRatesByProducts(
@@ -186,13 +179,9 @@ export async function getShippingRatesByProducts(
     product_id: string;
     zone: Region;
     price: number;
-    domesticCountryCode?: string | null;
   }[]
 > {
-  console.log("🚀 [DB][SHIPPING][MULTI]:", productIds);
-
   const validIds = productIds.filter(isUUID);
-
   if (!validIds.length) return [];
 
   const { rows } = await query<ShippingRateRow>(
@@ -200,8 +189,7 @@ export async function getShippingRatesByProducts(
     SELECT
       sr.product_id,
       sz.code,
-      sr.price,
-      sr.domestic_country_code
+      sr.price
     FROM shipping_rates sr
     JOIN shipping_zones sz
       ON sz.id = sr.zone_id
@@ -213,20 +201,19 @@ export async function getShippingRatesByProducts(
   return rows
     .filter((r) => isValidRegion(r.code))
     .map((r) => ({
-  zone: r.code as Region,
-  price: Number(r.price),
-}));
+      product_id: r.product_id,
+      zone: r.code as Region,
+      price: Number(r.price),
+    }));
 }
 
 /* =========================================================
-   COUNTRY -> NORMAL ZONE
+   COUNTRY → ZONE
 ========================================================= */
 
 export async function getZoneByCountry(
   countryCode: string
 ): Promise<Region | null> {
-  console.log("🌍 [ZONE LOOKUP]:", countryCode);
-
   if (!countryCode) return null;
 
   const { rows } = await query<{ code: string }>(
@@ -247,7 +234,7 @@ export async function getZoneByCountry(
 }
 
 /* =========================================================
-   FINAL SHIPPING RESOLVER
+   SHIPPING RESOLVER (SHOPIFY STYLE)
 ========================================================= */
 
 export async function resolveShippingPrice({
@@ -257,52 +244,33 @@ export async function resolveShippingPrice({
   productId: string;
   buyerCountryCode: string;
 }): Promise<number> {
-  console.log("🚀 [SHIPPING RESOLVER] START", {
-    productId,
-    buyerCountryCode,
-  });
+  console.log("🚀 RESOLVE SHIPPING");
 
   const rates = await getShippingRatesByProduct(productId);
 
-  if (!rates.length) {
-    console.warn("⚠️ NO SHIPPING CONFIG");
-    return 0;
-  }
+  if (!rates.length) return 0;
 
-  const buyer = buyerCountryCode.toUpperCase();
+  const zone = await getZoneByCountry(
+    buyerCountryCode.toUpperCase()
+  );
 
-  /* ================= COUNTRY → ZONE ================= */
-  const zone = await getZoneByCountry(buyer);
+  console.log("🌍 ZONE:", zone);
 
-  console.log("🌎 BUYER ZONE:", zone);
-
-  /* ================= MATCH ZONE ================= */
+  /* MATCH ZONE */
   if (zone) {
-    const found = rates.find((r) => r.zone === zone);
-    if (found) {
-      console.log("✅ MATCH ZONE:", found.price);
-      return found.price;
+    const match = rates.find((r) => r.zone === zone);
+    if (match) {
+      console.log("✅ MATCH:", match.price);
+      return match.price;
     }
   }
 
-  /* ================= FALLBACK ================= */
-  const rest = rates.find((r) => r.zone === "rest_of_world");
+  /* FALLBACK */
+  const fallback = rates.find(
+    (r) => r.zone === "rest_of_world"
+  );
 
-  console.log("🌍 FALLBACK REST:", rest?.price || 0);
+  console.log("🌎 FALLBACK:", fallback?.price || 0);
 
-  return rest?.price || 0;
-}
-
-  const found = rates.find((r) => r.zone === zone);
-
-  if (found) {
-    console.log("✅ MATCH ZONE:", found.price);
-    return found.price;
-  }
-
-  const rest = rates.find((r) => r.zone === "rest_of_world");
-
-  console.log("🌍 FALLBACK REST:", rest?.price || 0);
-
-  return rest?.price || 0;
+  return fallback?.price || 0;
 }
