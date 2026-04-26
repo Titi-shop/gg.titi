@@ -47,7 +47,24 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   const [message, setMessage] = useState<Message | null>(null);
   const [zone, setZone] = useState<Region | null>(null);
   /* ========================= */
+function detectInitialZone(
+  shippingCountry: string,
+  rates: any[]
+): Region | null {
+  if (!shippingCountry || !Array.isArray(rates)) return null;
 
+  const buyer = shippingCountry.toUpperCase();
+
+  const domestic = rates.find(
+    (r) =>
+      r.zone === "domestic" &&
+      r.domesticCountryCode?.toUpperCase() === buyer
+  );
+
+  if (domestic) return "domestic";
+
+  return null;
+}
   const showMessage = (text: string, type: "error" | "success" = "error") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 4000);
@@ -123,7 +140,16 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
     },
   ];
 }, [open, shipping, zone, item, quantity, product?.selectedVariant?.id]);
-
+useEffect(() => {
+  console.log("🛰️ [CHECKOUT] PREVIEW INPUT", {
+    open,
+    shippingCountry: shipping?.country,
+    zone,
+    itemId: item?.id,
+    variantId: product?.selectedVariant?.id ?? null,
+    quantity,
+  });
+}, [open, shipping, zone, item, quantity, product?.selectedVariant?.id]);
   const {
   data: preview,
   error: previewError,
@@ -139,12 +165,26 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
   async function loadAddress() {
     const def = await fetchDefaultAddress();
     if (!def) return;
+
+    console.log("📦 [CHECKOUT] DEFAULT ADDRESS:", def);
+
     setShipping(def);
+
+    const autoZone = detectInitialZone(
+      def.country,
+      Array.isArray(product?.shippingRates) ? product.shippingRates : []
+    );
+
+    console.log("🌍 [CHECKOUT] AUTO ZONE:", autoZone);
+
+    if (autoZone) {
+      setZone(autoZone);
+    }
   }
 
   if (!open || !user) return;
   loadAddress();
-}, [open, user]);
+}, [open, user, product?.shippingRates]);
 
   /* ========================= */
 
