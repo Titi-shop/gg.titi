@@ -174,9 +174,7 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   /* ========================= */
 
-  const unitPrice = item?.finalPrice ?? 0;
-  // ================= SHIPPING RATES CLEAN =================
-// ================= SHIPPING RATES CLEAN =================
+  const unitPrice = item?.finalPrice ?? // ================= SHIPPING RATES CLEAN =================
 const shippingRates = useMemo(() => {
   return Array.isArray(product?.shippingRates)
     ? product.shippingRates
@@ -197,10 +195,6 @@ const availableRegions = useMemo(() => {
 
   return shippingRates;
 }, [shipping?.country, shippingRates]);
-
-  const country = shipping.country.toUpperCase();
-
-}, [shipping?.country, product?.shippingRates]);
 
   const total = preview?.total ?? 0;
 
