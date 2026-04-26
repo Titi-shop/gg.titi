@@ -247,7 +247,7 @@ return data;
       ([zone, price]) => ({
     zone,
     price: Number(price),
-    domesticCountryCode
+    domesticCountryCode:
       zone === "domestic"
         ? form.primaryShippingCountry
         : null,
