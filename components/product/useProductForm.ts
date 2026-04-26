@@ -113,12 +113,7 @@ export function useProductForm(initialData?: ProductPayload) {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   /* ================= SHIPPING ================= */
-  type ShippingRate = {
-  zone: string;
-  price: number | "";
-};
-
-const [shippingRates, setShippingRates] = useState<Record<string, number | "">>({
+  const [shippingRates, setShippingRates] = useState<Record<string, number | "">>({
   domestic: "",
   sea: "",
   asia: "",
@@ -126,7 +121,8 @@ const [shippingRates, setShippingRates] = useState<Record<string, number | "">>(
   north_america: "",
   rest_of_world: "",
 });
-
+const [primaryShippingCountry, setPrimaryShippingCountry] =
+  useState<string>("");
   /* =========================================================
      INIT DATA (EDIT MODE)
   ========================================================= */
@@ -188,16 +184,21 @@ const map = new Map(
   (initialData.shippingRates || []).map((r: any) => [r.zone, r])
 );
 
-setShippingRates(
-  zones.map((zone) => {
-    const existing = map.get(zone);
-
-    return {
-      zone,
-      price: existing?.price ?? "",
-    };
-  })
+const rateMap = new Map(
+  (initialData.shippingRates || []).map((r: any) => [
+    r.zone,
+    r.price,
+  ])
 );
+
+setShippingRates({
+  domestic: rateMap.get("domestic") ?? "",
+  sea: rateMap.get("sea") ?? "",
+  asia: rateMap.get("asia") ?? "",
+  europe: rateMap.get("europe") ?? "",
+  north_america: rateMap.get("north_america") ?? "",
+  rest_of_world: rateMap.get("rest_of_world") ?? "",
+});
   }, [initialData]);
 
   /* =========================================================
