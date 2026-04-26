@@ -90,6 +90,55 @@ export async function previewOrder(
 
   /* ================= CHECK ZONE ================= */
 
+  /* ================= CHECK BUYER ZONE ================= */
+
+let realZone = zone;
+
+/* ---------- DOMESTIC SPECIAL ---------- */
+if (zone === "domestic") {
+  const { rows: domesticRows } = await query<{
+    product_id: string;
+    domestic_country_code: string | null;
+  }>(
+    `
+    SELECT
+      sr.product_id,
+      sr.domestic_country_code
+    FROM shipping_rates sr
+    JOIN shipping_zones sz
+      ON sz.id = sr.zone_id
+    WHERE sr.product_id = ANY($1::uuid[])
+      AND sz.code = 'domestic'
+    `,
+    [productIds]
+  );
+
+  const domesticMap = new Map(
+    domesticRows.map((r) => [
+      r.product_id,
+      r.domestic_country_code?.toUpperCase() ?? null,
+    ])
+  );
+
+  for (const pid of productIds) {
+    const sellerDomestic = domesticMap.get(pid);
+
+    if (!sellerDomestic || sellerDomestic !== country.toUpperCase()) {
+      console.error("❌ [PREVIEW] DOMESTIC NOT AVAILABLE", {
+        productId: pid,
+        buyerCountry: country,
+        sellerDomestic,
+      });
+
+      throw new Error("DOMESTIC_NOT_AVAILABLE");
+    }
+  }
+
+  console.log("🏠 [ORDER][PREVIEW] DOMESTIC VERIFIED");
+}
+
+/* ---------- NORMAL ZONE ---------- */
+else {
   const { rows: zoneRows } = await query<{ code: string }>(
     `
     SELECT sz.code
@@ -103,13 +152,14 @@ export async function previewOrder(
 
   if (!zoneRows.length) throw new Error("INVALID_COUNTRY");
 
-  const realZone = zoneRows[0].code;
+  realZone = zoneRows[0].code;
 
   if (realZone !== zone) {
     throw new Error("INVALID_REGION");
   }
 
-  console.log("🟢 [ORDER][PREVIEW] ZONE OK:", realZone);
+  console.log("🌍 [ORDER][PREVIEW] REGION VERIFIED:", realZone);
+}
 
   /* ================= LOAD PRODUCTS ================= */
 
