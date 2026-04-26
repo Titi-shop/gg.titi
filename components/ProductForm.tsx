@@ -204,46 +204,7 @@ return data;
 }
     }
     /* ================= PAYLOAD ================= */
-
-    const payload = {
-      id: form.id,
-      name: form.name,
-      categoryId: form.categoryId,
-      description: form.description,
-      detail: form.detail,
-      images: form.images,
-      thumbnail: form.images[0],
-      isActive: form.isActive,
-      shippingRates: shippingRatesPayload,
-      price: hasVariants ? undefined : Number(form.price),
-      stock: hasVariants ? undefined : Number(form.stock || 0),
-
-      /* 🔥 SALE LOGIC CLEAN */
-      salePrice:
-        hasVariants || !form.saleEnabled
-          ? null
-          : Number(form.salePrice),
-
-      saleEnabled: hasVariants
-        ? undefined
-        : !!form.saleEnabled,
-
-      saleStock:
-        hasVariants || !form.saleEnabled
-          ? 0
-          : Number(form.saleStock || 0),
-
-      saleStart: form.saleStart
-        ? toUTCFromInput(form.saleStart)
-        : null,
-
-      saleEnd: form.saleEnd
-        ? toUTCFromInput(form.saleEnd)
-        : null,
-
-      variants: form.variants,
-
-      const shippingRatesPayload = Object.entries(form.shippingRates)
+const shippingRatesPayload = Object.entries(form.shippingRates)
   .filter(([zone]) => zone !== "primary_country")
   .map(([zone, price]) => ({
     zone,
@@ -253,9 +214,45 @@ return data;
         ? form.primaryShippingCountry || null
         : null,
   }));
+    const payload = {
+  id: form.id,
+  name: form.name,
+  categoryId: form.categoryId,
+  description: form.description,
+  detail: form.detail,
+  images: form.images,
+  thumbnail: form.images[0],
+  isActive: form.isActive,
 
-      idempotencyKey: generateKey(),
-    };
+  shippingRates: shippingRatesPayload, 
+
+  price: hasVariants ? undefined : Number(form.price),
+  stock: hasVariants ? undefined : Number(form.stock || 0),
+
+  salePrice:
+    hasVariants || !form.saleEnabled
+      ? null
+      : Number(form.salePrice),
+
+  saleEnabled: hasVariants ? undefined : !!form.saleEnabled,
+
+  saleStock:
+    hasVariants || !form.saleEnabled
+      ? 0
+      : Number(form.saleStock || 0),
+
+  saleStart: form.saleStart
+    ? toUTCFromInput(form.saleStart)
+    : null,
+
+  saleEnd: form.saleEnd
+    ? toUTCFromInput(form.saleEnd)
+    : null,
+
+  variants: form.variants,
+
+  idempotencyKey: generateKey(),
+};
 
     console.log("📦 SUBMIT:", payload);
 
