@@ -185,12 +185,15 @@ const shippingRates = useMemo(() => {
 // ================= DOMESTIC COUNTRY =================
 const domesticCountry = useMemo(() => {
   return (
-    shippingRates.find((r) => r.zone === "domestic")
+    rates.find((r) => r.zone === "domestic")
       ?.domesticCountryCode || ""
   );
-}, [shippingRates]);
+}, [rates]);
   const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
+
+  return rates;
+}, [shipping?.country, rates]);
 
   const country = shipping.country.toUpperCase();
 
@@ -204,11 +207,7 @@ const domesticCountry = useMemo(() => {
 }, [shipping?.country, product?.shippingRates]);
 
   const total = preview?.total ?? 0;
-const shippingRates = useMemo(() => {
-  return Array.isArray(product?.shippingRates)
-    ? product.shippingRates
-    : [];
-}, [product?.shippingRates]);
+
   /* ========================= */
 
   const validate = () =>
