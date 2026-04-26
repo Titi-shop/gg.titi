@@ -207,18 +207,16 @@ return data;
 const shippingRatesPayload = Object.entries(form.shippingRates)
   .filter(([zone]) => zone !== "primary_country")
   .map(([zone, price]) => {
-    const base = {
+    return {
       zone,
       price: Number(price || 0),
-      countryCode: null,
+
+      // 🔥 FIX: chỉ domestic mới có country
+      countryCode:
+        zone === "domestic"
+          ? form.primaryShippingCountry || null
+          : null,
     };
-
-    // 👇 CHỈ inject country vào domestic
-    if (zone === "domestic") {
-      base.countryCode = form.primaryShippingCountry || null;
-    }
-
-    return base;
   });
     const payload = {
   id: form.id,
