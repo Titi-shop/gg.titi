@@ -176,34 +176,30 @@ export default function CheckoutSheet({ open, onClose, product }: Props) {
 
   const unitPrice = item?.finalPrice ?? 0;
   // ================= SHIPPING RATES CLEAN =================
-const rates = useMemo(() => {
+// ================= SHIPPING RATES CLEAN =================
+const shippingRates = useMemo(() => {
   return Array.isArray(product?.shippingRates)
     ? product.shippingRates
     : [];
 }, [product?.shippingRates]);
 
+// ================= DOMESTIC COUNTRY =================
 const domesticCountry = useMemo(() => {
   return (
-    rates.find((r) => r.zone === "domestic")
+    shippingRates.find((r) => r.zone === "domestic")
       ?.domesticCountryCode || ""
   );
-}, [rates]);
+}, [shippingRates]);
 
+// ================= AVAILABLE REGIONS =================
 const availableRegions = useMemo(() => {
   if (!shipping?.country) return [];
 
-  return rates.filter((r) => true);
-}, [shipping?.country, rates]);
+  return shippingRates;
+}, [shipping?.country, shippingRates]);
 
   const country = shipping.country.toUpperCase();
 
-  const rates = Array.isArray(product?.shippingRates)
-    ? product.shippingRates
-    : [];
-
-  return rates.filter((r) => {
-    return true;
-  });
 }, [shipping?.country, product?.shippingRates]);
 
   const total = preview?.total ?? 0;
