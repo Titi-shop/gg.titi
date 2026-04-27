@@ -128,7 +128,9 @@ useEffect(() => {
   typeof v.salePrice === "number" &&
   typeof v.price === "number"
 ) {
+  if (v.salePrice != null && v.price) {
   if (v.salePrice <= 0 || v.salePrice >= v.price) {
+    // chỉ reset nếu user đã nhập rõ ràng
     v.salePrice = null;
   }
 }
@@ -326,7 +328,8 @@ useEffect(() => {
                       type="number"
                       value={v.price}
                       onChange={(e) =>
-                        update(i, "price", Number(e.target.value))
+                        const val = e.target.value;
+update(i, "saleStock", val === "" ? 0 : Number(val));
                       }
                       className="border p-1 w-24"
                     />
