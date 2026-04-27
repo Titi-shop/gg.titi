@@ -42,7 +42,12 @@ function normalizeVariants(input: unknown): ProductVariant[] {
           ? Number(v.salePrice)
           : null;
 
-      const saleEnabled = Boolean(v.saleEnabled);
+      const saleEnabled =
+  Boolean(v.saleEnabled) &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end;
 
       const finalPrice =
         saleEnabled &&
@@ -143,12 +148,14 @@ function normalizeVariants(input: unknown): ProductVariant[] {
       ? new Date(p.sale_end).getTime()
       : null;
 
-    const isSale =
-      typeof p.sale_price === "number" &&
-      start !== null &&
-      end !== null &&
-      now >= start &&
-      now <= end;
+    const hasVariants = rawVariants.length > 0;
+const isSale =
+  !hasVariants &&
+  typeof p.sale_price === "number" &&
+  start !== null &&
+  end !== null &&
+  now >= start &&
+  now <= end;
 
     console.log("🔥 SALE STATUS:", { isSale, start, end });
 
@@ -392,6 +399,45 @@ export async function PATCH(
         { status: 400 }
       );
     }
+    /* =========================================================
+   🔥 SALE VALIDATION (BACKEND SOURCE OF TRUTH)
+========================================================= */
+
+const hasSalePrice =
+  typeof body.salePrice === "number" && body.salePrice > 0;
+
+const hasSaleTime =
+  typeof body.saleStart === "string" &&
+  typeof body.saleEnd === "string" &&
+  body.saleStart &&
+  body.saleEnd;
+
+const saleEnabled =
+  typeof body.saleEnabled === "boolean" ? body.saleEnabled : false;
+
+/* ❌ INVALID: enable sale nhưng thiếu price */
+if (saleEnabled && !hasSalePrice) {
+  return NextResponse.json(
+    { error: "SALE_PRICE_REQUIRED" },
+    { status: 400 }
+  );
+}
+
+/* ❌ INVALID: có sale price nhưng thiếu thời gian */
+if (hasSalePrice && !hasSaleTime) {
+  return NextResponse.json(
+    { error: "SALE_TIME_REQUIRED" },
+    { status: 400 }
+  );
+}
+
+/* ❌ INVALID: enable sale nhưng thiếu time */
+if (saleEnabled && !hasSaleTime) {
+  return NextResponse.json(
+    { error: "SALE_TIME_REQUIRED" },
+    { status: 400 }
+  );
+}
 /* ================= SALE INPUT ================= */
 
 const saleEnabled =
