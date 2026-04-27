@@ -300,7 +300,7 @@ try {
       ? Math.max(0, p.sale_stock - p.sale_sold)
       : null,
 
-  isSale,
+  isProductSale,
 
   /* 🔥 META */
   currency: p.currency ?? "PI",
