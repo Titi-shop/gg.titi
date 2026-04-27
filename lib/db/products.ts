@@ -109,7 +109,9 @@ function toAppProduct(row: ProductRow): ProductRecord {
     isSaleActive && salePrice !== null && salePrice < price
       ? salePrice
       : price;
-
+const isSaleActive =
+  Boolean(row.sale_enabled) &&
+  isInSaleTime(row.sale_start, row.sale_end);
   return {
     ...row,
 
@@ -122,7 +124,7 @@ function toAppProduct(row: ProductRow): ProductRecord {
     sale_stock: row.sale_stock ?? 0,
     sale_sold: row.sale_sold ?? 0,
 
-    sale_enabled: isSaleActive,
+    sale_enabled: row.sale_enabled ?? false,
   };
 }
 function isInSaleTime(start: string | null, end: string | null) {
@@ -179,7 +181,7 @@ export async function getAllProducts(limit = 20): Promise<ProductRecord[]> {
   updated_at,
   deleted_at,
   seller_id
-FROM products
+  FROM products
     WHERE is_active = true
   AND deleted_at IS NULL
     ORDER BY created_at DESC
