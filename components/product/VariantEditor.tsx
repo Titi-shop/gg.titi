@@ -124,13 +124,14 @@ useEffect(() => {
 
   /* SALE PRICE RULE */
   if (
-    v.salePrice !== null &&
-    typeof v.salePrice === "number" &&
-    typeof v.price === "number" &&
-    v.salePrice >= v.price
-  ) {
+  v.saleEnabled &&
+  typeof v.salePrice === "number" &&
+  typeof v.price === "number"
+) {
+  if (v.salePrice <= 0 || v.salePrice >= v.price) {
     v.salePrice = null;
   }
+}
 
   /* AUTO FIELDS */
   v.optionValue = v.option1 || "";
