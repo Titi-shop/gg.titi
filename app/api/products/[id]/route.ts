@@ -129,6 +129,8 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     console.log("✅ PRODUCT FOUND");
 
     /* ================= SALE LOGIC ================= */
+    const rawVariants = await getVariantsByProductId(id);
+const hasVariants = rawVariants.length > 0;
     const now = Date.now();
 
 const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
@@ -145,9 +147,6 @@ const isProductSale =
     console.log("🔥 SALE STATUS:", { isSale, start, end });
 
     /* ================= VARIANTS ================= */
-    const rawVariants = await getVariantsByProductId(id);
-
-const hasVariants = rawVariants.length > 0;
 
 console.log("🧩 [API][GET] RAW VARIANTS FROM DB:", rawVariants);
 
