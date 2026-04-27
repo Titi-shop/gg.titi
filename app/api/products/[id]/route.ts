@@ -134,8 +134,6 @@ function normalizeVariants(input: unknown): ProductVariant[] {
 const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
 const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
-const hasVariants = rawVariants.length > 0;
-
 const isProductSale =
   !hasVariants &&
   typeof p.sale_price === "number" &&
@@ -148,6 +146,8 @@ const isProductSale =
 
     /* ================= VARIANTS ================= */
     const rawVariants = await getVariantsByProductId(id);
+
+const hasVariants = rawVariants.length > 0;
 
 console.log("🧩 [API][GET] RAW VARIANTS FROM DB:", rawVariants);
 
