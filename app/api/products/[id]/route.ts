@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
 import {
@@ -21,67 +20,51 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
-   TYPES
+   FORENSIC LOG
 ========================================================= */
-
-interface PatchBody {
-  name?: string;
-  description?: string;
-  detail?: string;
-  images?: string[];
-  thumbnail?: string | null;
-  categoryId?: string | number | null;
-
-  price?: number;
-  stock?: number;
-
-  saleEnabled?: boolean;
-  salePrice?: number | null;
-  saleStock?: number;
-  saleStart?: string | null;
-  saleEnd?: string | null;
-
-  isActive?: boolean;
-
-  variants?: unknown[];
-  shippingRates?: {
-    zone: string;
-    price: number;
-  }[];
-
-  domesticCountryCode?: string | null;
+function flog(step: string, data?: unknown) {
+  console.log(`🧪 [PRODUCT API] ${step}`, data ?? "");
 }
 
 /* =========================================================
-   NORMALIZE VARIANTS
+   SAFE VARIANT NORMALIZE
 ========================================================= */
-
 function normalizeVariants(input: unknown): ProductVariant[] {
-  if (!Array.isArray(input)) return [];
+  flog("NORMALIZE_VARIANTS_INPUT", input);
 
-  return input
-    .map((item, index): ProductVariant | null => {
+  if (!Array.isArray(input)) {
+    flog("NORMALIZE_VARIANTS_EMPTY_ARRAY");
+    return [];
+  }
+
+  const result = input
+    .map((item, index) => {
       if (!item || typeof item !== "object") return null;
 
-      const raw = item as Record<string, unknown>;
+      const v = item as Record<string, unknown>;
 
-      const option1 = String(raw.option1 ?? raw.optionValue ?? "").trim();
-      const option2 = String(raw.option2 ?? "").trim() || null;
-      const option3 = String(raw.option3 ?? "").trim() || null;
+      const option1 = String(v.option1 ?? v.optionValue ?? "").trim();
+      const option2 = String(v.option2 ?? "").trim() || null;
+      const option3 = String(v.option3 ?? "").trim() || null;
 
-      if (!option1) return null;
+      if (!option1) {
+        flog(`VARIANT_${index}_SKIPPED_NO_OPTION1`);
+        return null;
+      }
 
       const price =
-        typeof raw.price === "number" && !Number.isNaN(raw.price)
-          ? raw.price
-          : 0;
+        typeof v.price === "number" && !Number.isNaN(v.price)
+          ? v.price
+          : Number(v.price) || 0;
 
       const salePrice =
-        typeof raw.salePrice === "number" && !Number.isNaN(raw.salePrice)
-          ? raw.salePrice
+        v.salePrice !== null &&
+        v.salePrice !== undefined &&
+        !Number.isNaN(Number(v.salePrice))
+          ? Number(v.salePrice)
           : null;
 
-      const saleEnabled = raw.saleEnabled === true;
+      const saleEnabled = Boolean(v.saleEnabled);
 
       const finalPrice =
         saleEnabled &&
@@ -91,205 +74,68 @@ function normalizeVariants(input: unknown): ProductVariant[] {
           ? salePrice
           : price;
 
-      return {
-        id: typeof raw.id === "string" ? raw.id : undefined,
+      const normalized: ProductVariant = {
+        id: typeof v.id === "string" ? v.id : undefined,
 
         option1,
         option2,
         option3,
 
         optionLabel1:
-          typeof raw.optionLabel1 === "string" ? raw.optionLabel1 : null,
+          typeof v.optionLabel1 === "string" ? v.optionLabel1 : null,
         optionLabel2:
-          typeof raw.optionLabel2 === "string" ? raw.optionLabel2 : null,
+          typeof v.optionLabel2 === "string" ? v.optionLabel2 : null,
         optionLabel3:
-          typeof raw.optionLabel3 === "string" ? raw.optionLabel3 : null,
+          typeof v.optionLabel3 === "string" ? v.optionLabel3 : null,
 
         optionName:
-          typeof raw.optionLabel1 === "string" ? raw.optionLabel1 : "option",
+          typeof v.optionLabel1 === "string" ? v.optionLabel1 : "option",
+
         optionValue: option1,
 
         name:
-          typeof raw.name === "string"
-            ? raw.name
+          typeof v.name === "string"
+            ? v.name
             : [option1, option2, option3].filter(Boolean).join(" - "),
 
-        sku: typeof raw.sku === "string" ? raw.sku : null,
+        sku: typeof v.sku === "string" ? v.sku : null,
 
         price,
         salePrice,
         finalPrice,
 
-        stock:
-          typeof raw.stock === "number" && !Number.isNaN(raw.stock)
-            ? raw.stock
-            : 0,
-
-        isUnlimited: raw.isUnlimited === true,
+        stock: Number(v.stock) || 0,
+        isUnlimited: Boolean(v.isUnlimited),
 
         saleEnabled,
+        saleStock: Number(v.saleStock ?? 0),
+        saleSold: Number(v.saleSold ?? 0),
 
-        saleStock:
-          typeof raw.saleStock === "number" && !Number.isNaN(raw.saleStock)
-            ? raw.saleStock
-            : 0,
+        image: typeof v.image === "string" ? v.image : "",
 
-        saleSold:
-          typeof raw.saleSold === "number" && !Number.isNaN(raw.saleSold)
-            ? raw.saleSold
-            : 0,
+        sortOrder: Number(v.sortOrder ?? index),
+        isActive: v.isActive !== false,
 
-        image: typeof raw.image === "string" ? raw.image : "",
-
-        sortOrder:
-          typeof raw.sortOrder === "number" && !Number.isNaN(raw.sortOrder)
-            ? raw.sortOrder
-            : index,
-
-        isActive: raw.isActive !== false,
-
-        sold:
-          typeof raw.sold === "number" && !Number.isNaN(raw.sold)
-            ? raw.sold
-            : 0,
+        sold: Number(v.sold ?? 0),
       };
+
+      flog(`VARIANT_${index}_NORMALIZED`, normalized);
+      return normalized;
     })
-    .filter((v): v is ProductVariant => v !== null);
+    .filter(Boolean) as ProductVariant[];
+
+  flog("NORMALIZE_VARIANTS_DONE", result);
+  return result;
 }
 
 /* =========================================================
    GET
 ========================================================= */
-
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
-): Promise<NextResponse> {
-  try {
-    const id = params.id;
-
-    if (!id) {
-      return NextResponse.json({ error: "MISSING_PRODUCT_ID" }, { status: 400 });
-    }
-
-    const p = await getProductById(id);
-
-    if (!p) {
-      return NextResponse.json({ error: "PRODUCT_NOT_FOUND" }, { status: 404 });
-    }
-
-    const rawVariants = await getVariantsByProductId(id);
-    const hasVariants = rawVariants.length > 0;
-
-    const now = Date.now();
-    const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
-    const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
-
-    const variants = rawVariants.map((v) => {
-      const salePrice =
-        typeof v.salePrice === "number" ? v.salePrice : null;
-
-      const isVariantSale =
-        Boolean(v.saleEnabled) &&
-        salePrice !== null &&
-        start !== null &&
-        end !== null &&
-        now >= start &&
-        now <= end;
-
-      return {
-        ...v,
-        isSale: isVariantSale,
-        saleLeft:
-          typeof v.saleStock === "number"
-            ? Math.max(0, v.saleStock - (v.saleSold ?? 0))
-            : 0,
-      };
-    });
-
-    const totalStock = hasVariants
-      ? variants.reduce((s, v) => s + (v.stock || 0), 0)
-      : p.stock ?? 0;
-
-    const minPrice = hasVariants
-      ? Math.min(...variants.map((v) => Number(v.finalPrice || v.price || 0)))
-      : null;
-
-    const maxPrice = hasVariants
-      ? Math.max(...variants.map((v) => Number(v.finalPrice || v.price || 0)))
-      : null;
-
-    const shippingRates = await getShippingRatesByProduct(id);
-
-    const isProductSale =
-      !hasVariants &&
-      typeof p.sale_price === "number" &&
-      start !== null &&
-      end !== null &&
-      now >= start &&
-      now <= end;
-
-    const finalPrice = isProductSale ? p.sale_price ?? p.price : p.price;
-
-    return NextResponse.json({
-      id: p.id,
-      sellerId: p.seller_id,
-      name: p.name,
-      slug: p.slug ?? "",
-      description: p.description ?? "",
-      detail: p.detail ?? "",
-      thumbnail: p.thumbnail ?? "",
-      images: p.images ?? [],
-      hasVariants,
-
-      price: hasVariants ? null : p.price ?? 0,
-      salePrice: hasVariants ? p.sale_price ?? null : p.sale_price ?? null,
-      finalPrice: hasVariants ? minPrice : finalPrice,
-
-      minPrice,
-      maxPrice,
-
-      stock: totalStock,
-
-      saleEnabled: p.sale_enabled === true,
-      saleStock: p.sale_stock ?? 0,
-      saleSold: p.sale_sold ?? 0,
-      saleLeft:
-        typeof p.sale_stock === "number"
-          ? Math.max(0, p.sale_stock - (p.sale_sold ?? 0))
-          : 0,
-
-      saleStart: p.sale_start ?? null,
-      saleEnd: p.sale_end ?? null,
-
-      isProductSale,
-      isActive: p.is_active ?? true,
-      categoryId: p.category_id ?? null,
-
-      variants,
-      shippingRates,
-    });
-  } catch (err) {
-    console.error("[PRODUCT][GET]", err);
-    return NextResponse.json(
-      { error: "FAILED_TO_FETCH_PRODUCT" },
-      { status: 500 }
-    );
-  }
-}
-
-/* =========================================================
-   PATCH
-========================================================= */
-
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-): Promise<NextResponse> {
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
-
-  const userId = auth.userId;
+) {
+  flog("GET_START", params);
 
   try {
     const id = params.id;
@@ -298,107 +144,160 @@ export async function PATCH(
       return NextResponse.json({ error: "INVALID_PRODUCT_ID" }, { status: 400 });
     }
 
-    const body = (await req.json()) as PatchBody;
+    const p = await getProductById(id);
+    flog("GET_PRODUCT_DB", p);
+
+    if (!p) {
+      return NextResponse.json({ error: "PRODUCT_NOT_FOUND" }, { status: 404 });
+    }
+
+    const rawVariants = await getVariantsByProductId(id);
+    flog("GET_RAW_VARIANTS", rawVariants);
+
+    const shippingRates = await getShippingRatesByProduct(id);
+    flog("GET_SHIPPING", shippingRates);
+
+    return NextResponse.json({
+      id: p.id,
+      sellerId: p.seller_id,
+      name: p.name,
+      description: p.description ?? "",
+      detail: p.detail ?? "",
+      images: p.images ?? [],
+      thumbnail: p.thumbnail ?? "",
+      categoryId: p.category_id ?? null,
+      price: p.price ?? 0,
+      salePrice: p.sale_price ?? null,
+      saleEnabled: p.sale_enabled ?? false,
+      saleStock: p.sale_stock ?? 0,
+      saleStart: p.sale_start ?? null,
+      saleEnd: p.sale_end ?? null,
+      stock: p.stock ?? 0,
+      isActive: p.is_active ?? true,
+      shippingRates,
+      variants: rawVariants,
+    });
+  } catch (err) {
+    console.error("💥 [PRODUCT API][GET ERROR]", err);
+    return NextResponse.json({ error: "FAILED_TO_FETCH_PRODUCT" }, { status: 500 });
+  }
+}
+
+/* =========================================================
+   PATCH
+========================================================= */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  flog("PATCH_START");
+
+  const auth = await requireSeller();
+  flog("PATCH_AUTH", auth);
+
+  if (!auth.ok) return auth.response;
+
+  const userId = auth.userId;
+  const productId = params.id;
+
+  try {
+    if (!productId) {
+      return NextResponse.json({ error: "INVALID_PRODUCT_ID" }, { status: 400 });
+    }
+
+    const body = await req.json();
+    flog("PATCH_RAW_BODY", body);
 
     const normalizedVariants = normalizeVariants(body.variants);
     const hasVariants = normalizedVariants.length > 0;
 
-    const saleStart =
-      typeof body.saleStart === "string" && body.saleStart ? body.saleStart : null;
+    flog("PATCH_HAS_VARIANTS", hasVariants);
 
-    const saleEnd =
-      typeof body.saleEnd === "string" && body.saleEnd ? body.saleEnd : null;
+    const safeSaleEnabled =
+      !hasVariants &&
+      typeof body.saleEnabled === "boolean"
+        ? body.saleEnabled
+        : false;
 
-    const productSaleEnabled = body.saleEnabled === true;
-
-    const productSalePrice =
-      typeof body.salePrice === "number" && !Number.isNaN(body.salePrice)
+    const safeSalePrice =
+      !hasVariants &&
+      typeof body.salePrice === "number" &&
+      !Number.isNaN(body.salePrice)
         ? body.salePrice
         : null;
 
-    let finalPrice =
-      typeof body.price === "number" && !Number.isNaN(body.price)
-        ? body.price
-        : 1;
-
-    let finalSalePrice = productSalePrice;
-    let finalStock =
-      typeof body.stock === "number" && !Number.isNaN(body.stock)
-        ? body.stock
-        : 0;
-
-    let finalSaleStock =
-      typeof body.saleStock === "number" && !Number.isNaN(body.saleStock)
+    const safeSaleStock =
+      !hasVariants &&
+      typeof body.saleStock === "number" &&
+      !Number.isNaN(body.saleStock)
         ? body.saleStock
         : 0;
 
-    let finalSaleEnabled = productSaleEnabled;
-
-    if (hasVariants) {
-      const prices = normalizedVariants.map((v) => v.price).filter((p) => p > 0);
-      const salePrices = normalizedVariants
-        .map((v) => v.salePrice)
-        .filter((p): p is number => p !== null && p > 0);
-
-      finalPrice = prices.length ? Math.min(...prices) : 1;
-      finalSalePrice = salePrices.length ? Math.min(...salePrices) : null;
-      finalStock = normalizedVariants.reduce((s, v) => s + v.stock, 0);
-      finalSaleStock = normalizedVariants.reduce(
-        (s, v) => s + (v.saleEnabled ? v.saleStock : 0),
-        0
-      );
-      finalSaleEnabled = normalizedVariants.some(
-        (v) => v.saleEnabled && v.salePrice !== null && v.salePrice > 0
-      );
-    }
-
-    const hasAnySale = finalSaleEnabled && finalSalePrice !== null;
-
-    if (hasAnySale && (!saleStart || !saleEnd)) {
-      return NextResponse.json(
-        { error: "SALE_TIME_REQUIRED" },
-        { status: 400 }
-      );
-    }
-
-    const categoryId =
-      typeof body.categoryId === "string"
-        ? Number(body.categoryId)
-        : typeof body.categoryId === "number"
-        ? body.categoryId
+    const safeSaleStart =
+      !hasVariants && typeof body.saleStart === "string"
+        ? body.saleStart
         : null;
 
-    const updated = await updateProductBySeller(userId, id, {
+    const safeSaleEnd =
+      !hasVariants && typeof body.saleEnd === "string"
+        ? body.saleEnd
+        : null;
+
+    const finalStock = hasVariants
+      ? normalizedVariants.reduce((sum, v) => sum + (v.stock || 0), 0)
+      : typeof body.stock === "number"
+      ? body.stock
+      : 0;
+
+    const finalPrice = hasVariants
+      ? Math.min(...normalizedVariants.map((v) => v.price || 0))
+      : typeof body.price === "number"
+      ? body.price
+      : 0;
+
+    flog("PATCH_FINAL_COMPUTED", {
+      safeSaleEnabled,
+      safeSalePrice,
+      safeSaleStock,
+      safeSaleStart,
+      safeSaleEnd,
+      finalStock,
+      finalPrice,
+    });
+
+    const updated = await updateProductBySeller(userId, productId, {
       name: typeof body.name === "string" ? body.name.trim() : undefined,
       description: typeof body.description === "string" ? body.description : undefined,
       detail: typeof body.detail === "string" ? body.detail : undefined,
 
       images: Array.isArray(body.images)
-        ? body.images.filter((i): i is string => typeof i === "string")
+        ? body.images.filter((x: unknown): x is string => typeof x === "string")
         : undefined,
 
       thumbnail:
-        body.thumbnail === undefined
-          ? undefined
-          : typeof body.thumbnail === "string"
-          ? body.thumbnail
-          : null,
+        typeof body.thumbnail === "string" ? body.thumbnail : undefined,
 
-      category_id: categoryId,
+      category_id:
+        typeof body.categoryId === "string"
+          ? Number(body.categoryId)
+          : typeof body.categoryId === "number"
+          ? body.categoryId
+          : undefined,
 
       price: finalPrice,
-      sale_price: finalSalePrice,
-
       stock: finalStock,
 
-      sale_enabled: finalSaleEnabled,
-      sale_stock: finalSaleStock,
-      sale_start: hasAnySale ? saleStart : null,
-      sale_end: hasAnySale ? saleEnd : null,
+      sale_price: safeSalePrice,
+      sale_enabled: safeSaleEnabled,
+      sale_stock: safeSaleStock,
+      sale_start: safeSaleStart,
+      sale_end: safeSaleEnd,
 
       is_active:
         typeof body.isActive === "boolean" ? body.isActive : undefined,
     });
+
+    flog("PATCH_DB_UPDATED", updated);
 
     if (!updated) {
       return NextResponse.json(
@@ -408,78 +307,80 @@ export async function PATCH(
     }
 
     if (Array.isArray(body.shippingRates)) {
+      flog("PATCH_SHIPPING_START", body.shippingRates);
+
       await upsertShippingRates({
-        productId: id,
-        rates: body.shippingRates.map((r) => ({
-          zone: r.zone,
+        productId,
+        rates: body.shippingRates.map((r: Record<string, unknown>) => ({
+          zone: String(r.zone),
           price: Number(r.price || 0),
           domesticCountryCode:
-            r.zone === "domestic"
-              ? body.domesticCountryCode ?? null
+            String(r.zone) === "domestic"
+              ? String(body.domesticCountryCode ?? "") || null
               : null,
         })),
       });
+
+      flog("PATCH_SHIPPING_DONE");
     }
 
     if (hasVariants) {
-      await replaceVariantsByProductId(id, normalizedVariants);
+      flog("PATCH_VARIANT_REPLACE_START", normalizedVariants);
+      await replaceVariantsByProductId(productId, normalizedVariants);
+      flog("PATCH_VARIANT_REPLACE_DONE");
     }
+
+    flog("PATCH_SUCCESS");
 
     return NextResponse.json({
       success: true,
       data: {
-        id,
-        name: updated.name,
+        id: productId,
         price: finalPrice,
-        salePrice: finalSalePrice,
         stock: finalStock,
       },
     });
   } catch (err) {
-    console.error("[PRODUCT][PATCH]", err);
-
-    return NextResponse.json(
-      { error: "FAILED_TO_UPDATE_PRODUCT" },
-      { status: 500 }
-    );
+    console.error("💥 [PRODUCT API][PATCH ERROR FULL]", err);
+    return NextResponse.json({ error: "FAILED_TO_UPDATE_PRODUCT" }, { status: 500 });
   }
 }
 
 /* =========================================================
    DELETE
 ========================================================= */
-
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
-): Promise<NextResponse> {
+) {
+  flog("DELETE_START", params);
+
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
   try {
-    const id = params.id;
-
-    if (!id) {
-      return NextResponse.json({ error: "INVALID_PRODUCT_ID" }, { status: 400 });
-    }
-
-    const result = await deleteProductById(id, auth.userId);
+    const result = await deleteProductById(params.id, auth.userId);
+    flog("DELETE_DB_RESULT", result);
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    if (result.paths.length > 0) {
-      await supabaseAdmin.storage.from("products").remove(result.paths);
+    if (result.paths.length) {
+      const { error } = await supabaseAdmin.storage
+        .from("products")
+        .remove(result.paths);
+
+      if (error) {
+        console.error("💥 STORAGE DELETE ERROR", error);
+      } else {
+        flog("DELETE_STORAGE_DONE");
+      }
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("[PRODUCT][DELETE]", err);
-
-    return NextResponse.json(
-      { error: "FAILED_TO_DELETE_PRODUCT" },
-      { status: 500 }
-    );
+    console.error("💥 [PRODUCT API][DELETE ERROR FULL]", err);
+    return NextResponse.json({ error: "FAILED_TO_DELETE_PRODUCT" }, { status: 500 });
   }
 }
