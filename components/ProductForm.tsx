@@ -253,10 +253,21 @@ const shippingRatesPayload = Object.entries(form.shippingRates)
   }));
 const normalizedVariants = form.variants.map((v) => ({
   ...v,
-  saleEnabled: false, // ❌ CHẶN VARIANT SALE
-  salePrice: null,
-  saleStock: 0,
-  saleSold: 0,
+  saleEnabled: Boolean(v.saleEnabled),
+  salePrice:
+    v.saleEnabled && v.salePrice !== null
+      ? Number(v.salePrice)
+      : null,
+  saleStock:
+    v.saleEnabled ? Number(v.saleStock || 0) : 0,
+  saleSold: Number(v.saleSold || 0),
+  finalPrice:
+    v.saleEnabled &&
+    v.salePrice !== null &&
+    Number(v.salePrice) > 0 &&
+    Number(v.salePrice) < Number(v.price)
+      ? Number(v.salePrice)
+      : Number(v.price),
 }));
 const payload = {
   id: form.id,
