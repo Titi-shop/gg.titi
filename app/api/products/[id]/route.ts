@@ -144,7 +144,7 @@ const isProductSale =
   now >= start &&
   now <= end;
 
-    console.log("🔥 SALE STATUS:", { isSale, start, end });
+    console.log("🔥 SALE STATUS:", { isProductSale, start, end });
 
     /* ================= VARIANTS ================= */
 
