@@ -255,11 +255,11 @@ onTouchMove={(e) => {
           π {formatPi(selectedVariant.finalPrice)}
         </p>
 
-        {selectedVariant.salePrice && selectedVariant.salePrice < selectedVariant.price (
-          <p className="text-sm text-gray-400 line-through">
-            π {formatPi(selectedVariant.price)}
-          </p>
-        )}
+      {variantOnSale && (
+      <p className="text-sm text-gray-400 line-through">
+    π {formatPi(selectedVariant.price)}
+      </p>
+       )}
       </>
     ) : (
       <p className="text-xl font-bold text-primary">
