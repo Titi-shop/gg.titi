@@ -136,7 +136,7 @@ const normalized: RelatedProduct[] = dataTyped.map((p) => ({
   price: p.price,
   salePrice: p.salePrice ?? null,
   finalPrice: p.finalPrice,
-  isSale: p.isSale,
+  isSale: Boolean(p.isSale),
 }));
 
         setProducts(normalized);
