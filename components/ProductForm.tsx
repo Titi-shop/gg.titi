@@ -166,25 +166,41 @@ return data;
 
   try {
     const hasVariants = form.variants.length > 0;
-     const hasSaleTime = form.saleStart && form.saleEnd;
-const hasSalePrice = Number(form.salePrice) > 0;
 
-if (hasSaleTime && !form.saleEnabled) {
-  alert("Có thời gian sale thì phải bật sale");
-  setSubmitting(false);
-  return;
+/* ================= SALE RULE ================= */
+
+// CASE 1: PRODUCT CÓ VARIANT → IGNORE PRODUCT SALE
+if (hasVariants) {
+  // ép product sale về false nhưng KHÔNG CHẶN SUBMIT
+  form.setSaleEnabled(false);
+  form.setSalePrice("");
+  form.setSaleStock(0);
+  form.setSaleStart(null);
+  form.setSaleEnd(null);
 }
 
-if (form.saleEnabled && !hasSaleTime) {
-  alert("Bật sale phải có thời gian bắt đầu/kết thúc");
-  setSubmitting(false);
-  return;
-}
+/* CASE 2: PRODUCT KHÔNG VARIANT → CHECK PRODUCT SALE */
+if (!hasVariants && form.saleEnabled) {
+  const sale = Number(form.salePrice);
+  const price = Number(form.price);
 
-if (form.saleEnabled && !hasSalePrice) {
-  alert("Sale phải có giá sale");
-  setSubmitting(false);
-  return;
+  if (!form.saleStart || !form.saleEnd) {
+    alert("Sale must have start & end time");
+    setSubmitting(false);
+    return;
+  }
+
+  if (Number.isNaN(sale) || sale < 0.00001) {
+    alert("Invalid sale price");
+    setSubmitting(false);
+    return;
+  }
+
+  if (sale >= price) {
+    alert("Sale price must be less than price");
+    setSubmitting(false);
+    return;
+  }
 }
 
     /* ================= VALIDATE ================= */
