@@ -214,7 +214,7 @@ const variants = rawVariants.map((v, i) => {
 
     console.log("🧩 VARIANTS:", variants.length);
 
-    const hasVariants = variants.length > 0;
+    
 
     /* ================= STOCK ================= */
     const totalStock = hasVariants
