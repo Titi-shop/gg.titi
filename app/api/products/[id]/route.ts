@@ -381,7 +381,6 @@ export async function PATCH(
 
     /* ================= VALIDATE ID ================= */
     if (!id || typeof id !== "string") {
-      console.error("❌ INVALID PRODUCT ID");
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
         { status: 400 }
@@ -390,73 +389,59 @@ export async function PATCH(
 
     const body = await req.json();
 
-    console.log("📦 [PATCH] BODY:", body);
-
     if (!body || typeof body !== "object") {
-      console.error("❌ INVALID BODY");
       return NextResponse.json(
         { error: "INVALID_BODY" },
         { status: 400 }
       );
     }
+
+    console.log("📦 [PATCH] BODY:", body);
+
     /* =========================================================
-   🔥 SALE VALIDATION (BACKEND SOURCE OF TRUTH)
-========================================================= */
+       🔥 SALE VALIDATION (BACKEND SOURCE OF TRUTH)
+    ========================================================= */
 
-const hasSalePrice =
-  typeof body.salePrice === "number" && body.salePrice > 0;
+    const hasSalePrice =
+      typeof body.salePrice === "number" && body.salePrice > 0;
 
-const hasSaleTime =
-  typeof body.saleStart === "string" &&
-  typeof body.saleEnd === "string" &&
-  body.saleStart &&
-  body.saleEnd;
+    const hasSaleTime =
+      typeof body.saleStart === "string" &&
+      typeof body.saleEnd === "string" &&
+      body.saleStart &&
+      body.saleEnd;
 
-const saleEnabled =
-  typeof body.saleEnabled === "boolean" ? body.saleEnabled : false;
+    const saleEnabled =
+      typeof body.saleEnabled === "boolean" ? body.saleEnabled : false;
 
-/* ❌ INVALID: enable sale nhưng thiếu price */
-if (saleEnabled && !hasSalePrice) {
-  return NextResponse.json(
-    { error: "SALE_PRICE_REQUIRED" },
-    { status: 400 }
-  );
-}
+    if (saleEnabled && !hasSalePrice) {
+      return NextResponse.json(
+        { error: "SALE_PRICE_REQUIRED" },
+        { status: 400 }
+      );
+    }
 
-/* ❌ INVALID: có sale price nhưng thiếu thời gian */
-if (hasSalePrice && !hasSaleTime) {
-  return NextResponse.json(
-    { error: "SALE_TIME_REQUIRED" },
-    { status: 400 }
-  );
-}
+    if (hasSalePrice && !hasSaleTime) {
+      return NextResponse.json(
+        { error: "SALE_TIME_REQUIRED" },
+        { status: 400 }
+      );
+    }
 
-/* ❌ INVALID: enable sale nhưng thiếu time */
-if (saleEnabled && !hasSaleTime) {
-  return NextResponse.json(
-    { error: "SALE_TIME_REQUIRED" },
-    { status: 400 }
-  );
-}
-/* ================= SALE INPUT ================= */
-
-const saleEnabled =
-  typeof body.saleEnabled === "boolean"
-    ? body.saleEnabled
-    : undefined;
-
-const saleStock =
-  typeof body.saleStock === "number" && body.saleStock >= 0
-    ? body.saleStock
-    : undefined;
+    if (saleEnabled && !hasSaleTime) {
+      return NextResponse.json(
+        { error: "SALE_TIME_REQUIRED" },
+        { status: 400 }
+      );
+    }
 
     /* ================= VARIANTS ================= */
     const normalizedVariants = normalizeVariants(body.variants);
-    console.log("🧩 [PATCH] VARIANTS:", normalizedVariants);
     const hasVariants = normalizedVariants.length > 0;
-    console.log("🧠 [PATCH] HAS VARIANTS:", hasVariants);
 
-    /* ================= PRICE INPUT ================= */
+    console.log("🧠 HAS VARIANTS:", hasVariants);
+
+    /* ================= PRICE ================= */
     const price =
       typeof body.price === "number" && !Number.isNaN(body.price)
         ? body.price
@@ -467,14 +452,11 @@ const saleStock =
         ? body.salePrice
         : null;
 
-    console.log("💰 [PATCH] INPUT PRICE:", { price, salePrice });
-
     if (
       price !== undefined &&
       salePrice !== null &&
       salePrice >= price
     ) {
-      console.error("❌ INVALID SALE PRICE");
       return NextResponse.json(
         { error: "INVALID_SALE_PRICE" },
         { status: 400 }
@@ -484,44 +466,32 @@ const saleStock =
     /* ================= DERIVE FROM VARIANTS ================= */
     let finalPrice = price;
     let finalSalePrice = salePrice;
-    let finalStock: number | undefined = undefined;
+    let finalStock: number | undefined;
 
     if (hasVariants) {
-      console.log("🧠 [PATCH] CALCULATE FROM VARIANTS");
-
       const prices = normalizedVariants
-  .map((v) => v.price)
-  .filter(
-    (p): p is number =>
-      typeof p === "number" && !Number.isNaN(p) && p > 0
-  );
+        .map((v) => v.price)
+        .filter((p) => typeof p === "number" && p > 0);
 
-const salePrices = normalizedVariants
-  .map(v => Number(v.salePrice))
-  .filter(v => !Number.isNaN(v) && v > 0);
+      const salePrices = normalizedVariants
+        .map((v) => Number(v.salePrice))
+        .filter((p) => !Number.isNaN(p) && p > 0);
 
-finalPrice = prices.length > 0 ? Math.min(...prices) : 1;
+      finalPrice = prices.length ? Math.min(...prices) : 1;
 
-finalSalePrice =
-  salePrices.length > 0 ? Math.min(...salePrices) : null;
-  if (
-  finalSalePrice !== null &&
-  finalSalePrice >= finalPrice
-) {
-  console.warn("⚠️ AUTO FIX SALE PRICE");
+      finalSalePrice = salePrices.length ? Math.min(...salePrices) : null;
 
-  finalSalePrice = null;
-}
+      if (
+        finalSalePrice !== null &&
+        finalSalePrice >= finalPrice
+      ) {
+        finalSalePrice = null;
+      }
+
       finalStock = normalizedVariants.reduce(
-  (s, v) => s + (Number(v.stock) || 0),
-  0
-);
-
-      console.log("💰 [PATCH] DERIVED:", {
-        finalPrice,
-        finalSalePrice,
-        finalStock,
-      });
+        (s, v) => s + (Number(v.stock) || 0),
+        0
+      );
     }
 
     /* ================= DATE ================= */
@@ -535,8 +505,6 @@ finalSalePrice =
         ? body.saleEnd
         : null;
 
-    console.log("📅 [PATCH] SALE TIME:", { saleStart, saleEnd });
-
     /* ================= CATEGORY ================= */
     const categoryId =
       typeof body.categoryId === "string"
@@ -545,107 +513,100 @@ finalSalePrice =
         ? body.categoryId
         : null;
 
-    console.log("📂 [PATCH] CATEGORY:", categoryId);
+    /* =========================================================
+       🔥 FINAL SALE RULE (VARIANT OVERRIDE)
+    ========================================================= */
 
-    /* ================= UPDATE ================= */
-    console.log("🛠️ [PATCH] UPDATE START");
+    const finalSaleEnabled = hasVariants ? false : saleEnabled;
+    const finalSaleStart = hasVariants ? null : saleStart;
+    const finalSaleEnd = hasVariants ? null : saleEnd;
+
+    console.log("🛠️ UPDATE START");
 
     const updated = await updateProductBySeller(userId, id, {
-  name:
-    typeof body.name === "string"
-      ? body.name.trim()
-      : undefined,
+      name:
+        typeof body.name === "string"
+          ? body.name.trim()
+          : undefined,
 
-  description:
-    typeof body.description === "string"
-      ? body.description
-      : undefined,
+      description:
+        typeof body.description === "string"
+          ? body.description
+          : undefined,
 
-  detail:
-    typeof body.detail === "string"
-      ? body.detail
-      : undefined,
+      detail:
+        typeof body.detail === "string"
+          ? body.detail
+          : undefined,
 
-  images: Array.isArray(body.images)
-    ? body.images.filter(
-        (i: unknown): i is string => typeof i === "string"
-      )
-    : undefined,
+      images: Array.isArray(body.images)
+        ? body.images.filter((i): i is string => typeof i === "string")
+        : undefined,
 
-  thumbnail:
-    body.thumbnail !== undefined
-      ? typeof body.thumbnail === "string"
-        ? body.thumbnail
-        : null
-      : undefined,
+      thumbnail:
+        body.thumbnail !== undefined
+          ? typeof body.thumbnail === "string"
+            ? body.thumbnail
+            : null
+          : undefined,
 
-  category_id: categoryId,
+      category_id: categoryId,
 
-  /* 🔥 PRICE */
-  price: finalPrice,
-  sale_price: finalSalePrice,
+      /* PRICE */
+      price: finalPrice,
+      sale_price: finalSalePrice,
 
-  stock:
-    hasVariants
-      ? finalStock
-      : typeof body.stock === "number" && body.stock >= 0
-      ? body.stock
-      : undefined,
+      stock:
+        hasVariants
+          ? finalStock
+          : typeof body.stock === "number"
+          ? body.stock
+          : undefined,
 
-  /* 🔥 SALE SYSTEM */
-  sale_enabled: saleEnabled,
-  sale_stock: saleStock,
+      /* SALE */
+      sale_enabled: finalSaleEnabled,
+      sale_stock:
+        typeof body.saleStock === "number" ? body.saleStock : undefined,
+      sale_start: finalSaleStart,
+      sale_end: finalSaleEnd,
 
-  sale_start: saleStart,
-  sale_end: saleEnd,
-
-  is_active:
-    typeof body.isActive === "boolean"
-      ? body.isActive
-      : undefined,
-});
-
-    console.log("🧾 [PATCH] UPDATED RESULT:", updated);
+      is_active:
+        typeof body.isActive === "boolean"
+          ? body.isActive
+          : undefined,
+    });
 
     if (!updated) {
-      console.error("❌ PRODUCT NOT FOUND OR FORBIDDEN");
       return NextResponse.json(
         { error: "PRODUCT_NOT_FOUND_OR_FORBIDDEN" },
         { status: 404 }
       );
     }
 
-    /* ================= SHIPPING + VARIANTS ================= */
-console.log("🚚 [PATCH] UPSERT SHIPPING & VARIANTS");
+    /* ================= RELATIONS ================= */
+    const domesticCountryCode = body.domesticCountryCode ?? null;
 
-const domesticCountryCode = body.domesticCountryCode ?? null;
+    await Promise.all([
+      Array.isArray(body.shippingRates)
+        ? upsertShippingRates({
+            productId: id,
+            rates: body.shippingRates.map((r: any) => ({
+              zone: r.zone,
+              price: Number(r.price || 0),
+              domesticCountryCode:
+                r.zone === "domestic"
+                  ? domesticCountryCode || null
+                  : null,
+            })),
+          })
+        : Promise.resolve(),
 
-await Promise.all([
-  Array.isArray(body.shippingRates)
-    ? upsertShippingRates({
-        productId: id,
-        rates: body.shippingRates.map((r: any) => ({
-          zone: r.zone,
-          price: Number(r.price || 0),
+      hasVariants
+        ? replaceVariantsByProductId(id, normalizedVariants)
+        : Promise.resolve(),
+    ]);
 
-          // 🔥 FIX QUAN TRỌNG
-          domesticCountryCode:
-            r.zone === "domestic"
-              ? domesticCountryCode || r.domesticCountryCode || null
-              : null,
-        })),
-      })
-    : Promise.resolve(),
-
-  hasVariants
-    ? replaceVariantsByProductId(id, normalizedVariants)
-    : Promise.resolve(),
-]);
-
-    console.log("✅ [PATCH] RELATIONS UPDATED");
-
-    /* ================= RESPONSE ================= */
-    console.log("🎉 [PATCH] SUCCESS");
+    console.log("🎉 PATCH SUCCESS");
 
     return NextResponse.json({
       success: true,
@@ -659,7 +620,7 @@ await Promise.all([
     });
 
   } catch (err) {
-    console.error("💥 [PRODUCT][PATCH ERROR FULL]:", err);
+    console.error("💥 PATCH ERROR:", err);
 
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
@@ -667,7 +628,6 @@ await Promise.all([
     );
   }
 }
-
 /* =========================================================
    DELETE
 ========================================================= */
