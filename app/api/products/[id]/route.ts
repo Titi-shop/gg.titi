@@ -254,7 +254,7 @@ try {
 }
 
     /* ================= FINAL PRICE ================= */
-    const finalPrice = isSale
+    const finalPrice = isProductSale
       ? (p.sale_price ?? p.price)
       : p.price;
 
