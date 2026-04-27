@@ -17,6 +17,7 @@ import CheckoutSheet from "./CheckoutSheet";
 
 type Variant = {
   id: string;
+
   option1: string;
   option2?: string | null;
   option3?: string | null;
@@ -24,8 +25,11 @@ type Variant = {
   price: number;
   salePrice?: number | null;
   finalPrice: number;
+
   stock: number;
   isActive?: boolean;
+
+  image?: string;
 };
 
 type RelatedProduct = {
@@ -161,9 +165,7 @@ const normalized: RelatedProduct[] = dataTyped.map((p) => ({
       </div>
     );
   }
-if (!product || typeof product !== "object") {
-  return null;
-}
+
   /* ================= LOGIC ================= */
 
   const hasVariants = (product?.variants?.length ?? 0) > 0;
@@ -211,7 +213,9 @@ if (!product || typeof product !== "object") {
   variant_id: selectedVariant?.id ?? null,
   name:
   hasVariants && selectedVariant
-    ? `${product.name} - ${selectedVariant.option1}${selectedVariant.option2 ? " " + selectedVariant.option2 : ""}`
+    ? `${product.name} - ${selectedVariant.option1}${
+        selectedVariant.option2 ? " " + selectedVariant.option2 : ""
+      }`
     : product.name,
   price: selectedVariant?.price ?? product.price,
   final_price:
@@ -232,9 +236,11 @@ if (!product || typeof product !== "object") {
       product_id: product.id,
       variant_id: selectedVariant?.id ?? null,
       name:
-        hasVariants && selectedVariant
-          ? `${product.name} - ${selectedVariant.optionValue}`
-          : product.name,
+     hasVariants && selectedVariant
+    ? `${product.name} - ${selectedVariant.option1}${
+        selectedVariant.option2 ? " " + selectedVariant.option2 : ""
+      }`
+      : product.name,
       price: selectedVariant?.price ?? product.price,
       final_price:
       selectedVariant?.finalPrice ?? product.finalPrice,
