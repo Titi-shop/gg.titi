@@ -166,6 +166,26 @@ return data;
 
   try {
     const hasVariants = form.variants.length > 0;
+     const hasSaleTime = form.saleStart && form.saleEnd;
+const hasSalePrice = Number(form.salePrice) > 0;
+
+if (hasSaleTime && !form.saleEnabled) {
+  alert("Có thời gian sale thì phải bật sale");
+  setSubmitting(false);
+  return;
+}
+
+if (form.saleEnabled && !hasSaleTime) {
+  alert("Bật sale phải có thời gian bắt đầu/kết thúc");
+  setSubmitting(false);
+  return;
+}
+
+if (form.saleEnabled && !hasSalePrice) {
+  alert("Sale phải có giá sale");
+  setSubmitting(false);
+  return;
+}
 
     /* ================= VALIDATE ================= */
 
@@ -209,7 +229,13 @@ const shippingRatesPayload = Object.entries(form.shippingRates)
     zone,
     price: Number(price || 0),
   }));
-
+const normalizedVariants = form.variants.map((v) => ({
+  ...v,
+  saleEnabled: false, // ❌ CHẶN VARIANT SALE
+  salePrice: null,
+  saleStock: 0,
+  saleSold: 0,
+}));
 const payload = {
   id: form.id,
   name: form.name,
@@ -230,15 +256,17 @@ const payload = {
   salePrice:
     hasVariants || !form.saleEnabled ? null : Number(form.salePrice),
 
-  saleEnabled: hasVariants ? undefined : !!form.saleEnabled,
+  saleEnabled:
+  hasVariants
+    ? undefined
+    : form.saleEnabled && hasSaleTime && hasSalePrice,
 
   saleStock:
     hasVariants || !form.saleEnabled ? 0 : Number(form.saleStock || 0),
 
   saleStart: form.saleStart ? toUTCFromInput(form.saleStart) : null,
   saleEnd: form.saleEnd ? toUTCFromInput(form.saleEnd) : null,
-
-  variants: form.variants,
+  variants: normalizedVariants,
 
   idempotencyKey: generateKey(),
 };
@@ -351,12 +379,21 @@ const payload = {
     <label className="flex justify-between border p-2 rounded">
       <span>Enable Sale</span>
       <input
-        type="checkbox"
-        checked={form.saleEnabled || false}
-        onChange={(e) =>
-          form.setSaleEnabled(e.target.checked)
-        }
-      />
+  type="checkbox"
+  checked={form.saleEnabled || false}
+  onChange={(e) => {
+    const checked = e.target.checked;
+
+    form.setSaleEnabled(checked);
+
+    if (!checked) {
+      form.setSaleStart(null);
+      form.setSaleEnd(null);
+      form.setSalePrice("");
+      form.setSaleStock(0);
+    }
+  }}
+/>
     </label>
 
     {/* SALE PRICE */}
