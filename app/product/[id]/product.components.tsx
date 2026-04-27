@@ -18,23 +18,25 @@ import "swiper/css";
 import "swiper/css/pagination";
 type Variant = {
   id: string;
-
+  image?: string;
   option1?: string;
-  option2?: string;
-  option3?: string;
+  option2?: string | null;
+  option3?: string | null;
 
-  optionLabel1?: string;
-  optionLabel2?: string;
-  optionLabel3?: string;
+  optionLabel1?: string | null;
+  optionLabel2?: string | null;
+  optionLabel3?: string | null;
 
-  optionValue?: string;
-  optionName?: string;
+  name?: string;
 
   price: number;
   salePrice?: number | null;
   finalPrice: number;
-  isSale: boolean;
+
+  saleEnabled: boolean;
   stock: number;
+
+  image?: string;
   isActive?: boolean;
 };
 
@@ -332,10 +334,9 @@ onTouchMove={(e) => {
             onClick={() => {
               if (!isDisabled) {
                 setSelectedVariant(v);
-
-                if ((v as any).image) {
-                  setActiveImage((v as any).image);
-                } else {
+                if (v.image) {
+              setActiveImage(v.image);
+             }else {
                   setActiveImage(null);
                 }
               }
@@ -361,7 +362,7 @@ onTouchMove={(e) => {
               )}
 
               <span className="text-[11px]">
-                {v.option2 || v.option1 || v.optionValue || "Option"}
+                {v.option2 || v.option1 || "Option"}
               </span>
 
               <span className="text-[10px] text-gray-400">
