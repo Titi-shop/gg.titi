@@ -1,6 +1,7 @@
 
   import { NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
+
 import {
   upsertShippingRates,
   getShippingRatesByProducts,
@@ -25,17 +26,39 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* =========================================================
+   FORENSIC LOGGER
+========================================================= */
+
+function flog(step: string, data?: any) {
+  console.log(`🧪 [API][PRODUCTS] ${step}`, data ?? "");
+}
+
+function ferr(step: string, data?: any) {
+  console.error(`💥 [API][PRODUCTS] ${step}`, data ?? "");
+}
+
+function fwarn(step: string, data?: any) {
+  console.warn(`⚠️ [API][PRODUCTS] ${step}`, data ?? "");
+}
+
+/* =========================================================
    NORMALIZE VARIANTS
 ========================================================= */
 
 function normalizeVariants(input: unknown): ProductVariant[] {
-  if (!Array.isArray(input)) return [];
+  flog("NORMALIZE_VARIANTS_INPUT", input);
 
-  console.log("🧪 [NORMALIZE] INPUT:", input);
+  if (!Array.isArray(input)) {
+    fwarn("NORMALIZE_VARIANTS_NOT_ARRAY");
+    return [];
+  }
 
   const result = input
     .map((item, index) => {
-      if (!item || typeof item !== "object") return null;
+      if (!item || typeof item !== "object") {
+        fwarn(`NORMALIZE_SKIP_INVALID_OBJECT_${index}`);
+        return null;
+      }
 
       const v: any = item;
 
@@ -44,11 +67,12 @@ function normalizeVariants(input: unknown): ProductVariant[] {
       const option3 = (v.option3 ?? "").toString().trim() || null;
 
       if (!option1) {
-        console.warn(`⚠️ [NORMALIZE] SKIP EMPTY option1 index=${index}`);
+        fwarn(`NORMALIZE_SKIP_EMPTY_OPTION1_${index}`, v);
         return null;
       }
 
       const price = Number(v.price ?? 0);
+
       const salePrice =
         v.salePrice !== null &&
         v.salePrice !== undefined &&
@@ -102,21 +126,24 @@ function normalizeVariants(input: unknown): ProductVariant[] {
         sold: Number(v.sold ?? 0),
       };
 
-      console.log(`✅ [NORMALIZE][${index}]`, normalized);
+      flog(`NORMALIZED_VARIANT_${index}`, normalized);
 
       return normalized;
     })
     .filter(Boolean) as ProductVariant[];
 
-  console.log("🎯 [NORMALIZE] OUTPUT:", result);
+  flog("NORMALIZE_VARIANTS_OUTPUT", result);
 
   return result;
 }
+
 /* =========================================================
    GET PRODUCTS
 ========================================================= */
 
 export async function GET(req: Request) {
+  flog("GET_START");
+
   try {
     const { searchParams } = new URL(req.url);
     const ids = searchParams.get("ids");
@@ -125,19 +152,26 @@ export async function GET(req: Request) {
 
     if (ids) {
       const idArray = ids.split(",").filter(Boolean);
+      flog("GET_IDS_MODE", idArray);
+
       if (!idArray.length) return NextResponse.json([]);
+
       products = await getProductsByIds(idArray);
     } else {
+      flog("GET_ALL_MODE");
       products = await getAllProducts();
     }
 
+    flog("GET_PRODUCTS_FOUND", products.length);
+
     const productIds = products.map((p) => p.id);
 
-    /* ================= SHIPPING ================= */
     const shippingRows =
       productIds.length > 0
         ? await getShippingRatesByProducts(productIds)
         : [];
+
+    flog("GET_SHIPPING_ROWS", shippingRows);
 
     const shippingMap = new Map<string, any[]>();
 
@@ -145,28 +179,25 @@ export async function GET(req: Request) {
       if (!shippingMap.has(r.product_id)) {
         shippingMap.set(r.product_id, []);
       }
+
       shippingMap.get(r.product_id)!.push({
-  zone: r.zone,
-  price: r.price,
-  domesticCountryCode: r.domestic_country_code,
-  });
+        zone: r.zone,
+        price: r.price,
+        domesticCountryCode: r.domestic_country_code,
+      });
     }
 
     const now = Date.now();
 
     const enriched = await Promise.all(
-      products.map(async (p) => {
+      products.map(async (p, index) => {
+        flog(`GET_ENRICH_PRODUCT_${index}`, { id: p.id, name: p.name });
+
         const variants = await getVariantsByProductId(p.id);
 
-        const start = p.sale_start
-          ? new Date(p.sale_start).getTime()
-          : null;
+        const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+        const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
-        const end = p.sale_end
-          ? new Date(p.sale_end).getTime()
-          : null;
-
-        /* ================= PRODUCT SALE ================= */
         const isProductSale =
           p.sale_enabled === true &&
           typeof p.sale_price === "number" &&
@@ -174,59 +205,47 @@ export async function GET(req: Request) {
           end !== null &&
           now >= start &&
           now <= end &&
-          (p.sale_stock === 0 || p.sale_sold < p.sale_stock);
+          (p.sale_stock === 0 || (p.sale_sold ?? 0) < (p.sale_stock ?? 0));
 
-        /* ================= VARIANTS ================= */
         const enrichedVariants = variants
           .filter((v) => v.isActive !== false)
-          .map((v) => {
+          .map((v, vi) => {
             const isSale =
               v.saleEnabled === true &&
               typeof v.salePrice === "number" &&
-              v.salePrice < v.price &&
+              v.salePrice < (v.price ?? 0) &&
               start !== null &&
               end !== null &&
               now >= start &&
               now <= end &&
-              (v.saleStock === 0 || v.saleSold < v.saleStock);
+              ((v.saleStock ?? 0) === 0 ||
+                (v.saleSold ?? 0) < (v.saleStock ?? 0));
 
-            const finalPrice = isSale
-              ? v.salePrice!
-              : v.price;
+            const finalPrice = isSale ? v.salePrice! : v.price!;
 
-            return {
+            const obj = {
               ...v,
               finalPrice,
               isSale,
-              saleStock: v.saleStock ?? 0,
-              saleSold: v.saleSold ?? 0,
               saleLeft: Math.max(
                 0,
                 (v.saleStock ?? 0) - (v.saleSold ?? 0)
               ),
             };
+
+            flog(`GET_VARIANT_ENRICH_${p.id}_${vi}`, obj);
+
+            return obj;
           });
 
         const hasVariants = enrichedVariants.length > 0;
 
-        /* ================= STOCK ================= */
         const stock = hasVariants
-          ? enrichedVariants.reduce((s, v) => {
-              if (v.isSale && v.saleStock > 0) {
-                return (
-                  s + Math.max(0, v.saleStock - v.saleSold)
-                );
-              }
-              return s + v.stock;
-            }, 0)
+          ? enrichedVariants.reduce((s, v) => s + (v.stock || 0), 0)
           : p.stock ?? 0;
 
-        /* ================= PRICE ================= */
-        const productFinalPrice = isProductSale
-          ? p.sale_price
-          : p.price;
+        const productFinalPrice = isProductSale ? p.sale_price : p.price;
 
-        /* ================= PRICE RANGE ================= */
         let minPrice: number | null = null;
         let maxPrice: number | null = null;
 
@@ -241,48 +260,37 @@ export async function GET(req: Request) {
           }
         }
 
-        /* ================= FINAL SALE FLAG ================= */
-        const isSale = hasVariants
-          ? enrichedVariants.some((v) => v.isSale)
-          : isProductSale;
-
         return {
           id: p.id,
           sellerId: p.seller_id,
           name: p.name,
 
-          /* PRICE */
           price: p.price,
           salePrice: p.sale_price,
-          finalPrice: hasVariants
-            ? minPrice // 🔥 FIX QUAN TRỌNG
-            : productFinalPrice,
+          finalPrice: hasVariants ? minPrice : productFinalPrice,
 
           minPrice,
           maxPrice,
           hasVariants,
 
-          /* SALE */
-          isSale,
-          saleEnd: p.sale_end,
+          isSale: hasVariants
+            ? enrichedVariants.some((v) => v.isSale)
+            : isProductSale,
 
-          /* 🔥 ADD THIẾU */
+          saleEnd: p.sale_end,
           saleStock: p.sale_stock ?? 0,
           saleSold: p.sale_sold ?? 0,
           saleLeft:
-            p.sale_stock > 0
-              ? Math.max(0, p.sale_stock - p.sale_sold)
+            (p.sale_stock ?? 0) > 0
+              ? Math.max(0, (p.sale_stock ?? 0) - (p.sale_sold ?? 0))
               : null,
 
-          /* STOCK */
           stock,
           sold: p.sold ?? 0,
 
-          /* MEDIA */
           thumbnail: p.thumbnail,
           images: p.images ?? [],
 
-          /* OTHER */
           categoryId: p.category_id,
           variants: enrichedVariants,
           shippingRates: shippingMap.get(p.id) ?? [],
@@ -290,9 +298,11 @@ export async function GET(req: Request) {
       })
     );
 
+    flog("GET_SUCCESS_RETURN", enriched.length);
+
     return NextResponse.json(enriched);
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    ferr("GET_ERROR", err);
     return NextResponse.json(
       { error: "FAILED_TO_FETCH_PRODUCTS" },
       { status: 500 }
@@ -301,188 +311,116 @@ export async function GET(req: Request) {
 }
 
 /* =========================================================
-   POST (CREATE)
+   POST CREATE PRODUCT
 ========================================================= */
 
 export async function POST(req: Request) {
-  const auth = await requireSeller();
+  flog("POST_START");
 
+  const auth = await requireSeller();
   if (!auth.ok) {
-    console.warn("❌ AUTH FAILED");
+    fwarn("POST_AUTH_FAIL");
     return auth.response;
   }
 
   const userId = auth.userId;
 
-  /* =========================================================
-     HELPER DEBUG
-  ========================================================= */
-
-  const bad = (msg: string, extra?: any) => {
-    console.error("❌ BAD REQUEST:", msg, extra);
-    return NextResponse.json({ error: msg }, { status: 400 });
-  };
-
   try {
     const body = await req.json();
-
-    console.log("📥 BODY:", JSON.stringify(body, null, 2));
-
-    /* =========================================================
-       VALIDATE BASIC
-    ========================================================= */
+    flog("POST_BODY", body);
 
     if (!body.name || typeof body.name !== "string") {
-      return bad("INVALID_NAME", body.name);
+      return NextResponse.json({ error: "INVALID_NAME" }, { status: 400 });
     }
 
-    /* =========================================================
-       VARIANTS
-    ========================================================= */
-
     const variants = normalizeVariants(body.variants);
-const hasVariants = variants.length > 0;
+    const hasVariants = variants.length > 0;
 
-/* ================= PRICE ================= */
+    let price = 0;
 
-let price = 0;
+    if (hasVariants) {
+      const prices = variants.map((v) => Number(v.price)).filter((n) => n > 0);
 
-if (hasVariants) {
-  const prices = variants
-    .map((v) => Number(v.price))
-    .filter((n) => Number.isFinite(n) && n > 0);
+      if (!prices.length) {
+        return NextResponse.json(
+          { error: "INVALID_VARIANT_PRICE" },
+          { status: 400 }
+        );
+      }
 
-  if (!prices.length) {
-    return bad("INVALID_VARIANT_PRICE", variants);
-  }
+      price = Math.min(...prices);
+    } else {
+      price = Number(body.price);
 
-  price = Math.min(...prices);
-} else {
-  price = Number(body.price);
+      if (!Number.isFinite(price) || price <= 0) {
+        return NextResponse.json({ error: "INVALID_PRICE" }, { status: 400 });
+      }
+    }
 
-  if (!Number.isFinite(price) || price <= 0) {
-    return bad("INVALID_PRICE", price);
-  }
-}
+    const saleEnabled = body.saleEnabled === true;
+    const saleStock = saleEnabled ? Number(body.saleStock ?? 0) : 0;
+    const salePrice =
+      !hasVariants && typeof body.salePrice === "number"
+        ? body.salePrice
+        : null;
 
-/* =========================================================
-   SALE
-========================================================= */
-
-const saleEnabled = body.saleEnabled === true;
-
-const saleStock = saleEnabled
-  ? Number(body.saleStock ?? 0)
-  : 0;
-
-const salePrice =
-  !hasVariants && typeof body.salePrice === "number"
-    ? body.salePrice
-    : null;
-
-console.log("🏷 saleEnabled:", saleEnabled);
-console.log("📦 saleStock:", saleStock);
-console.log("🏷 salePrice:", salePrice);
-
-/* ================= STOCK ================= */
-
-const stock = hasVariants
-  ? variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
-  : Number(body.stock) || 0;
-
-    /* =========================================================
-       CREATE PRODUCT
-    ========================================================= */
-
-    console.log("🚀 Creating product...");
+    const stock = hasVariants
+      ? variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+      : Number(body.stock) || 0;
 
     const product = await createProduct(userId, {
       name: body.name.trim(),
-
       description: body.description ?? "",
       detail: body.detail ?? "",
-
       images: Array.isArray(body.images) ? body.images : [],
       thumbnail: body.thumbnail ?? "",
-
-      category_id: body.categoryId
-        ? Number(body.categoryId)
-        : null,
+      category_id: body.categoryId ? Number(body.categoryId) : null,
 
       price,
       sale_price: hasVariants ? null : salePrice,
       sale_start: body.saleStart || null,
       sale_end: body.saleEnd || null,
 
-      stock,
-      is_active: true,
-
-      /* 🔥 SALE */
       sale_enabled: saleEnabled,
       sale_stock: saleStock,
-     domestic_country_code: body.domesticCountryCode ?? null,
+
+      stock,
+      is_active: true,
       views: 0,
       sold: 0,
     });
 
-    console.log("✅ PRODUCT CREATED:", product.id);
-
-    /* =========================================================
-       VARIANTS
-    ========================================================= */
+    flog("POST_PRODUCT_CREATED", product);
 
     if (hasVariants) {
-      console.log("🚀 Inserting variants...");
-
       await replaceVariantsByProductId(product.id, variants);
-
-      console.log("✅ VARIANTS INSERTED");
+      flog("POST_VARIANTS_INSERTED", variants.length);
     }
 
-    /* =========================================================
-       SHIPPING
-    ========================================================= */
-if (Array.isArray(body.shippingRates)) {
-  console.log("🚀 Shipping rates:", body.shippingRates);
+    if (Array.isArray(body.shippingRates)) {
+      await upsertShippingRates({
+        productId: product.id,
+        rates: body.shippingRates.map((r: any) => ({
+          zone: r.zone,
+          price: Number(r.price || 0),
+          domesticCountryCode:
+            r.zone === "domestic"
+              ? body.domesticCountryCode ?? null
+              : null,
+        })),
+      });
 
-  const domesticCountryCode = body.domesticCountryCode ?? null;
+      flog("POST_SHIPPING_SAVED", body.shippingRates);
+    }
 
-  await upsertShippingRates({
-    productId: product.id,
-    rates: body.shippingRates.map((r: any) => ({
-      zone: r.zone,
-      price: Number(r.price || 0),
-      domesticCountryCode:
-        r.zone === "domestic" ? domesticCountryCode : null,
-    })),
-  });
-
-  console.log("✅ SHIPPING SAVED");
-}
-
-    /* =========================================================
-       SUCCESS
-    ========================================================= */
-
-    console.log("🎉 SUCCESS CREATE PRODUCT:", product.id);
+    flog("POST_SUCCESS", product.id);
 
     return NextResponse.json({
       success: true,
       data: { id: product.id },
     });
-
   } catch (err: any) {
-    console.error("💥 API ERROR:", err);
-
-    /* 🔥 LOG DETAIL DB ERROR */
-    if (err?.code) {
-      console.error("🧨 DB CODE:", err.code);
-    }
-
-    if (err?.message) {
-      console.error("🧨 DB MESSAGE:", err.message);
-    }
-
+    ferr("POST_ERROR", err);
     return NextResponse.json(
       {
         error: "FAILED_TO_CREATE_PRODUCT",
@@ -492,11 +430,14 @@ if (Array.isArray(body.shippingRates)) {
     );
   }
 }
+
 /* =========================================================
-   PUT (UPDATE)
+   PUT UPDATE PRODUCT
 ========================================================= */
 
 export async function PUT(req: Request) {
+  flog("PUT_START");
+
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
@@ -504,6 +445,7 @@ export async function PUT(req: Request) {
 
   try {
     const body = await req.json();
+    flog("PUT_BODY", body);
 
     if (!body.id) {
       return NextResponse.json(
@@ -513,90 +455,77 @@ export async function PUT(req: Request) {
     }
 
     const variants = normalizeVariants(body.variants);
-const hasVariants = variants.length > 0;
+    const hasVariants = variants.length > 0;
 
-let price = 0;
+    let price = 0;
 
-if (hasVariants) {
-  const prices = variants.map(v => v.price).filter(n => n > 0);
-  price = Math.min(...prices);
-} else {
-  price = Number(body.price) || 0;
-}
+    if (hasVariants) {
+      const prices = variants.map((v) => Number(v.price)).filter((n) => n > 0);
+      price = prices.length ? Math.min(...prices) : 0;
+    } else {
+      price = Number(body.price) || 0;
+    }
 
-const salePrice =
-  typeof body.salePrice === "number"
-    ? body.salePrice
-    : null;
+    const salePrice =
+      typeof body.salePrice === "number"
+        ? body.salePrice
+        : null;
 
-if (salePrice !== null && salePrice >= price) {
-  return NextResponse.json(
-    { error: "INVALID_SALE_PRICE" },
-    { status: 400 }
-  );
-}
-
-const stock = hasVariants
-  ? variants.reduce((s, v) => s + v.stock, 0)
-  : Number(body.stock) || 0;
+    const stock = hasVariants
+      ? variants.reduce((s, v) => s + (Number(v.stock) || 0), 0)
+      : Number(body.stock) || 0;
 
     const saleEnabled = body.saleEnabled === true;
+    const saleStock = saleEnabled ? Number(body.saleStock ?? 0) : 0;
 
-const saleStock = saleEnabled
-  ? Number(body.saleStock) || 0
-  : 0;
+    const updated = await updateProductBySeller(userId, body.id, {
+      name: body.name,
+      description: body.description ?? "",
+      detail: body.detail ?? "",
+      images: body.images ?? [],
+      thumbnail: body.thumbnail ?? "",
+      category_id: body.categoryId ?? null,
 
-const updated = await updateProductBySeller(
-  userId,
-  body.id,
-  {
-    name: body.name,
-    price,
-    sale_price: hasVariants ? null : salePrice,
-    sale_enabled: saleEnabled,
-    sale_stock: saleStock,
+      price,
+      sale_price: hasVariants ? null : salePrice,
 
-    stock,
+      sale_enabled: saleEnabled,
+      sale_stock: saleStock,
+      sale_start: body.saleStart || null,
+      sale_end: body.saleEnd || null,
 
-    description: body.description ?? "",
-    detail: body.detail ?? "",
-    images: body.images ?? [],
-    thumbnail: body.thumbnail ?? "",
-    category_id: body.categoryId ?? null,
-
-    sale_start: body.saleStart || null,
-    sale_end: body.saleEnd || null,
-
-    is_active: body.isActive ?? true,
-  }
-);
+      stock,
+      is_active: body.isActive ?? true,
+    });
 
     if (!updated) {
-      return NextResponse.json(
-        { error: "NOT_FOUND" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     }
 
     await replaceVariantsByProductId(body.id, variants);
+    flog("PUT_VARIANTS_REPLACED", variants.length);
 
     if (Array.isArray(body.shippingRates)) {
       await upsertShippingRates({
-  productId: body.id,
-  rates: (body.shippingRates || []).map((r: any) => ({
-    zone: r.zone,
-    price: Number(r.price || 0),
-    domesticCountryCode:
-      r.zone === "domestic"
-        ? r.countryCode || r.domesticCountryCode || null
-        : null,
-  })),
-});
+        productId: body.id,
+        rates: body.shippingRates.map((r: any) => ({
+          zone: r.zone,
+          price: Number(r.price || 0),
+          domesticCountryCode:
+            r.zone === "domestic"
+              ? r.countryCode || r.domesticCountryCode || null
+              : null,
+        })),
+      });
+
+      flog("PUT_SHIPPING_REPLACED", body.shippingRates);
     }
 
+    flog("PUT_SUCCESS", body.id);
+
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    ferr("PUT_ERROR", err);
     return NextResponse.json(
       { error: "FAILED_TO_UPDATE_PRODUCT" },
       { status: 500 }
@@ -605,10 +534,12 @@ const updated = await updateProductBySeller(
 }
 
 /* =========================================================
-   DELETE
+   DELETE PRODUCT
 ========================================================= */
 
 export async function DELETE(req: Request) {
+  flog("DELETE_START");
+
   const auth = await requireSeller();
   if (!auth.ok) return auth.response;
 
@@ -634,13 +565,14 @@ export async function DELETE(req: Request) {
       );
     }
 
+    flog("DELETE_SUCCESS", id);
+
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error(err);
+  } catch (err: any) {
+    ferr("DELETE_ERROR", err);
     return NextResponse.json(
       { error: "FAILED_TO_DELETE_PRODUCT" },
       { status: 500 }
     );
   }
 }
-
