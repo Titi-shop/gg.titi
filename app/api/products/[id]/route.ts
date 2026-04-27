@@ -42,12 +42,7 @@ function normalizeVariants(input: unknown): ProductVariant[] {
           ? Number(v.salePrice)
           : null;
 
-      const saleEnabled =
-  Boolean(v.saleEnabled) &&
-  start !== null &&
-  end !== null &&
-  now >= start &&
-  now <= end;
+      const saleEnabled = Boolean(v.saleEnabled); // ✅ CHỈ LƯU DATA
 
       const finalPrice =
         saleEnabled &&
@@ -60,7 +55,6 @@ function normalizeVariants(input: unknown): ProductVariant[] {
       return {
         id: typeof v.id === "string" ? v.id : undefined,
 
-        /* ✅ CAMEL CASE ONLY */
         option1,
         option2,
         option3,
@@ -72,11 +66,7 @@ function normalizeVariants(input: unknown): ProductVariant[] {
         optionName: v.optionLabel1 ?? "option",
         optionValue: option1,
 
-        name:
-          v.name ??
-          [option1, option2, option3]
-            .filter(Boolean)
-            .join(" - "),
+        name: v.name ?? [option1, option2, option3].filter(Boolean).join(" - "),
 
         sku: v.sku ?? null,
 
@@ -87,7 +77,8 @@ function normalizeVariants(input: unknown): ProductVariant[] {
         stock: Number(v.stock) || 0,
         isUnlimited: Boolean(v.isUnlimited),
 
-        saleEnabled,
+        saleEnabled, // ✅ đúng
+
         saleStock: Number(v.saleStock ?? 0),
         saleSold: Number(v.saleSold ?? 0),
 
@@ -140,16 +131,12 @@ function normalizeVariants(input: unknown): ProductVariant[] {
     /* ================= SALE LOGIC ================= */
     const now = Date.now();
 
-    const start = p.sale_start
-      ? new Date(p.sale_start).getTime()
-      : null;
+const start = p.sale_start ? new Date(p.sale_start).getTime() : null;
+const end = p.sale_end ? new Date(p.sale_end).getTime() : null;
 
-    const end = p.sale_end
-      ? new Date(p.sale_end).getTime()
-      : null;
+const hasVariants = rawVariants.length > 0;
 
-    const hasVariants = rawVariants.length > 0;
-const isSale =
+const isProductSale =
   !hasVariants &&
   typeof p.sale_price === "number" &&
   start !== null &&
@@ -366,20 +353,13 @@ export async function PATCH(
 
   /* ================= AUTH ================= */
   const auth = await requireSeller();
-
-  if (!auth.ok) {
-    console.error("❌ [PATCH][AUTH FAILED]");
-    return auth.response;
-  }
+  if (!auth.ok) return auth.response;
 
   const userId = auth.userId;
 
   try {
     const id = params.id;
 
-    console.log("📌 [PATCH] PARAM ID:", id);
-
-    /* ================= VALIDATE ID ================= */
     if (!id || typeof id !== "string") {
       return NextResponse.json(
         { error: "INVALID_PRODUCT_ID" },
@@ -396,23 +376,35 @@ export async function PATCH(
       );
     }
 
-    console.log("📦 [PATCH] BODY:", body);
+    console.log("📦 [PATCH] BODY OK");
 
     /* =========================================================
-       🔥 SALE VALIDATION (BACKEND SOURCE OF TRUTH)
+       SALE INPUT
     ========================================================= */
-
-    const hasSalePrice =
-      typeof body.salePrice === "number" && body.salePrice > 0;
-
-    const hasSaleTime =
-      typeof body.saleStart === "string" &&
-      typeof body.saleEnd === "string" &&
-      body.saleStart &&
-      body.saleEnd;
 
     const saleEnabled =
       typeof body.saleEnabled === "boolean" ? body.saleEnabled : false;
+
+    const salePrice =
+      typeof body.salePrice === "number" && !Number.isNaN(body.salePrice)
+        ? body.salePrice
+        : null;
+
+    const saleStart =
+      typeof body.saleStart === "string" && body.saleStart
+        ? body.saleStart
+        : null;
+
+    const saleEnd =
+      typeof body.saleEnd === "string" && body.saleEnd
+        ? body.saleEnd
+        : null;
+
+    const hasSalePrice = salePrice !== null && salePrice > 0;
+
+    const hasSaleTime = !!saleStart && !!saleEnd;
+
+    /* ================= VALIDATION (STRICT) ================= */
 
     if (saleEnabled && !hasSalePrice) {
       return NextResponse.json(
@@ -436,42 +428,29 @@ export async function PATCH(
     }
 
     /* ================= VARIANTS ================= */
+
     const normalizedVariants = normalizeVariants(body.variants);
     const hasVariants = normalizedVariants.length > 0;
 
     console.log("🧠 HAS VARIANTS:", hasVariants);
 
     /* ================= PRICE ================= */
+
     const price =
       typeof body.price === "number" && !Number.isNaN(body.price)
         ? body.price
         : undefined;
 
-    const salePrice =
-      typeof body.salePrice === "number" && !Number.isNaN(body.salePrice)
-        ? body.salePrice
-        : null;
-
-    if (
-      price !== undefined &&
-      salePrice !== null &&
-      salePrice >= price
-    ) {
-      return NextResponse.json(
-        { error: "INVALID_SALE_PRICE" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= DERIVE FROM VARIANTS ================= */
     let finalPrice = price;
     let finalSalePrice = salePrice;
     let finalStock: number | undefined;
 
+    /* ================= VARIANT OVERRIDE LOGIC ================= */
+
     if (hasVariants) {
       const prices = normalizedVariants
         .map((v) => v.price)
-        .filter((p) => typeof p === "number" && p > 0);
+        .filter((p): p is number => typeof p === "number" && p > 0);
 
       const salePrices = normalizedVariants
         .map((v) => Number(v.salePrice))
@@ -481,31 +460,18 @@ export async function PATCH(
 
       finalSalePrice = salePrices.length ? Math.min(...salePrices) : null;
 
-      if (
-        finalSalePrice !== null &&
-        finalSalePrice >= finalPrice
-      ) {
+      if (finalSalePrice !== null && finalSalePrice >= finalPrice) {
         finalSalePrice = null;
       }
 
       finalStock = normalizedVariants.reduce(
-        (s, v) => s + (Number(v.stock) || 0),
+        (sum, v) => sum + (Number(v.stock) || 0),
         0
       );
     }
 
-    /* ================= DATE ================= */
-    const saleStart =
-      typeof body.saleStart === "string" && body.saleStart
-        ? body.saleStart
-        : null;
-
-    const saleEnd =
-      typeof body.saleEnd === "string" && body.saleEnd
-        ? body.saleEnd
-        : null;
-
     /* ================= CATEGORY ================= */
+
     const categoryId =
       typeof body.categoryId === "string"
         ? Number(body.categoryId)
@@ -514,30 +480,27 @@ export async function PATCH(
         : null;
 
     /* =========================================================
-       🔥 FINAL SALE RULE (VARIANT OVERRIDE)
+       FINAL SALE RULE
+       (VARIANT ALWAYS OVERRIDES PRODUCT SALE)
     ========================================================= */
 
     const finalSaleEnabled = hasVariants ? false : saleEnabled;
     const finalSaleStart = hasVariants ? null : saleStart;
     const finalSaleEnd = hasVariants ? null : saleEnd;
 
+    /* ================= UPDATE PRODUCT ================= */
+
     console.log("🛠️ UPDATE START");
 
     const updated = await updateProductBySeller(userId, id, {
       name:
-        typeof body.name === "string"
-          ? body.name.trim()
-          : undefined,
+        typeof body.name === "string" ? body.name.trim() : undefined,
 
       description:
-        typeof body.description === "string"
-          ? body.description
-          : undefined,
+        typeof body.description === "string" ? body.description : undefined,
 
       detail:
-        typeof body.detail === "string"
-          ? body.detail
-          : undefined,
+        typeof body.detail === "string" ? body.detail : undefined,
 
       images: Array.isArray(body.images)
         ? body.images.filter((i): i is string => typeof i === "string")
@@ -556,12 +519,12 @@ export async function PATCH(
       price: finalPrice,
       sale_price: finalSalePrice,
 
-      stock:
-        hasVariants
-          ? finalStock
-          : typeof body.stock === "number"
-          ? body.stock
-          : undefined,
+      /* STOCK */
+      stock: hasVariants
+        ? finalStock
+        : typeof body.stock === "number"
+        ? body.stock
+        : undefined,
 
       /* SALE */
       sale_enabled: finalSaleEnabled,
@@ -584,6 +547,7 @@ export async function PATCH(
     }
 
     /* ================= RELATIONS ================= */
+
     const domesticCountryCode = body.domesticCountryCode ?? null;
 
     await Promise.all([
@@ -618,7 +582,6 @@ export async function PATCH(
         stock: hasVariants ? finalStock : updated.stock,
       },
     });
-
   } catch (err) {
     console.error("💥 PATCH ERROR:", err);
 
