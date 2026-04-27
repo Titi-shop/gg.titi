@@ -613,3 +613,67 @@ export async function deleteProductById(
     return { ok: false, paths: [], error: "DB_ERROR" };
   }
 }
+/* =========================================================
+   LEGACY COMPATIBILITY EXPORTS
+   GIỮ TƯƠNG THÍCH TOÀN APP
+========================================================= */
+
+export async function deleteProductBySeller(
+  sellerId: string,
+  productId: string
+): Promise<boolean> {
+  console.log("🧪 [DB][PRODUCT][DELETE_BY_SELLER] START", {
+    sellerId,
+    productId,
+  });
+
+  const result = await deleteProductById(productId, sellerId);
+
+  console.log("🧪 [DB][PRODUCT][DELETE_BY_SELLER] RESULT", result);
+
+  return result.ok;
+}
+
+export async function getSoldByProduct(
+  productId: string
+): Promise<number> {
+  console.log("🧪 [DB][PRODUCT][GET_SOLD] START", productId);
+
+  const { rows } = await query(
+    `
+    SELECT COALESCE(SUM(quantity),0)::int AS sold
+    FROM order_items
+    WHERE product_id = $1
+    `,
+    [productId]
+  );
+
+  const sold = Number(rows[0]?.sold ?? 0);
+
+  console.log("🧪 [DB][PRODUCT][GET_SOLD] RESULT", sold);
+
+  return sold;
+}
+
+export async function incrementProductView(
+  productId: string
+): Promise<number> {
+  console.log("🧪 [DB][PRODUCT][INCREMENT_VIEW] START", productId);
+
+  const { rows } = await query(
+    `
+    UPDATE products
+    SET views = COALESCE(views,0) + 1,
+        updated_at = NOW()
+    WHERE id = $1
+    RETURNING views
+    `,
+    [productId]
+  );
+
+  const views = Number(rows[0]?.views ?? 0);
+
+  console.log("🧪 [DB][PRODUCT][INCREMENT_VIEW] RESULT", views);
+
+  return views;
+}
