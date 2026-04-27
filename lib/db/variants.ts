@@ -89,12 +89,12 @@ export type ProductVariant = {
    CALCULATE FINAL PRICE
 ========================================================= */
 
-function calcFinalPrice(v: ProductVariant) {
+function calcFinalPrice(v: ProductVariant, productSaleActive: boolean) {
   const price = Number(v.price || 0);
   const salePrice = v.salePrice != null ? Number(v.salePrice) : null;
 
   if (
-    v.saleEnabled &&
+    productSaleActive &&
     salePrice !== null &&
     salePrice > 0 &&
     salePrice < price
@@ -147,11 +147,9 @@ export function mapVariantToApp(v: ProductVariantDB): ProductVariant {
     salePrice,
     finalPrice,
 
-    // ❌ KHÔNG còn saleEnabled
-    saleEnabled: undefined,
-
-    saleStock: 0,
-    saleSold: 0,
+    saleEnabled: false,
+   saleStock: 0,
+   saleSold: 0,
 
     stock: Number(v.stock ?? 0),
     isUnlimited: Boolean(v.is_unlimited),
@@ -412,7 +410,6 @@ export async function decreaseVariantStock(
     const now = new Date();
 
 const isSaleActive =
-  v.sale_enabled &&
   v.sale_start &&
   v.sale_end &&
   now >= new Date(v.sale_start) &&
