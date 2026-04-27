@@ -17,12 +17,15 @@ import CheckoutSheet from "./CheckoutSheet";
 
 type Variant = {
   id: string;
-  optionValue: string;
+  option1: string;
+  option2?: string | null;
+  option3?: string | null;
+
   price: number;
   salePrice?: number | null;
   finalPrice: number;
   stock: number;
-  isActive?: boolean; 
+  isActive?: boolean;
 };
 
 type RelatedProduct = {
@@ -35,7 +38,16 @@ type RelatedProduct = {
   finalPrice: number;
   isSale: boolean;
 };
-
+type ApiProduct = {
+  id: string;
+  categoryId: string;
+  name: string;
+  thumbnail?: string | null;
+  price: number;
+  salePrice?: number | null;
+  finalPrice: number;
+  isSale: boolean;
+};
 /* ================= PAGE ================= */
 
 export default function ProductDetail() {
@@ -110,11 +122,13 @@ export default function ProductDetail() {
         const data = await res.json();
         if (!Array.isArray(data)) return;
 
-        const normalized: RelatedProduct[] = data.map((p: any) => ({
+        const dataTyped = data as ApiProduct[];
+
+const normalized: RelatedProduct[] = dataTyped.map((p) => ({
   id: p.id,
   categoryId: p.categoryId,
   name: p.name,
-  thumbnail: p.thumbnail,
+  thumbnail: p.thumbnail ?? undefined,
   price: p.price,
   salePrice: p.salePrice ?? null,
   finalPrice: p.finalPrice,
@@ -154,8 +168,11 @@ if (!product || typeof product !== "object") {
 
   const hasVariants = (product?.variants?.length ?? 0) > 0;
 
-  const availableVariants = product.variants?.filter(
-  (v: Variant) => (v.isActive ?? true) && (v.optionValue || v.option1 || v.option2)
+  const availableVariants =
+  product.variants?.filter(
+    (v: Variant) =>
+      (v.isActive ?? true) &&
+      (v.option1 || v.option2 || v.option3)
   ) ?? [];
 
   const selectedStock = hasVariants
@@ -193,9 +210,9 @@ if (!product || typeof product !== "object") {
   product_id: product.id,
   variant_id: selectedVariant?.id ?? null,
   name:
-    hasVariants && selectedVariant
-      ? `${product.name} - ${selectedVariant.optionValue}`
-      : product.name,
+  hasVariants && selectedVariant
+    ? `${product.name} - ${selectedVariant.option1}${selectedVariant.option2 ? " " + selectedVariant.option2 : ""}`
+    : product.name,
   price: selectedVariant?.price ?? product.price,
   final_price:
     selectedVariant?.finalPrice ?? product.finalPrice,
