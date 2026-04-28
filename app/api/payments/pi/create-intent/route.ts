@@ -188,7 +188,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({
-  paymentIntentId: intent.id, 
+  paymentIntentId: intent.paymentIntentId,
   amount: intent.amount,
   memo: intent.memo,
   nonce: intent.nonce,
