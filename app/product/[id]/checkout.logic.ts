@@ -40,9 +40,7 @@ type ValidateParams = {
 type UseCheckoutPayParams = {
   item: Item | null;
   quantity: number;
-  total: number;
   shipping: ShippingInfo | null;
-  unitPrice: number;
   processing: boolean;
   setProcessing: (v: boolean) => void;
   processingRef: { current: boolean };
@@ -54,8 +52,16 @@ type UseCheckoutPayParams = {
   product: { variant_id?: string | null };
   showMessage: (text: string, type?: "error" | "success") => void;
   validate: () => boolean;
-  preview: { total: number } | null;
 };
+
+/* =========================
+   PI SAFE CHECK
+========================= */
+
+function getPi() {
+  if (typeof window === "undefined") return null;
+  return (window as any).Pi || null;
+}
 
 /* =========================
    PREVIEW (OPTIONAL UI ONLY)
@@ -121,68 +127,7 @@ export const getErrorKey = (code?: string) => {
 };
 
 /* =========================
-   VALIDATION
-========================= */
-
-export function validateBeforePay({
-  user,
-  piReady,
-  shipping,
-  zone,
-  item,
-  quantity,
-  maxStock,
-  pilogin,
-  showMessage,
-  t,
-}: ValidateParams): boolean {
-  if (!user) {
-    localStorage.setItem("pending_checkout", "1");
-    pilogin?.();
-    showMessage(t.please_login ?? "please_login");
-    return false;
-  }
-
-  if (!piReady) {
-    showMessage(t.pi_not_ready ?? "pi_not_ready");
-    return false;
-  }
-
-  if (!shipping) {
-    showMessage(t.please_add_shipping_address ?? "no_address");
-    return false;
-  }
-
-  if (!shipping.country || !shipping.region) {
-    showMessage(t.invalid_shipping ?? "invalid_shipping");
-    return false;
-  }
-
-  if (!zone) {
-    showMessage(t.shipping_required ?? "select_region");
-    return false;
-  }
-
-  if (!item?.id) {
-    showMessage(t.invalid_product ?? "invalid_product");
-    return false;
-  }
-
-  if (quantity < 1 || quantity > maxStock) {
-    showMessage(t.invalid_quantity ?? "invalid_quantity");
-    return false;
-  }
-
-  if (item.stock <= 0) {
-    showMessage(t.out_of_stock ?? "out_of_stock");
-    return false;
-  }
-
-  return true;
-}
-
-/* =========================
-   MAIN PAY FLOW
+   PAY FLOW (FIXED)
 ========================= */
 
 export function useCheckoutPay({
@@ -202,18 +147,26 @@ export function useCheckoutPay({
   validate,
 }: UseCheckoutPayParams) {
   return useCallback(async () => {
-    if (processingRef.current || processing) return;
+    if (processing || processingRef.current) return;
+
     if (!validate()) return;
+
+    const Pi = getPi();
+
+    if (!Pi?.createPayment) {
+      showMessage("Pi Wallet chưa sẵn sàng");
+      return;
+    }
 
     processingRef.current = true;
     setProcessing(true);
 
     try {
-      const token = await getPiAccessToken();
-
       /* =========================
-         1. CREATE INTENT (SOURCE OF TRUTH)
+         1. CREATE INTENT
       ========================= */
+
+      const token = await getPiAccessToken();
 
       const intentRes = await fetch("/api/payments/pi/create-intent", {
         method: "POST",
@@ -238,12 +191,12 @@ export function useCheckoutPay({
       }
 
       /* =========================
-         2. OPEN PI WALLET
+         2. OPEN PI WALLET (CRITICAL FIX)
       ========================= */
 
-      await window.Pi?.createPayment(
+      Pi.createPayment(
         {
-          amount: intentData.amount,
+          amount: intentData.amount, // ⚠️ IMPORTANT: use backend source of truth
           memo: t.payment_memo_order ?? "order_payment",
           metadata: {
             intent_id: intentData.paymentIntentId,
@@ -254,17 +207,19 @@ export function useCheckoutPay({
         },
         {
           /* =========================
-             APPROVAL STEP
+             APPROVAL
           ========================= */
           onReadyForServerApproval: (paymentId, callback) => {
             callback();
           },
 
           /* =========================
-             COMPLETION STEP
+             COMPLETION
           ========================= */
           onReadyForServerCompletion: async (piPaymentId, txid) => {
             try {
+              const token = await getPiAccessToken();
+
               const res = await fetch("/api/payments/pi/submit", {
                 method: "POST",
                 headers: {
@@ -288,7 +243,7 @@ export function useCheckoutPay({
               router.replace("/customer/orders?tab=pending");
               showMessage(t.payment_success ?? "success", "success");
             } catch (err) {
-              console.error("SUBMIT ERROR:", err);
+              console.error(err);
               showMessage(t.payment_failed ?? "payment_failed");
             } finally {
               processingRef.current = false;
@@ -296,12 +251,18 @@ export function useCheckoutPay({
             }
           },
 
+          /* =========================
+             CANCEL
+          ========================= */
           onCancel: () => {
             processingRef.current = false;
             setProcessing(false);
             showMessage(t.payment_cancelled ?? "cancelled");
           },
 
+          /* =========================
+             ERROR
+          ========================= */
           onError: () => {
             processingRef.current = false;
             setProcessing(false);
