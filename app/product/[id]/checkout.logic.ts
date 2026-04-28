@@ -259,30 +259,9 @@ if (!preview || typeof preview.total !== "number") {
        },
         },
         {
-          onReadyForServerApproval: async (paymentId, callback) => {
-            try {
-              const token = await getPiAccessToken();
-
-              const res = await fetch("/api/payments/pi/approve-intent", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ paymentId }),
-              });
-
-              if (!res.ok) {
-                showMessage(t.payment_approve_failed ?? "approve_failed");
-                throw new Error("APPROVE_FAILED");
-              }
-
-              callback();
-            } catch {
-              showMessage(t.payment_approve_error ?? "approve_error");
-              throw new Error("APPROVE_ERROR");
-            }
-          },
+          onReadyForServerApproval: (paymentId, callback) => {
+  callback();
+},
 
           onReadyForServerCompletion: async (piPaymentId, txid) => {
   try {
