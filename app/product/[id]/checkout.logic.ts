@@ -288,7 +288,7 @@ if (!preview || typeof preview.total !== "number") {
   try {
     const token = await getPiAccessToken();
 
-    const res = await fetch("/api/pi/complete", {
+    const res = await fetch("/api/payments/pi/submit", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
