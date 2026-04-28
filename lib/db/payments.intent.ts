@@ -248,7 +248,7 @@ export async function createPiPaymentIntent(
     const intentRes = await client.query<{ id: string }>(
       `
       INSERT INTO payment_intents (
-        user_id,
+        buyer_id,
         seller_id,
         product_id,
         variant_id,
@@ -287,7 +287,7 @@ export async function createPiPaymentIntent(
       RETURNING id
       `,
       [
-        params.userId,
+        params.buyer_id,
         product.seller_id,
         product.id,
         params.variantId ?? null,
