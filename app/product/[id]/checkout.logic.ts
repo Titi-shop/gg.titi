@@ -331,25 +331,26 @@ await window.Pi.createPayment(
   },
   {
     onReadyForServerCompletion: async (piPaymentId, txid) => {
-      await fetch("/api/payments/pi/submit", {
-        method: "POST",
-        body: JSON.stringify({
-          paymentIntentId: intent.paymentIntentId,
-          piPaymentId,
-          txid,
-        }),
-      
-        onClose();
-        router.replace("/customer/orders?tab=pending");
-        showMessage(t.payment_success ?? "success", "success");
-      } catch (err) {
-        console.error("SUBMIT ERROR:", err);
-        showMessage(t.payment_failed ?? "payment_failed");
-      } finally {
-        processingRef.current = false;
-        setProcessing(false);
-      }
-    },
+  try {
+    await submitPiPayment({
+      paymentIntentId: intent.paymentIntentId,
+      piPaymentId,
+      txid,
+    });
+
+    onClose();
+
+    router.replace("/customer/orders?tab=pending");
+
+    showMessage(t.payment_success ?? "success", "success");
+  } catch (err) {
+    console.error("SUBMIT ERROR:", err);
+    showMessage(t.payment_failed ?? "payment_failed");
+  } finally {
+    processingRef.current = false;
+    setProcessing(false);
+  }
+},
 
     onCancel: () => {
       processingRef.current = false;
