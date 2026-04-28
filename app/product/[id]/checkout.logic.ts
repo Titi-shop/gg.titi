@@ -249,63 +249,155 @@ if (!preview || typeof preview.total !== "number") {
       }
 
       /* ===== PI PAYMENT ===== */
-      await window.Pi?.createPayment(
-        {
-          amount: finalPreview.total,
-          memo: t.payment_memo_order ?? "order_payment",
-          metadata: {
-     product_id: item?.id,
-     variant_id: product.variant_id ?? null,
-       quantity,
-       },
-        },
-        {
-          onReadyForServerApproval: async (paymentId, callback) => {
-            try {
-              const token = await getPiAccessToken();
+      /* =========================
+   CREATE PAYMENT INTENT FIRST
+========================= */
 
-              const res = await fetch("/api/pi/approve", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ paymentId }),
-              });
+const token = await getPiAccessToken();
 
-              if (!res.ok) {
-                showMessage(t.payment_approve_failed ?? "approve_failed");
-                throw new Error("APPROVE_FAILED");
-              }
+const intentRes = await fetch("/api/payments/pi/create-intent", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    product_id: item?.id,
+    variant_id: product.variant_id ?? null,
+    quantity,
+    country: shipping?.country,
+    zone,
+    shipping: {
+      name: shipping?.name,
+      phone: shipping?.phone,
+      address_line: shipping?.address_line,
+      ward: shipping?.ward,
+      district: shipping?.district,
+      region: shipping?.region,
+      postal_code: shipping?.postal_code,
+    },
+  }),
+});
 
-              callback();
-            } catch {
-              showMessage(t.payment_approve_error ?? "approve_error");
-              throw new Error("APPROVE_ERROR");
-            }
+const intentData = await intentRes.json();
+
+if (!intentRes.ok) {
+  showMessage(t.payment_intent_failed ?? intentData?.error ?? "payment_intent_failed");
+  throw new Error(intentData?.error || "PAYMENT_INTENT_FAILED");
+}
+
+const paymentIntentId = intentData.paymentIntentId;
+const lockedAmount = Number(intentData.amount);
+const lockedMemo = intentData.memo || (t.payment_memo_order ?? "order_payment");
+
+/* =========================
+   OPEN PI WALLET
+========================= */
+
+window.Pi?.createPayment(
+  {
+    amount: lockedAmount,
+    memo: lockedMemo,
+    metadata: {
+      payment_intent_id: paymentIntentId,
+      product_id: item?.id,
+      variant_id: product.variant_id ?? null,
+      quantity,
+    },
+  },
+  {
+    /* =========================
+       MERCHANT APPROVAL
+    ========================= */
+    onReadyForServerApproval: async (paymentId, callback) => {
+      try {
+        const token = await getPiAccessToken();
+
+        const res = await fetch("/api/payments/pi/submit", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            payment_intent_id: paymentIntentId,
+            pi_payment_id: paymentId,
+          }),
+        });
 
-          onReadyForServerCompletion: async (paymentId, txid) => {
-  try {
-    const token = await getPiAccessToken();
+        const data = await res.json().catch(() => null);
 
-    const res = await fetch("/api/pi/complete", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-  paymentId,
-  txid,
-     }),
-    });
+        if (!res.ok) {
+          showMessage(t.payment_approve_failed ?? data?.error ?? "approve_failed");
+          throw new Error(data?.error || "APPROVE_FAILED");
+        }
 
-    if (!res.ok) {
-      showMessage(t.payment_complete_failed ?? "complete_failed");
-      throw new Error("COMPLETE_FAILED");
-    }
+        callback();
+      } catch (err) {
+        processingRef.current = false;
+        setProcessing(false);
+        showMessage(t.payment_approve_error ?? "approve_error");
+        throw err;
+      }
+    },
 
+    /* =========================
+       BLOCKCHAIN COMPLETE
+    ========================= */
+    onReadyForServerCompletion: async (paymentId, txid, callback) => {
+      try {
+        const token = await getPiAccessToken();
+
+        const res = await fetch("/api/payments/pi/reconcile", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            payment_intent_id: paymentIntentId,
+            pi_payment_id: paymentId,
+            txid,
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          showMessage(t.payment_complete_failed ?? data?.error ?? "complete_failed");
+          throw new Error(data?.error || "RECONCILE_FAILED");
+        }
+
+        callback();
+
+        onClose();
+        router.replace("/customer/orders?tab=pending");
+        showMessage(t.payment_success ?? "success", "success");
+      } catch (err) {
+        processingRef.current = false;
+        setProcessing(false);
+        showMessage(t.payment_failed ?? "payment_failed");
+        throw err;
+      } finally {
+        processingRef.current = false;
+        setProcessing(false);
+      }
+    },
+
+    onCancel: () => {
+      processingRef.current = false;
+      setProcessing(false);
+      showMessage(t.payment_cancelled ?? "cancelled");
+    },
+
+    onError: (err) => {
+      console.error("PI SDK ERROR:", err);
+      processingRef.current = false;
+      setProcessing(false);
+      showMessage(t.payment_failed ?? "payment_failed");
+    },
+  }
+);
     /* =========================
        SUCCESS → REDIRECT
     ========================= */
