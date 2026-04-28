@@ -284,7 +284,7 @@ if (!preview || typeof preview.total !== "number") {
             }
           },
 
-          onReadyForServerCompletion: async (paymentId, txid) => {
+          onReadyForServerCompletion: async (piPaymentId, txid) => {
   try {
     const token = await getPiAccessToken();
 
@@ -295,30 +295,23 @@ if (!preview || typeof preview.total !== "number") {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-  paymentId,
-  txid,
-     }),
+        payment_intent_id: piPaymentId,
+        pi_payment_id: piPaymentId,
+        txid,
+      }),
     });
 
     if (!res.ok) {
-      showMessage(t.payment_complete_failed ?? "complete_failed");
-      throw new Error("COMPLETE_FAILED");
+      throw new Error("SUBMIT_FAILED");
     }
 
-    /* =========================
-       SUCCESS → REDIRECT
-    ========================= */
     onClose();
-
     router.replace("/customer/orders?tab=pending");
-
     showMessage(t.payment_success ?? "success", "success");
 
   } catch (err) {
-    console.error("COMPLETE ERROR:", err);
-
+    console.error("SUBMIT ERROR:", err);
     showMessage(t.payment_failed ?? "payment_failed");
-
   } finally {
     processingRef.current = false;
     setProcessing(false);
