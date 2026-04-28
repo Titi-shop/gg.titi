@@ -187,7 +187,12 @@ export async function POST(req: Request) {
       paymentIntentId: intent.paymentIntentId,
     });
 
-    return NextResponse.json(intent);
+    return NextResponse.json({
+  paymentIntentId: intent.id, 
+  amount: intent.amount,
+  memo: intent.memo,
+  nonce: intent.nonce,
+});
   } catch (err) {
     const code =
       err instanceof Error && err.message
