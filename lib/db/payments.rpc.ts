@@ -288,3 +288,172 @@ async function logRpc(
     console.error("🔥 [RPC_VERIFY] LOG_FAIL", err);
   }
 }
+
+type VerifyRpcParams = {
+  paymentIntentId: string;
+  txid: string;
+};
+
+type VerifyRpcResult = {
+  ok: true;
+  txid: string;
+  amount: number;
+  receiverWallet: string;
+  raw: unknown;
+};
+
+function getRpcUrl(): string {
+  const url = process.env.PI_RPC_URL?.trim();
+
+  if (!url) {
+    throw new Error("MISSING_PI_RPC_URL");
+  }
+
+  return url;
+}
+
+async function writeRpcLog({
+  paymentIntentId,
+  txid,
+  verified,
+  reason,
+  payload,
+}: {
+  paymentIntentId: string;
+  txid: string;
+  verified: boolean;
+  reason?: string;
+  payload?: unknown;
+}) {
+  try {
+    await query(
+      `
+      INSERT INTO rpc_verification_logs (
+        payment_intent_id,
+        txid,
+        verified,
+        reason,
+        payload
+      )
+      VALUES ($1,$2,$3,$4,$5)
+      `,
+      [
+        paymentIntentId,
+        txid,
+        verified,
+        reason || null,
+        JSON.stringify(payload || null),
+      ]
+    );
+  } catch (e) {
+    console.error("🔥 [RPC LOG WRITE FAIL]", e);
+  }
+}
+
+export async function verifyRpcPaymentForReconcile({
+  paymentIntentId,
+  txid,
+}: VerifyRpcParams): Promise<VerifyRpcResult> {
+  console.log("🟡 [RPC VERIFY] START", {
+    paymentIntentId,
+    txid,
+  });
+
+  const rpcUrl = getRpcUrl();
+
+  const res = await fetch(`${rpcUrl}/tx/${txid}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => null);
+
+  console.log("🟡 [RPC VERIFY] RAW", data);
+
+  if (!res.ok || !data) {
+    await writeRpcLog({
+      paymentIntentId,
+      txid,
+      verified: false,
+      reason: "RPC_FETCH_FAILED",
+      payload: data,
+    });
+
+    throw new Error("RPC_FETCH_FAILED");
+  }
+
+  const amount = Number(
+    data.amount ??
+    data.nativeAmount ??
+    data.value ??
+    0
+  );
+
+  const receiverWallet = String(
+    data.to ??
+    data.destination ??
+    data.receiver ??
+    ""
+  );
+
+  const confirmed =
+    Boolean(data.confirmed) ||
+    data.status === "success" ||
+    data.success === true;
+
+  if (!confirmed) {
+    await writeRpcLog({
+      paymentIntentId,
+      txid,
+      verified: false,
+      reason: "TX_NOT_CONFIRMED",
+      payload: data,
+    });
+
+    throw new Error("TX_NOT_CONFIRMED");
+  }
+
+  if (!receiverWallet) {
+    await writeRpcLog({
+      paymentIntentId,
+      txid,
+      verified: false,
+      reason: "INVALID_RECEIVER",
+      payload: data,
+    });
+
+    throw new Error("INVALID_RECEIVER");
+  }
+
+  if (Number.isNaN(amount) || amount <= 0) {
+    await writeRpcLog({
+      paymentIntentId,
+      txid,
+      verified: false,
+      reason: "INVALID_AMOUNT",
+      payload: data,
+    });
+
+    throw new Error("INVALID_AMOUNT");
+  }
+
+  await writeRpcLog({
+    paymentIntentId,
+    txid,
+    verified: true,
+    payload: data,
+  });
+
+  console.log("🟢 [RPC VERIFY] VERIFIED", {
+    amount,
+    receiverWallet,
+  });
+
+  return {
+    ok: true,
+    txid,
+    amount,
+    receiverWallet,
+    raw: data,
+  };
+}
