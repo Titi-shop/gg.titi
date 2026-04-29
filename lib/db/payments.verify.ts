@@ -124,10 +124,6 @@ export async function bindPiPaymentToIntent(
     piPaymentId,
   });
 
-  /* =========================
-     LOCK PAYMENT INTENT
-  ========================= */
-
   const lock = await client.query<{
     id: string;
     buyer_id: string;
@@ -181,17 +177,14 @@ export async function bindPiPaymentToIntent(
     throw new Error("PI_AMOUNT_MISMATCH");
   }
 
-  /* =========================
-     UPDATE PAYMENT INTENT
-  ========================= */
-
   await client.query(
     `
     UPDATE payment_intents
     SET
       pi_payment_id = $2,
       pi_user_uid = $3,
-      pi_payment_payload = $4,
+      pi_verified_amount = $4,
+      pi_payment_payload = $5,
       status = 'wallet_opened',
       updated_at = now()
     WHERE id = $1
@@ -200,15 +193,12 @@ export async function bindPiPaymentToIntent(
       paymentIntentId,
       piPaymentId,
       piUid,
+      verifiedAmount,
       JSON.stringify(piPayload ?? {}),
     ]
   );
 
   console.log("🟢 [PI VERIFY] INTENT_BOUND_OK");
-
-  /* =========================
-     OPTIONAL AUTHORIZE LOG
-  ========================= */
 
   await client.query(
     `
@@ -236,7 +226,6 @@ export async function bindPiPaymentToIntent(
 
 /* =========================================================
    RECONCILE VERIFY PI PAYMENT
-   CALLED FROM /reconcile
 ========================================================= */
 
 export async function verifyPiPaymentForReconcile({
@@ -262,6 +251,8 @@ export async function verifyPiPaymentForReconcile({
     merchant_wallet: string;
     status: string;
     pi_payment_id: string | null;
+    pi_user_uid: string | null;
+    pi_verified_amount: string | null;
   }>(
     `
     SELECT
@@ -269,7 +260,9 @@ export async function verifyPiPaymentForReconcile({
       total_amount,
       merchant_wallet,
       status,
-      pi_payment_id
+      pi_payment_id,
+      pi_user_uid,
+      pi_verified_amount
     FROM payment_intents
     WHERE id = $1
     LIMIT 1
@@ -307,6 +300,10 @@ export async function verifyPiPaymentForReconcile({
 
   if (!receiver || receiver !== expectedReceiver) {
     throw new Error("PI_RECEIVER_MISMATCH");
+  }
+
+  if (pi.transaction?.txid && pi.transaction.txid !== txid) {
+    throw new Error("PI_TXID_MISMATCH");
   }
 
   console.log("🟢 [PI RECON VERIFY] SUCCESS");
