@@ -162,10 +162,12 @@ export async function verifyRpcPaymentForReconcile({
 
   const tx = await fetchTransaction(txid);
 
-  if (!tx?.hash) {
-    await logRpc(paymentIntentId, txid, false, "TX_NOT_FOUND", tx);
-    throw new Error("RPC_TX_NOT_FOUND");
-  }
+  const txHash = tx?.txHash || tx?.hash;
+
+if (!txHash) {
+  await logRpc(paymentIntentId, txid, false, "TX_NOT_FOUND", tx);
+  throw new Error("RPC_TX_NOT_FOUND");
+}
 
   if (tx.successful !== true) {
     await logRpc(paymentIntentId, txid, false, "TX_NOT_SUCCESSFUL", tx);
