@@ -94,59 +94,51 @@ export function assertPiPaymentReady(params: {
 
 export async function bindPiPaymentToIntent(
   client: any,
-  params: {
+  {
+    userId,
+    paymentIntentId,
+    piPaymentId,
+    verifiedAmount,
+    piPayload,
+  }: {
     userId: string;
     paymentIntentId: string;
     piPaymentId: string;
-    piUid: string;
     verifiedAmount: number;
     piPayload: any;
   }
 ) {
-  console.log("🟡 [DB] bindPiPaymentToIntent START", params);
-
-  const {
+  console.log("🟡 [DB] bindPiPaymentToIntent START", {
     userId,
     paymentIntentId,
     piPaymentId,
-    piUid,
     verifiedAmount,
-    piPayload,
-  } = params;
+  });
 
-  // 1. lock payment intent
-  const intent = await client.query(
-    `SELECT * FROM payment_intents WHERE id = $1 FOR UPDATE`,
-    [paymentIntentId]
-  );
-
-  if (!intent.rows.length) {
-    throw new Error("PAYMENT_INTENT_NOT_FOUND");
-  }
-
-  const data = intent.rows[0];
-
-  if (data.status === "paid") {
-    throw new Error("ALREADY_PAID");
-  }
-
-  // 2. update intent → pending approval state
-  await client.query(
+  const result = await client.query(
     `
     UPDATE payment_intents
     SET
       pi_payment_id = $1,
-      pi_uid = $2,
-      amount_verified = $3,
-      status = 'processing',
-      pi_payload = $4,
+      status = 'verifying',
       updated_at = NOW()
-    WHERE id = $5
+    WHERE id = $2
+      AND buyer_id = $3
+      AND status = 'created'
+      AND total_amount = $4
+    RETURNING *
     `,
-    [piPaymentId, piUid, verifiedAmount, piPayload, paymentIntentId]
+    [
+      piPaymentId,
+      paymentIntentId,
+      userId,
+      verifiedAmount, // 🔥 CHECK AMOUNT REAL
+    ]
   );
 
-  console.log("🟢 [DB] bind OK");
+  if (!result.rows.length) {
+    throw new Error("INVALID_INTENT_OR_AMOUNT");
+  }
 
-  return { ok: true };
+  return result.rows[0];
 }
