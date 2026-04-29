@@ -1,16 +1,24 @@
-import { query } from "@/lib/db";
+import { withTransaction } from "@/lib/db";
+
+type MarkPaymentVerifyingInput = {
+  paymentIntentId: string;
+  userId: string;
+  piPaymentId: string;
+};
+
+type PaymentIntentRow = {
+  id: string;
+  buyer_id: string;
+  status: string;
+};
 
 export async function markPaymentVerifying({
   paymentIntentId,
   userId,
   piPaymentId,
-}: {
-  paymentIntentId: string;
-  userId: string;
-  piPaymentId: string;
-}) {
+}: MarkPaymentVerifyingInput) {
   return await withTransaction(async (client) => {
-    const { rows } = await client.query(
+    const found = await client.query<PaymentIntentRow>(
       `
       SELECT id, buyer_id, status
       FROM payment_intents
@@ -20,19 +28,41 @@ export async function markPaymentVerifying({
       [paymentIntentId]
     );
 
-    if (!rows.length) {
-      throw new Error("NOT_FOUND");
+    if (!found.rows.length) {
+      throw new Error("INTENT_NOT_FOUND");
     }
 
-    const intent = rows[0];
+    const intent = found.rows[0];
 
     if (intent.buyer_id !== userId) {
       throw new Error("FORBIDDEN");
     }
 
+    /* =========================
+       IDEMPOTENT
+    ========================= */
+
     if (intent.status === "paid") {
-      return { ok: true, already: true };
+      return {
+        ok: true,
+        already: true,
+        status: "paid",
+        paymentIntentId,
+      };
     }
+
+    if (intent.status === "verifying") {
+      return {
+        ok: true,
+        already: true,
+        status: "verifying",
+        paymentIntentId,
+      };
+    }
+
+    /* =========================
+       STATUS GUARD
+    ========================= */
 
     if (
       intent.status !== "created" &&
@@ -40,6 +70,10 @@ export async function markPaymentVerifying({
     ) {
       throw new Error("INVALID_STATUS");
     }
+
+    /* =========================
+       UPDATE LOCK STATE
+    ========================= */
 
     await client.query(
       `
