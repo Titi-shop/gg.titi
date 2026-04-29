@@ -319,104 +319,98 @@ export function useCheckoutPay({
              STAGE 1 = SERVER APPROVAL ONLY
              CALL /authorize
           ========================================= */
-          onReadyForServerApproval: async (paymentId, callback) => {
-            try {
-              console.log("🟡 [CHECKOUT] APPROVAL_STAGE", { paymentId });
-
-              const token = await getPiAccessToken();
-
-              const res = await fetch("/api/payments/pi/authorize", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  payment_intent_id: paymentIntentId,
-                  pi_payment_id: paymentId,
-                }),
-              });
-
-              const data = await res.json().catch(() => null);
-
-              console.log("🟡 [CHECKOUT] AUTHORIZE_RESPONSE", {
-                status: res.status,
-                data,
-              });
-
-              if (!res.ok) {
-                const key = getErrorKey(data?.error);
-                showMessage(t[key] ?? data?.error ?? "approve_failed");
-                throw new Error(data?.error || "AUTHORIZE_FAILED");
-              }
-
-              console.log("🟢 [CHECKOUT] AUTHORIZE_OK");
-
-              callback();
-            } catch (err) {
-              console.error("🔥 [CHECKOUT] APPROVAL_FAIL", err);
-              processingRef.current = false;
-              setProcessing(false);
-              throw err;
-            }
-          },
-
-          /* =========================================
-             STAGE 2 = BLOCKCHAIN COMPLETE
-             CALL /submit
-          ========================================= */
           onReadyForServerCompletion: async (paymentId, txid, callback) => {
-            try {
-              console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
-                paymentId,
-                txid,
-              });
+  try {
+    console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
+      paymentId,
+      txid,
+    });
 
-              const token = await getPiAccessToken();
+    const token = await getPiAccessToken();
 
-              const res = await fetch("/api/payments/pi/submit", {
-                method: "POST",
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  payment_intent_id: paymentIntentId,
-                  pi_payment_id: paymentId,
-                  txid,
-                }),
-              });
+    /* =========================
+       STEP A: SUBMIT LOCK
+    ========================= */
 
-              const data = await res.json().catch(() => null);
+    const submitRes = await fetch("/api/payments/pi/submit", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        payment_intent_id: paymentIntentId,
+        pi_payment_id: paymentId,
+        txid,
+      }),
+    });
 
-              console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
-                status: res.status,
-                data,
-              });
+    const submitData = await submitRes.json().catch(() => null);
 
-              if (!res.ok) {
-                const key = getErrorKey(data?.error);
-                showMessage(t[key] ?? data?.error ?? "payment_failed");
-                throw new Error(data?.error || "SUBMIT_FAILED");
-              }
+    console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
+      status: submitRes.status,
+      data: submitData,
+    });
 
-              console.log("🟢 [CHECKOUT] SUBMIT_OK", data);
+    if (!submitRes.ok) {
+      const key = getErrorKey(submitData?.error);
+      showMessage(t[key] ?? submitData?.error ?? "payment_failed");
+      throw new Error(submitData?.error || "SUBMIT_FAILED");
+    }
 
-              callback();
+    console.log("🟢 [CHECKOUT] SUBMIT_OK");
 
-              onClose();
-              router.replace("/customer/orders?tab=pending");
-              showMessage(t.payment_success ?? "success", "success");
-            } catch (err) {
-              console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
-              processingRef.current = false;
-              setProcessing(false);
-              throw err;
-            } finally {
-              processingRef.current = false;
-              setProcessing(false);
-            }
-          },
+    /* =========================
+       STEP B: RECONCILE REAL PAYMENT
+    ========================= */
+
+    const reconcileRes = await fetch("/api/payments/pi/reconcile", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        payment_intent_id: paymentIntentId,
+        pi_payment_id: paymentId,
+        txid,
+      }),
+    });
+
+    const reconcileData = await reconcileRes.json().catch(() => null);
+
+    console.log("🟡 [CHECKOUT] RECONCILE_RESPONSE", {
+      status: reconcileRes.status,
+      data: reconcileData,
+    });
+
+    if (!reconcileRes.ok) {
+      const key = getErrorKey(reconcileData?.error);
+      showMessage(t[key] ?? reconcileData?.error ?? "payment_failed");
+      throw new Error(reconcileData?.error || "RECONCILE_FAILED");
+    }
+
+    console.log("🟢 [CHECKOUT] RECONCILE_OK", reconcileData);
+
+    /* =========================
+       ONLY NOW COMPLETE PI SDK
+    ========================= */
+
+    callback();
+
+    onClose();
+    router.replace("/customer/orders?tab=pending");
+    showMessage(t.payment_success ?? "success", "success");
+  } catch (err) {
+    console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
+    processingRef.current = false;
+    setProcessing(false);
+    throw err;
+  } finally {
+    processingRef.current = false;
+    setProcessing(false);
+  }
+},
 
           onCancel: () => {
             console.warn("🟡 [CHECKOUT] USER_CANCELLED");
