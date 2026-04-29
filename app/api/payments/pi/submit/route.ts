@@ -9,15 +9,11 @@ export const dynamic = "force-dynamic";
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      v
+    )
   );
 }
-
-type Body = {
-  payment_intent_id?: unknown;
-  pi_payment_id?: unknown;
-  txid?: unknown;
-};
 
 export async function POST(req: Request) {
   try {
@@ -70,19 +66,23 @@ export async function POST(req: Request) {
     console.log("🟢 [SUBMIT] MARKED_VERIFYING", result);
 
     /**
-     * 🔥 IMPORTANT FIX:
-     * fire reconcile async server-side
-     * không phụ thuộc client callback
+     * =====================================================
+     * 🔥 FIX: KHÔNG DÙNG process.env.APP_URL + KHÔNG FETCH
+     * =====================================================
      */
-    queueMicrotask(async () => {
+    const runReconcile = async () => {
       try {
         console.log("🟡 [SUBMIT] AUTO_RECONCILE_TRIGGER");
 
-        await fetch(`${process.env.APP_URL}/api/payments/pi/reconcile`, {
+        const { POST: reconcile } = await import(
+          "@/app/api/payments/pi/reconcile/route"
+        );
+
+        const fakeReq = new Request("http://internal/reconcile", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: req.headers.get("authorization") || "",
+            authorization: req.headers.get("authorization") || "",
           },
           body: JSON.stringify({
             payment_intent_id: paymentIntentId,
@@ -91,11 +91,15 @@ export async function POST(req: Request) {
           }),
         });
 
+        await reconcile(fakeReq as any);
+
         console.log("🟢 [SUBMIT] AUTO_RECONCILE_DONE");
       } catch (e) {
         console.error("🔥 [SUBMIT] AUTO_RECONCILE_FAIL", e);
       }
-    });
+    };
+
+    queueMicrotask(runReconcile);
 
     return NextResponse.json({
       success: true,
