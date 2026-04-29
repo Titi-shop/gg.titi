@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 function isUUID(v: unknown): v is string {
   return (
     typeof v === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      v
+    )
   );
 }
 
@@ -69,15 +71,26 @@ export async function POST(req: Request) {
     console.log("🟢 [SUBMIT] MARKED_VERIFYING", result);
 
     /**
-     * 🔥 IMPORTANT FIX:
-     * fire reconcile async server-side
-     * không phụ thuộc client callback
+     * =========================================================
+     * 🚀 FIX CHUẨN: KHÔNG DÙNG APP_URL + KHÔNG HTTP SELF CALL
+     * =========================================================
+     *
+     * ❌ tránh: fetch(`${process.env.APP_URL}/api/...`)
+     * ❌ tránh: undefined domain lỗi production
+     *
+     * ✅ dùng internal import trực tiếp
      */
-    queueMicrotask(async () => {
+
+    const runReconcile = async () => {
       try {
         console.log("🟡 [SUBMIT] AUTO_RECONCILE_TRIGGER");
 
-        await fetch(`${process.env.APP_URL}/api/payments/pi/reconcile`, {
+        // import dynamic để tránh circular runtime issues
+        const { POST: reconcile } = await import(
+          "@/app/api/payments/pi/reconcile/route"
+        );
+
+        const fakeReq = new Request("http://internal/reconcile", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -90,11 +103,16 @@ export async function POST(req: Request) {
           }),
         });
 
+        await reconcile(fakeReq as any);
+
         console.log("🟢 [SUBMIT] AUTO_RECONCILE_DONE");
       } catch (e) {
         console.error("🔥 [SUBMIT] AUTO_RECONCILE_FAIL", e);
       }
-    });
+    };
+
+    // không block response
+    queueMicrotask(runReconcile);
 
     return NextResponse.json({
       success: true,
