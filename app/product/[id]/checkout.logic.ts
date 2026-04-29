@@ -187,10 +187,6 @@ export function validateBeforePay({
     showMessage(t.out_of_stock ?? "out_of_stock");
     return false;
   }
-
-  return true;
-}
-
 /* =========================
    PAY
 ========================= */
@@ -282,30 +278,50 @@ export function useCheckoutPay({
       }
 
       const paymentIntentId = intentData.paymentIntentId;
-      const lockedAmount = Number(intentData.amount);
+
+      const lockedAmount = Number(
+        Number(intentData.amount || 0).toFixed(7)
+      );
+
       const lockedMemo =
-        intentData.memo || (t.payment_memo_order ?? "order_payment");
+        typeof intentData.memo === "string" && intentData.memo.trim()
+          ? intentData.memo.trim().slice(0, 120)
+          : (t.payment_memo_order ?? "Order payment");
 
       console.log("🟢 [CHECKOUT] INTENT_OK", {
         paymentIntentId,
         lockedAmount,
+        lockedMemo,
+      });
+
+      if (!window.Pi || typeof window.Pi.createPayment !== "function") {
+        processingRef.current = false;
+        setProcessing(false);
+        showMessage("Pi Wallet SDK not ready");
+        return;
+      }
+
+      console.log("🟡 [CHECKOUT] OPEN_PI_WALLET", {
+        amount: lockedAmount,
+        memo: lockedMemo,
       });
 
       /* =========================
          OPEN PI WALLET
       ========================= */
 
-      window.Pi?.createPayment(
+      window.Pi.createPayment(
         {
           amount: lockedAmount,
           memo: lockedMemo,
           metadata: {
-            payment_intent_id: paymentIntentId,
+            intent: paymentIntentId.slice(0, 12),
           },
         },
         {
           /* =========================
-             STAGE 1 APPROVAL ONLY
+             STAGE 1 MERCHANT APPROVE
+             => CALL SUBMIT
           ========================= */
           onReadyForServerApproval: async (paymentId, callback) => {
             try {
@@ -313,7 +329,7 @@ export function useCheckoutPay({
 
               const token = await getPiAccessToken();
 
-              const res = await fetch("/api/payments/pi/authorize", {
+              const res = await fetch("/api/payments/pi/submit", {
                 method: "POST",
                 headers: {
                   Authorization: `Bearer ${token}`,
@@ -327,15 +343,20 @@ export function useCheckoutPay({
 
               const data = await res.json().catch(() => null);
 
+              console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
+                status: res.status,
+                data,
+              });
+
               if (!res.ok) {
                 const key = getErrorKey(data?.error);
                 showMessage(t[key] ?? data?.error ?? "approve_failed");
-                throw new Error(data?.error || "APPROVE_FAILED");
+                throw new Error(data?.error || "SUBMIT_FAILED");
               }
 
-              console.log("🟢 [CHECKOUT] APPROVAL_OK");
+              console.log("🟢 [CHECKOUT] SUBMIT_OK");
 
-              callback();
+              return callback();
             } catch (err) {
               console.error("🔥 [CHECKOUT] APPROVAL_FAIL", err);
               processingRef.current = false;
@@ -345,7 +366,8 @@ export function useCheckoutPay({
           },
 
           /* =========================
-             STAGE 2 FULL SETTLEMENT
+             STAGE 2 BLOCKCHAIN VERIFY + ORDER CREATE
+             => CALL RECONCILE
           ========================= */
           onReadyForServerCompletion: async (paymentId, txid, callback) => {
             try {
@@ -356,7 +378,7 @@ export function useCheckoutPay({
 
               const token = await getPiAccessToken();
 
-              const res = await fetch("/api/payments/pi/submit", {
+              const res = await fetch("/api/payments/pi/reconcile", {
                 method: "POST",
                 headers: {
                   Authorization: `Bearer ${token}`,
@@ -371,50 +393,33 @@ export function useCheckoutPay({
 
               const data = await res.json().catch(() => null);
 
+              console.log("🟡 [CHECKOUT] RECONCILE_RESPONSE", {
+                status: res.status,
+                data,
+              });
+
               if (!res.ok) {
                 const key = getErrorKey(data?.error);
                 showMessage(t[key] ?? data?.error ?? "payment_failed");
-                throw new Error(data?.error || "SUBMIT_FAILED");
+                throw new Error(data?.error || "RECONCILE_FAILED");
               }
 
-              console.log("🟢 [CHECKOUT] SUBMIT_OK", data);
+              console.log("🟢 [CHECKOUT] RECONCILE_OK", data);
 
-              callback();
-
-              onClose();
-              router.replace("/customer/orders?tab=pending");
-              showMessage(t.payment_success ?? "success", "success");
+              return callback();
             } catch (err) {
               console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
-
-              /* =========================
-                 OPTIONAL FALLBACK RECONCILE
-              ========================= */
-              try {
-                const token = await getPiAccessToken();
-
-                await fetch("/api/payments/pi/reconcile", {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    payment_intent_id: paymentIntentId,
-                    pi_payment_id: paymentId,
-                    txid,
-                  }),
-                });
-              } catch {}
-
               processingRef.current = false;
               setProcessing(false);
-              showMessage(t.payment_failed ?? "payment_failed");
               throw err;
             } finally {
               processingRef.current = false;
               setProcessing(false);
             }
+
+            onClose();
+            router.replace("/customer/orders?tab=pending");
+            showMessage(t.payment_success ?? "success", "success");
           },
 
           onCancel: () => {
@@ -458,3 +463,6 @@ export function useCheckoutPay({
     showMessage,
   ]);
 }
+  return true;
+}
+
