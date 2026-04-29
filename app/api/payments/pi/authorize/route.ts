@@ -154,16 +154,20 @@ export async function POST(req: Request) {
 
     /* ================= DB BIND PAYMENT ================= */
 
-    const bindResult = await withTransaction(async (client) => {
-      return await bindPiPaymentToIntent(client, {
-        userId,
-        paymentIntentId,
-        piPaymentId,
-        piUid,
-        verifiedAmount: Number(payment.amount),
-        piPayload: payment,
-      });
-    });
+if (!bindPiPaymentToIntent) {
+  throw new Error("DB_FUNCTION_MISSING_BIND_PI_PAYMENT");
+}
+
+const bindResult = await withTransaction(async (client) => {
+  return await bindPiPaymentToIntent(client, {
+    userId,
+    paymentIntentId,
+    piPaymentId,
+    piUid,
+    verifiedAmount: Number(payment.amount),
+    piPayload: payment,
+  });
+});
 
     console.log("🟢 [PI_AUTHORIZE] DB_BIND_OK", bindResult);
 
