@@ -43,6 +43,12 @@ function safeQty(v: number): number {
   return v;
 }
 
+function safeMoney(v: unknown): number {
+  const n = Number(v);
+  if (Number.isNaN(n) || n < 0) throw new Error("INVALID_AMOUNT");
+  return Number(n.toFixed(7));
+}
+
 function getMerchantWallet(): string {
   const w = process.env.PI_MERCHANT_WALLET;
   if (!w) throw new Error("MISSING_MERCHANT_WALLET");
@@ -76,14 +82,23 @@ export async function createPiPaymentIntent(
       sale_price: string | null;
       stock: number;
     }>(
-      `SELECT id,seller_id,price,sale_price,stock FROM products WHERE id=$1 LIMIT 1`,
+      `
+      SELECT id,seller_id,price,sale_price,stock
+      FROM products
+      WHERE id=$1
+      LIMIT 1
+      FOR UPDATE
+      `,
       [params.productId]
     );
 
-    if (!productRes.rows.length) throw new Error("PRODUCT_NOT_FOUND");
+    if (!productRes.rows.length) {
+      throw new Error("PRODUCT_NOT_FOUND");
+    }
 
     const product = productRes.rows[0];
-    let unitPrice = Number(product.sale_price || product.price);
+
+    let unitPrice = safeMoney(product.sale_price || product.price);
 
     if (variantId) {
       const vr = await client.query<{
@@ -91,19 +106,31 @@ export async function createPiPaymentIntent(
         sale_price: string | null;
         stock: number;
       }>(
-        `SELECT price,sale_price,stock FROM product_variants WHERE id=$1 AND product_id=$2 LIMIT 1`,
+        `
+        SELECT price,sale_price,stock
+        FROM product_variants
+        WHERE id=$1 AND product_id=$2
+        LIMIT 1
+        FOR UPDATE
+        `,
         [variantId, params.productId]
       );
 
-      if (!vr.rows.length) throw new Error("INVALID_VARIANT");
+      if (!vr.rows.length) {
+        throw new Error("INVALID_VARIANT");
+      }
 
       const variant = vr.rows[0];
 
-      if (variant.stock < quantity) throw new Error("OUT_OF_STOCK");
+      if (variant.stock < quantity) {
+        throw new Error("OUT_OF_STOCK");
+      }
 
-      unitPrice = Number(variant.sale_price || variant.price);
+      unitPrice = safeMoney(variant.sale_price || variant.price);
     } else {
-      if (product.stock < quantity) throw new Error("OUT_OF_STOCK");
+      if (product.stock < quantity) {
+        throw new Error("OUT_OF_STOCK");
+      }
     }
 
     const ship = await client.query<{ price: string }>(
@@ -111,19 +138,23 @@ export async function createPiPaymentIntent(
       SELECT sr.price
       FROM shipping_rates sr
       JOIN shipping_zones sz ON sz.id = sr.zone_id
-      WHERE sr.product_id=$1 AND sz.code=$2
+      WHERE sr.product_id=$1
+        AND sz.code=$2
       LIMIT 1
       `,
       [params.productId, params.zone]
     );
 
-    if (!ship.rows.length) throw new Error("SHIPPING_NOT_AVAILABLE");
+    if (!ship.rows.length) {
+      throw new Error("SHIPPING_NOT_AVAILABLE");
+    }
 
-    const shippingFee = Number(ship.rows[0].price);
-    const subtotal = unitPrice * quantity;
-    const total = subtotal + shippingFee;
+    const shippingFee = safeMoney(ship.rows[0].price);
+    const subtotal = safeMoney(unitPrice * quantity);
+    const discount = safeMoney(0);
+    const total = safeMoney(subtotal - discount + shippingFee);
 
-    const shipping_snapshot = {
+    const shippingSnapshot = {
       name: params.shipping.name,
       phone: params.shipping.phone,
       address_line: params.shipping.address_line,
@@ -138,16 +169,30 @@ export async function createPiPaymentIntent(
     const insert = await client.query<{ id: string }>(
       `
       INSERT INTO payment_intents (
-        buyer_id,seller_id,product_id,variant_id,quantity,
-        unit_price,subtotal,shipping_fee,total_amount,currency,
-        shipping_snapshot,country,zone,
-        merchant_wallet,nonce,status
+        buyer_id,
+        seller_id,
+        product_id,
+        variant_id,
+        quantity,
+        unit_price,
+        subtotal,
+        discount,
+        shipping_fee,
+        total_amount,
+        currency,
+        shipping_snapshot,
+        country,
+        zone,
+        merchant_wallet,
+        nonce,
+        status
       )
       VALUES (
         $1,$2,$3,$4,$5,
-        $6,$7,$8,$9,'PI',
-        $10,$11,$12,
-        $13,$14,'created'
+        $6,$7,$8,$9,$10,
+        'PI',
+        $11,$12,$13,
+        $14,$15,'created'
       )
       RETURNING id
       `,
@@ -159,9 +204,10 @@ export async function createPiPaymentIntent(
         quantity,
         unitPrice,
         subtotal,
+        discount,
         shippingFee,
         total,
-        JSON.stringify(shipping_snapshot),
+        JSON.stringify(shippingSnapshot),
         params.country,
         params.zone,
         merchantWallet,
