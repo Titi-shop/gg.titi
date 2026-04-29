@@ -366,90 +366,102 @@ item,
              STAGE 2 = BLOCKCHAIN COMPLETE
              CALL /submit
           ========================================= */
-          onReadyForServerCompletion: async (paymentId, txid, callback) => {
+          onReadyForServerCompletion: (paymentId, txid, callback) => {
+  console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
+    paymentId,
+    txid,
+  });
+
+  /* release Pi Wallet immediately */
   try {
-    console.log("🟡 [CHECKOUT] COMPLETION_STAGE", {
-      paymentId,
-      txid,
-    });
-
-    const token = await getPiAccessToken();
-
-    const res = await fetch("/api/payments/pi/submit", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment_intent_id: paymentIntentId,
-        pi_payment_id: paymentId,
-        txid,
-      }),
-    });
-
-    const data = await res.json().catch(() => null);
-
-    console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
-      status: res.status,
-      data,
-    });
-
-    if (!res.ok) {
-      const key = getErrorKey(data?.error);
-      showMessage(t[key] ?? data?.error ?? "payment_failed");
-      throw new Error(data?.error || "SUBMIT_FAILED");
-    }
-
-    console.log("🟢 [CHECKOUT] SUBMIT_OK", data);
-
     callback();
-
-    console.log("🟡 [CHECKOUT] RECONCILE_STAGE", {
-      paymentId,
-      txid,
-    });
-
-    const reconcileRes = await fetch("/api/payments/pi/reconcile", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        payment_intent_id: paymentIntentId,
-        pi_payment_id: paymentId,
-        txid,
-      }),
-    });
-
-    const reconcileData = await reconcileRes.json().catch(() => null);
-
-    console.log("🟡 [CHECKOUT] RECONCILE_RESPONSE", {
-      status: reconcileRes.status,
-      data: reconcileData,
-    });
-
-    if (!reconcileRes.ok) {
-      const key = getErrorKey(reconcileData?.error);
-      showMessage(t[key] ?? reconcileData?.error ?? "reconcile_failed");
-      throw new Error(reconcileData?.error || "RECONCILE_FAILED");
-    }
-
-    console.log("🟢 [CHECKOUT] RECONCILE_OK", reconcileData);
-
-    onClose();
-    router.replace("/customer/orders?tab=pending");
-    showMessage(t.payment_success ?? "success", "success");
-  } catch (err) {
-    console.error("🔥 [CHECKOUT] COMPLETION_FAIL", err);
-    processingRef.current = false;
-    setProcessing(false);
-    throw err;
-  } finally {
-    processingRef.current = false;
-    setProcessing(false);
+    console.log("🟢 [CHECKOUT] PI_CALLBACK_OK");
+  } catch (sdkErr) {
+    console.warn("🟠 [CHECKOUT] PI_CALLBACK_WARN", sdkErr);
   }
+
+  /* run backend settlement async after wallet closes */
+  setTimeout(async () => {
+    try {
+      const token = await getPiAccessToken();
+
+      console.log("🟡 [CHECKOUT] SUBMIT_STAGE");
+
+      const res = await fetch("/api/payments/pi/submit", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          payment_intent_id: paymentIntentId,
+          pi_payment_id: paymentId,
+          txid,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      console.log("🟡 [CHECKOUT] SUBMIT_RESPONSE", {
+        status: res.status,
+        data,
+      });
+
+      if (!res.ok) {
+        const key = getErrorKey(data?.error);
+        showMessage(t[key] ?? data?.error ?? "payment_failed");
+        processingRef.current = false;
+        setProcessing(false);
+        return;
+      }
+
+      console.log("🟢 [CHECKOUT] SUBMIT_OK");
+
+      const token2 = await getPiAccessToken();
+
+      console.log("🟡 [CHECKOUT] RECONCILE_STAGE");
+
+      const reconcileRes = await fetch("/api/payments/pi/reconcile", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token2}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          payment_intent_id: paymentIntentId,
+          pi_payment_id: paymentId,
+          txid,
+        }),
+      });
+
+      const reconcileData = await reconcileRes.json().catch(() => null);
+
+      console.log("🟡 [CHECKOUT] RECONCILE_RESPONSE", {
+        status: reconcileRes.status,
+        data: reconcileData,
+      });
+
+      if (!reconcileRes.ok) {
+        const key = getErrorKey(reconcileData?.error);
+        showMessage(t[key] ?? reconcileData?.error ?? "reconcile_failed");
+        processingRef.current = false;
+        setProcessing(false);
+        return;
+      }
+
+      console.log("🟢 [CHECKOUT] RECONCILE_OK");
+
+      onClose();
+      router.replace("/customer/orders?tab=pending");
+      showMessage(t.payment_success ?? "success", "success");
+    } catch (err) {
+      console.error("🔥 [CHECKOUT] COMPLETION_ASYNC_FAIL", err);
+      showMessage(t.transaction_failed ?? "transaction_failed");
+    } finally {
+      processingRef.current = false;
+      setProcessing(false);
+    }
+  }, 50);
 },
 
           onCancel: () => {
