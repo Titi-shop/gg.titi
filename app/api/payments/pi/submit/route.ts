@@ -121,9 +121,8 @@ export async function POST(req: Request) {
       }
 
       if (
-        intent.status === "submitted" ||
-        intent.status === "verifying" ||
-        intent.status === "paid"
+    intent.status === "submitted" ||
+     intent.status === "paid"
       ) {
         console.log("🟢 [PI_SUBMIT] ALREADY_SUBMITTED");
 
