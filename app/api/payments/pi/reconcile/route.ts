@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
-import { withTransaction } from "@/lib/db";
+
+import {
+  verifyPiPaymentForReconcile,
+} from "@/lib/db/payments.verify";
+
+import {
+  verifyRpcPaymentForReconcile,
+} from "@/lib/db/payments.rpc";
+
+import {
+  finalizePaidOrderFromIntent,
+} from "@/lib/db/orders.payment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const preferredRegion = ["hkg1", "sin1"];
 
 const PI_API = process.env.PI_API_URL!;
 const PI_KEY = process.env.PI_API_KEY!;
@@ -22,18 +32,8 @@ function isUUID(v: unknown): v is string {
   );
 }
 
-/* replace later with real rpc */
-async function verifyRpc(txid: string) {
-  console.log("🟡 [PI_RECONCILE] VERIFY_RPC", txid);
-
-  return {
-    ok: true,
-    raw: {},
-  };
-}
-
 async function callPiComplete(piPaymentId: string, txid: string) {
-  console.log("🟡 [PI_RECONCILE] CALL_PI_COMPLETE", piPaymentId);
+  console.log("🟡 [RECONCILE] PI_COMPLETE", piPaymentId);
 
   const res = await fetch(`${PI_API}/payments/${piPaymentId}/complete`, {
     method: "POST",
@@ -45,12 +45,25 @@ async function callPiComplete(piPaymentId: string, txid: string) {
     cache: "no-store",
   });
 
-  const text = await res.text();
+  const raw = await res.text();
 
-  console.log("🟡 [PI_RECONCILE] PI_COMPLETE_STATUS", res.status);
-  console.log("🟡 [PI_RECONCILE] PI_COMPLETE_BODY", text);
+  console.log("🟡 [RECONCILE] PI_COMPLETE_STATUS", res.status);
+  console.log("🟡 [RECONCILE] PI_COMPLETE_BODY", raw);
 
   if (!res.ok) {
+    let parsed: { error?: string } | null = null;
+
+    try {
+      parsed = JSON.parse(raw) as { error?: string };
+    } catch {
+      parsed = null;
+    }
+
+    if (parsed?.error === "already_completed") {
+      console.log("🟢 [RECONCILE] PI_ALREADY_COMPLETED");
+      return true;
+    }
+
     throw new Error("PI_COMPLETE_FAILED");
   }
 
@@ -59,7 +72,7 @@ async function callPiComplete(piPaymentId: string, txid: string) {
 
 export async function POST(req: Request) {
   try {
-    console.log("🟡 [PI_RECONCILE] START");
+    console.log("🟡 [RECONCILE] START");
 
     const auth = await getUserFromBearer();
 
@@ -71,7 +84,7 @@ export async function POST(req: Request) {
 
     const raw = await req.json().catch(() => null);
 
-    console.log("🟡 [PI_RECONCILE] RAW_BODY", raw);
+    console.log("🟡 [RECONCILE] RAW_BODY", raw);
 
     if (!raw || typeof raw !== "object") {
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
@@ -80,13 +93,19 @@ export async function POST(req: Request) {
     const body = raw as Body;
 
     const paymentIntentId =
-      typeof body.payment_intent_id === "string" ? body.payment_intent_id.trim() : "";
+      typeof body.payment_intent_id === "string"
+        ? body.payment_intent_id.trim()
+        : "";
 
     const piPaymentId =
-      typeof body.pi_payment_id === "string" ? body.pi_payment_id.trim() : "";
+      typeof body.pi_payment_id === "string"
+        ? body.pi_payment_id.trim()
+        : "";
 
     const txid =
-      typeof body.txid === "string" ? body.txid.trim() : "";
+      typeof body.txid === "string"
+        ? body.txid.trim()
+        : "";
 
     if (!isUUID(paymentIntentId)) {
       return NextResponse.json({ error: "INVALID_PAYMENT_INTENT" }, { status: 400 });
@@ -100,94 +119,54 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "INVALID_TXID" }, { status: 400 });
     }
 
-    const result = await withTransaction(async (client) => {
-      const found = await client.query<any>(
-        `
-        SELECT *
-        FROM payment_intents
-        WHERE id = $1
-        FOR UPDATE
-        `,
-        [paymentIntentId]
-      );
+    console.log("🟡 [RECONCILE] STEP_1_VERIFY_PI");
 
-      if (!found.rows.length) {
-        throw new Error("INTENT_NOT_FOUND");
-      }
-
-      const intent = found.rows[0];
-
-      console.log("🟢 [PI_RECONCILE] INTENT_FOUND", intent);
-
-      if (intent.buyer_id !== userId) {
-        throw new Error("FORBIDDEN");
-      }
-
-      if (intent.status === "paid") {
-        return {
-          ok: true,
-          already: true,
-          order_id: intent.order_id ?? null,
-        };
-      }
-
-      const rpc = await verifyRpc(txid);
-
-      if (!rpc.ok) {
-        throw new Error("RPC_VERIFY_FAILED");
-      }
-
-      await callPiComplete(piPaymentId, txid);
-
-      const order = await client.query<{ id: string }>(
-        `
-        INSERT INTO orders (
-          buyer_id,
-          seller_id,
-          total_amount,
-          status
-        )
-        VALUES ($1,$2,$3,'paid')
-        RETURNING id
-        `,
-        [
-          intent.buyer_id,
-          intent.seller_id,
-          intent.total_amount
-        ]
-      );
-
-      await client.query(
-        `
-        UPDATE payment_intents
-        SET
-          txid = $2,
-          status = 'paid',
-          paid_at = now(),
-          updated_at = now()
-        WHERE id = $1
-        `,
-        [paymentIntentId, txid]
-      );
-
-      console.log("🟢 [PI_RECONCILE] PAID_OK", {
-        paymentIntentId,
-        txid,
-        orderId: order.rows[0].id,
-      });
-
-      return {
-        ok: true,
-        order_id: order.rows[0].id,
-      };
+    const piVerified = await verifyPiPaymentForReconcile({
+      paymentIntentId,
+      piPaymentId,
+      userId,
+      txid,
     });
 
-    return NextResponse.json(result);
+    console.log("🟢 [RECONCILE] PI_OK", piVerified);
+
+    console.log("🟡 [RECONCILE] STEP_2_VERIFY_RPC");
+
+    const rpcVerified = await verifyRpcPaymentForReconcile({
+      paymentIntentId,
+      piPaymentId,
+      txid,
+    });
+
+    console.log("🟢 [RECONCILE] RPC_OK", rpcVerified);
+
+    console.log("🟡 [RECONCILE] STEP_3_FINALIZE_DB");
+
+    const paid = await finalizePaidOrderFromIntent({
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      userId,
+      verifiedAmount: piVerified.verifiedAmount,
+    });
+
+    console.log("🟢 [RECONCILE] DB_OK", paid);
+
+    console.log("🟡 [RECONCILE] STEP_4_PI_COMPLETE");
+
+    await callPiComplete(piPaymentId, txid);
+
+    console.log("🟢 [RECONCILE] SUCCESS");
+
+    return NextResponse.json({
+      success: true,
+      order_id: paid.orderId,
+    });
   } catch (err) {
-    console.error("🔥 [PI_RECONCILE] CRASH", err);
+    console.error("🔥 [RECONCILE] CRASH", err);
 
     return NextResponse.json(
-      { error: (err as Error).message || "RECONCILE_FAILED" },
+      { error: err instanceof Error ? err.message : "RECONCILE_FAILED" },
       { status: 400 }
     );
   }
