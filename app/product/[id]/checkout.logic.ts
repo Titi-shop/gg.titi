@@ -187,6 +187,9 @@ export function validateBeforePay({
     showMessage(t.out_of_stock ?? "out_of_stock");
     return false;
   }
+   return true;
+
+}
 /* =========================
    PAY
 ========================= */
