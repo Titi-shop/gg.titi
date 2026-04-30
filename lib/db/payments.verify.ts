@@ -275,7 +275,14 @@ export async function verifyPiPaymentForReconcile({
   if (!db.rows.length) throw new Error("PAYMENT_INTENT_NOT_FOUND");
 
   const intent = db.rows[0];
-
+if (intent.status === "paid") {
+  return {
+    ok: true,
+    verifiedAmount: Number(intent.pi_verified_amount ?? 0),
+    receiverWallet: intent.merchant_wallet,
+    piPayload: null,
+  };
+}
   if (intent.buyer_id !== userId) throw new Error("FORBIDDEN");
   if (intent.pi_payment_id !== piPaymentId) throw new Error("PI_PAYMENT_ID_MISMATCH");
   const allowedStates = ["verifying", "submitted", "wallet_opened"];
