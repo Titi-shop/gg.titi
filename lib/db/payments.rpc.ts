@@ -10,21 +10,17 @@ type VerifyRpcParams = {
 };
 
 type RpcResponse<T> = {
-  jsonrpc?: string;
-  id?: number | string;
   result?: T;
-  error?: {
-    code: number;
-    message: string;
-  };
+  error?: { code: number; message: string };
 };
 
 type RpcTx = {
   hash?: string;
-  txid?: string;
-  successful?: boolean;
   status?: string;
   ledger?: number;
+  successful?: boolean;
+  from_address?: string;
+  to_address?: string;
 };
 
 /* =========================================================
@@ -35,18 +31,13 @@ const PI_RPC =
   process.env.PI_RPC_URL ?? "https://rpc.testnet.minepi.com";
 
 /* =========================================================
-   SAFE RPC CALL
+   RPC CALL (SAFE)
 ========================================================= */
 
-async function rpcCall<T>(
-  method: string,
-  params: unknown
-): Promise<T> {
+async function rpcCall<T>(method: string, params: unknown): Promise<T> {
   const res = await fetch(PI_RPC, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: Date.now(),
@@ -55,29 +46,17 @@ async function rpcCall<T>(
     }),
   });
 
-  const text = await res.text();
+  const json = (await res.json().catch(() => null)) as RpcResponse<T> | null;
 
-  let json: RpcResponse<T>;
-
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error("RPC_INVALID_JSON");
+  if (!res.ok || json?.error) {
+    throw new Error("RPC_ERROR");
   }
 
-  if (!res.ok) {
-    throw new Error("RPC_HTTP_ERROR");
-  }
-
-  if (json?.error) {
-    throw new Error("RPC_ERROR_" + json.error.code);
-  }
-
-  return json.result as T;
+  return json?.result as T;
 }
 
 /* =========================================================
-   LOG RPC (AUDIT ONLY)
+   LOG (STRICT SCHEMA)
 ========================================================= */
 
 async function logRpc(params: {
@@ -85,75 +64,66 @@ async function logRpc(params: {
   txid: string;
   verified: boolean;
   reason: string;
-  stage: "VERIFY" | "FINALIZE" | "PI" | "RPC";
+  stage: "RPC" | "VERIFY" | "FINALIZE";
   amount?: number | null;
   receiver?: string | null;
   payload?: unknown;
 }) {
-  try {
-    await query(
-      `
-      INSERT INTO rpc_verification_logs (
-        payment_intent_id,
-        txid,
-        verified,
-        reason,
-        stage,
-        amount,
-        receiver,
-        payload
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-      ON CONFLICT (txid)
-      DO UPDATE SET
-        verified = EXCLUDED.verified,
-        reason = EXCLUDED.reason,
-        stage = EXCLUDED.stage,
-        amount = EXCLUDED.amount,
-        receiver = EXCLUDED.receiver,
-        payload = EXCLUDED.payload
-      `,
-      [
-        params.paymentIntentId,
-        params.txid,
-        params.verified,
-        params.reason,
-        params.stage,
-        params.amount ?? null,
-        params.receiver ?? null,
-        JSON.stringify(params.payload ?? {}),
-      ]
-    );
-  } catch (e) {
-    console.error("[RPC_LOG_FAIL]", e);
-  }
+  await query(
+    `
+    INSERT INTO rpc_verification_logs (
+      payment_intent_id,
+      txid,
+      verified,
+      reason,
+      stage,
+      amount,
+      receiver,
+      payload
+    )
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    ON CONFLICT (txid)
+    DO UPDATE SET
+      verified = EXCLUDED.verified,
+      reason = EXCLUDED.reason,
+      stage = EXCLUDED.stage,
+      amount = EXCLUDED.amount,
+      receiver = EXCLUDED.receiver,
+      payload = EXCLUDED.payload
+    `,
+    [
+      params.paymentIntentId,
+      params.txid,
+      params.verified,
+      params.reason,
+      params.stage,
+      params.amount ?? null,
+      params.receiver ?? null,
+      JSON.stringify(params.payload ?? {}),
+    ]
+  );
 }
 
 /* =========================================================
-   MAIN FUNCTION
+   MAIN RPC VERIFY (v2 CLEAN)
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
   paymentIntentId,
   txid,
 }: VerifyRpcParams) {
-  console.log("🟡 [RPC_VERIFY] START", {
-    paymentIntentId,
-    txid,
-  });
+  console.log("🟡 [RPC_V2] START", { paymentIntentId, txid });
 
   /* =========================================================
-     STEP 0: IDEMPOTENCY CHECK
+     STEP 0: IDEMPOTENCY
   ========================================================= */
 
-  const receipt = await query(
-    `SELECT id FROM payment_receipts WHERE txid = $1 LIMIT 1`,
+  const exists = await query(
+    `SELECT 1 FROM payment_receipts WHERE txid = $1 LIMIT 1`,
     [txid]
   );
 
-  if (receipt.rows.length > 0) {
-    console.log("🟢 [RPC_VERIFY] ALREADY_DONE");
-
+  if (exists.rows.length > 0) {
     return {
       ok: true,
       already: true,
@@ -161,18 +131,14 @@ export async function verifyRpcPaymentForReconcile({
   }
 
   /* =========================================================
-     STEP 1: FETCH TRANSACTION (ONLY ONCE)
+     STEP 1: FETCH TX
   ========================================================= */
 
-  let tx: RpcTx | null = null;
+  let tx: RpcTx;
 
   try {
-    tx = await rpcCall<RpcTx>("getTransaction", {
-      hash: txid,
-    });
+    tx = await rpcCall<RpcTx>("getTransaction", { hash: txid });
   } catch (err) {
-    console.warn("[RPC_TX_FAIL]", err);
-
     await logRpc({
       paymentIntentId,
       txid,
@@ -185,20 +151,11 @@ export async function verifyRpcPaymentForReconcile({
     return {
       ok: true,
       skipped: true,
-      reason: "RPC_TX_UNAVAILABLE",
+      reason: "RPC_UNAVAILABLE",
     };
   }
 
   if (!tx) {
-    await logRpc({
-      paymentIntentId,
-      txid,
-      verified: false,
-      reason: "TX_NULL",
-      stage: "RPC",
-      payload: tx,
-    });
-
     return {
       ok: true,
       skipped: true,
@@ -207,36 +164,41 @@ export async function verifyRpcPaymentForReconcile({
   }
 
   /* =========================================================
-     STEP 2: RPC AUDIT ONLY (PI RPC DOES NOT SUPPORT OPS)
+     STEP 2: EXTRACT SAFE METADATA (NO NULL TRASH)
+  ========================================================= */
+
+  const receiver =
+    tx.to_address ??
+    null;
+
+  const amount =
+    typeof (tx as any).amount === "number"
+      ? (tx as any).amount
+      : null;
+
+  /* =========================================================
+     STEP 3: AUDIT LOG (CLEAN)
   ========================================================= */
 
   await logRpc({
-  paymentIntentId,
-  txid,
-  verified: true,
-  reason: "RPC_AUDIT_OK",
-  stage: "RPC",
-  amount: null,
-  receiver: null,
-  payload: {
-    tx,
-    extracted: {
-      amount: null,
-      receiver: null,
-    },
-  },
-});
+    paymentIntentId,
+    txid,
+    verified: true,
+    reason: "RPC_AUDIT_OK",
+    stage: "RPC",
+    amount,
+    receiver,
+    payload: tx,
+  });
 
-  console.log("🟢 [RPC_VERIFY] DONE");
-
-  /* =========================================================
-     RETURN RESULT
-  ========================================================= */
+  console.log("🟢 [RPC_V2] DONE");
 
   return {
     ok: true,
     ledger: tx.ledger ?? null,
     status: tx.status ?? "unknown",
+    receiver,
+    amount,
     audited: true,
   };
 }
