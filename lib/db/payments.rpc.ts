@@ -27,14 +27,6 @@ type RpcTx = {
   ledger?: number;
 };
 
-type RpcOps = {
-  type?: string;
-  type_i?: number;
-  to?: string;
-  destination?: string;
-  amount?: string | number;
-};
-
 /* =========================================================
    CONFIG
 ========================================================= */
@@ -43,7 +35,7 @@ const PI_RPC =
   process.env.PI_RPC_URL ?? "https://rpc.testnet.minepi.com";
 
 /* =========================================================
-   SAFE RPC CALL (PI STANDARD JSON-RPC)
+   SAFE RPC CALL
 ========================================================= */
 
 async function rpcCall<T>(
@@ -65,8 +57,6 @@ async function rpcCall<T>(
 
   const text = await res.text();
 
-  console.log("[RPC_RAW]", text);
-
   let json: RpcResponse<T>;
 
   try {
@@ -84,16 +74,6 @@ async function rpcCall<T>(
   }
 
   return json.result as T;
-}
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function toNumber(v: unknown): number {
-  const n = Number(v);
-  if (!Number.isFinite(n)) throw new Error("INVALID_NUMBER");
-  return n;
 }
 
 /* =========================================================
@@ -150,18 +130,21 @@ async function logRpc(params: {
 }
 
 /* =========================================================
-   MAIN FUNCTION (SAFE AUDIT LAYER)
+   MAIN FUNCTION
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
   paymentIntentId,
   txid,
 }: VerifyRpcParams) {
-  console.log("🟡 [RPC_VERIFY] START", { paymentIntentId, txid });
+  console.log("🟡 [RPC_VERIFY] START", {
+    paymentIntentId,
+    txid,
+  });
 
-  /* =========================
-     STEP 0: IDEMPOTENCY
-  ========================= */
+  /* =========================================================
+     STEP 0: IDEMPOTENCY CHECK
+  ========================================================= */
 
   const receipt = await query(
     `SELECT id FROM payment_receipts WHERE txid = $1 LIMIT 1`,
@@ -169,17 +152,24 @@ export async function verifyRpcPaymentForReconcile({
   );
 
   if (receipt.rows.length > 0) {
-    return { ok: true, already: true };
+    console.log("🟢 [RPC_VERIFY] ALREADY_DONE");
+
+    return {
+      ok: true,
+      already: true,
+    };
   }
 
-  /* =========================
-     STEP 1: FETCH TX (ONLY ONCE)
-  ========================= */
+  /* =========================================================
+     STEP 1: FETCH TRANSACTION (ONLY ONCE)
+  ========================================================= */
 
   let tx: RpcTx | null = null;
 
   try {
-    tx = await rpcCall<RpcTx>("getTransaction", { hash: txid });
+    tx = await rpcCall<RpcTx>("getTransaction", {
+      hash: txid,
+    });
   } catch (err) {
     console.warn("[RPC_TX_FAIL]", err);
 
@@ -195,11 +185,20 @@ export async function verifyRpcPaymentForReconcile({
     return {
       ok: true,
       skipped: true,
-      reason: "RPC_UNAVAILABLE",
+      reason: "RPC_TX_UNAVAILABLE",
     };
   }
 
   if (!tx) {
+    await logRpc({
+      paymentIntentId,
+      txid,
+      verified: false,
+      reason: "TX_NULL",
+      stage: "RPC",
+      payload: tx,
+    });
+
     return {
       ok: true,
       skipped: true,
@@ -207,23 +206,15 @@ export async function verifyRpcPaymentForReconcile({
     };
   }
 
-  /* =========================
-     STEP 2: EXTRACT DATA DIRECTLY
-     (NO ops endpoint in Pi RPC)
-  ========================= */
-
-  const rpcAmount = null;
-  const rpcReceiver = null;
-
-  /* =========================
-     STEP 3: AUDIT LOG ONLY
-  ========================= */
+  /* =========================================================
+     STEP 2: RPC AUDIT ONLY (PI RPC DOES NOT SUPPORT OPS)
+  ========================================================= */
 
   await logRpc({
     paymentIntentId,
     txid,
     verified: true,
-    reason: "RPC_AUDIT_ONLY",
+    reason: "RPC_AUDIT_OK",
     stage: "RPC",
     amount: null,
     receiver: null,
@@ -232,10 +223,14 @@ export async function verifyRpcPaymentForReconcile({
 
   console.log("🟢 [RPC_VERIFY] DONE");
 
+  /* =========================================================
+     RETURN RESULT
+  ========================================================= */
+
   return {
     ok: true,
-    ledger: tx?.ledger ?? null,
-    status: tx?.status ?? "unknown",
+    ledger: tx.ledger ?? null,
+    status: tx.status ?? "unknown",
     audited: true,
   };
 }
