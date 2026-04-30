@@ -157,14 +157,11 @@ export async function verifyRpcPaymentForReconcile({
   paymentIntentId,
   txid,
 }: VerifyRpcParams) {
-  console.log("🟡 [RPC_VERIFY] START", {
-    paymentIntentId,
-    txid,
-  });
+  console.log("🟡 [RPC_VERIFY] START", { paymentIntentId, txid });
 
-  /* =========================================================
-     STEP 0: IDEMPOTENCY CHECK
-  ========================================================= */
+  /* =========================
+     STEP 0: IDEMPOTENCY
+  ========================= */
 
   const receipt = await query(
     `SELECT id FROM payment_receipts WHERE txid = $1 LIMIT 1`,
@@ -172,50 +169,37 @@ export async function verifyRpcPaymentForReconcile({
   );
 
   if (receipt.rows.length > 0) {
-    console.log("🟢 [RPC_VERIFY] ALREADY_DONE");
-    return {
-      ok: true,
-      already: true,
-    };
+    return { ok: true, already: true };
   }
 
-  /* =========================================================
-     STEP 1: FETCH TX (NON-BLOCKING)
-  ========================================================= */
+  /* =========================
+     STEP 1: FETCH TX (ONLY ONCE)
+  ========================= */
 
   let tx: RpcTx | null = null;
 
   try {
-    tx = await rpcCall<RpcTx>("getTransaction", {
-      hash: txid,
-    });
+    tx = await rpcCall<RpcTx>("getTransaction", { hash: txid });
   } catch (err) {
     console.warn("[RPC_TX_FAIL]", err);
 
-    await logRpc(
+    await logRpc({
       paymentIntentId,
       txid,
-      false,
-      "RPC_TX_FAIL",
-      err
-    );
+      verified: false,
+      reason: "RPC_TX_FAIL",
+      stage: "RPC",
+      payload: err,
+    });
 
     return {
       ok: true,
       skipped: true,
-      reason: "RPC_TX_UNAVAILABLE",
+      reason: "RPC_UNAVAILABLE",
     };
   }
 
   if (!tx) {
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "TX_NULL",
-      tx
-    );
-
     return {
       ok: true,
       skipped: true,
@@ -223,106 +207,35 @@ export async function verifyRpcPaymentForReconcile({
     };
   }
 
-  /* =========================================================
-     STEP 2: FETCH OPS (OPTIONAL)
-  ========================================================= */
+  /* =========================
+     STEP 2: EXTRACT DATA DIRECTLY
+     (NO ops endpoint in Pi RPC)
+  ========================= */
 
-  let rpcVerified: {
-  ok: boolean;
-  txid?: string;
-  ledger?: number | null;
-  status?: string;
-  skipped?: boolean;
-  reason?: string;
-} | null = null;
+  const rpcAmount = null;
+  const rpcReceiver = null;
 
-try {
-  console.log("🟡 [RPC_VERIFY] getTransaction", txid);
+  /* =========================
+     STEP 3: AUDIT LOG ONLY
+  ========================= */
 
-  const tx = await rpcCall<{
-    ledger?: number;
-    status?: string;
-    successful?: boolean;
-  }>("getTransaction", {
-    hash: txid,
-  });
-
-  rpcVerified = {
-    ok: true,
-    txid,
-    ledger: tx?.ledger ?? null,
-    status: tx?.status ?? "unknown",
-  };
-
-  console.log("🟢 [RPC_VERIFY] OK", rpcVerified);
-} catch (err) {
-  console.warn("⚠️ [RPC_VERIFY] FAILED (NON-BLOCKING)", err);
-
-  rpcVerified = {
-    ok: true, // 🔥 QUAN TRỌNG: không fail flow
-    skipped: true,
-    reason: "RPC_UNAVAILABLE",
-  };
-}
-  /* =========================================================
-     STEP 3: FIND PAYMENT OP (FLEXIBLE)
-  ========================================================= */
-
-  const paymentOp = ops.find((o) => {
-    return (
-      o.amount !== undefined &&
-      (o.to || o.destination)
-    );
-  });
-
-  if (!paymentOp) {
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "NO_PAYMENT_OP",
-      ops
-    );
-
-    return {
-      ok: true,
-      skipped: true,
-      reason: "NO_PAYMENT_OP",
-    };
-  }
-
-  /* =========================================================
-     STEP 4: NORMALIZE DATA
-  ========================================================= */
-
-  const rpcReceiver = String(
-    paymentOp.to || paymentOp.destination || ""
-  ).trim();
-
-  const rpcAmount = toNumber(paymentOp.amount ?? 0);
-
-  /* =========================================================
-     STEP 5: FINAL AUDIT CHECK (NON-BLOCKING)
-  ========================================================= */
-
-  await logRpc(
+  await logRpc({
     paymentIntentId,
     txid,
-    true,
-    "RPC_AUDIT_OK",
-    {
-      tx,
-      paymentOp,
-    }
-  );
+    verified: true,
+    reason: "RPC_AUDIT_ONLY",
+    stage: "RPC",
+    amount: null,
+    receiver: null,
+    payload: tx,
+  });
 
-  console.log("🟢 [RPC_VERIFY] DONE (NON_BLOCKING)");
+  console.log("🟢 [RPC_VERIFY] DONE");
 
   return {
     ok: true,
-    amount: rpcAmount,
-    receiver: rpcReceiver,
-    ledger: tx.ledger ?? null,
+    ledger: tx?.ledger ?? null,
+    status: tx?.status ?? "unknown",
     audited: true,
   };
 }
