@@ -2,20 +2,10 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/auth/getUserFromBearer";
 import { markPaymentVerifying } from "@/lib/db/payments.submit";
-import { runReconcileJob } from "@/lib/services/payments/reconcile.service";
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/* =========================
-   TYPES
-========================= */
-
-type SubmitBody = {
-  payment_intent_id?: string;
-  pi_payment_id?: string;
-  txid?: string;
-};
 
 function isUUID(v: unknown): v is string {
   return (
@@ -23,10 +13,6 @@ function isUUID(v: unknown): v is string {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v)
   );
 }
-
-/* =========================
-   MAIN
-========================= */
 
 export async function POST(req: Request) {
   try {
@@ -39,26 +25,25 @@ export async function POST(req: Request) {
 
     const userId = auth.userId;
 
-    const raw: unknown = await req.json().catch(() => null);
+    const raw = await req.json().catch(() => null);
+
     if (!raw || typeof raw !== "object") {
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const body = raw as SubmitBody;
-
     const paymentIntentId =
-      typeof body.payment_intent_id === "string"
-        ? body.payment_intent_id.trim()
+      typeof (raw as any).payment_intent_id === "string"
+        ? (raw as any).payment_intent_id.trim()
         : "";
 
     const piPaymentId =
-      typeof body.pi_payment_id === "string"
-        ? body.pi_payment_id.trim()
+      typeof (raw as any).pi_payment_id === "string"
+        ? (raw as any).pi_payment_id.trim()
         : "";
 
     const txid =
-      typeof body.txid === "string"
-        ? body.txid.trim()
+      typeof (raw as any).txid === "string"
+        ? (raw as any).txid.trim()
         : "";
 
     if (!isUUID(paymentIntentId) || !piPaymentId) {
@@ -76,11 +61,11 @@ export async function POST(req: Request) {
 
     console.log("🟢 [SUBMIT] MARKED_VERIFYING", result);
 
-    /* =========================
-       CLEAN ARCHITECTURE FIX
-       → NO API CALL INSIDE API
-       → USE SERVICE LAYER
-    ========================= */
+    /**
+     * =====================================================
+     * ASYNC TRIGGER (SAFE VERSION)
+     * =====================================================
+     */
 
     queueMicrotask(() => {
       void runReconcileJob({
