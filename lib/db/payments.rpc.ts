@@ -48,13 +48,15 @@ async function rpcCall<T>(method: string, params: unknown): Promise<T> {
   });
 
   const text = await res.text();
+console.log("[RPC_RAW]", text);
 
-  let json: any;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error("RPC_INVALID_JSON");
-  }
+let json: any;
+try {
+  json = JSON.parse(text);
+} catch {
+  console.error("[RPC_NOT_JSON]", text);
+  throw new Error("RPC_INVALID_JSON");
+}
 
   if (!res.ok || json?.error) {
     throw new Error("RPC_HTTP_ERROR");
