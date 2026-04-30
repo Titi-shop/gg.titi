@@ -17,6 +17,12 @@ const PI_KEY = process.env.PI_API_KEY!;
 /* =========================================================
    TYPES
 ========================================================= */
+type RpcResult = {
+  skipped?: boolean;
+  reason?: string;
+  ledger?: number | null;
+  status?: string;
+};
 
 type Body = {
   payment_intent_id?: unknown;
@@ -163,7 +169,7 @@ export async function POST(req: Request) {
 
     console.log("🟡 [STEP_2_RPC_VERIFY]");
 
-    let rpcVerified: any = null;
+    let rpcVerified: RpcResult | null = null;
 
     try {
       rpcVerified =
