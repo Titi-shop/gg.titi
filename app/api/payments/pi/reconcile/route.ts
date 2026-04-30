@@ -141,19 +141,23 @@ export async function POST(req: Request) {
        STEP 2: RPC VERIFY (AUDIT ONLY)
     ========================= */
 
-    console.log("🟡 [STEP_2_RPC_VERIFY]");
+    /* =========================
+   STEP 2: RPC VERIFY (AUDIT ONLY)
+========================= */
 
-    let rpcVerified = null;
+console.log("🟡 [STEP_2_RPC_VERIFY]");
 
-    try {
-      rpcVerified = await verifyRpcPaymentForReconcile({
-        paymentIntentId,
-        piPaymentId,
-        txid,
-      });
+let rpcVerified = null;
 
-      console.log("🟢 [RPC_OK]", rpcVerified);
-    catch (err) {
+try {
+  rpcVerified = await verifyRpcPaymentForReconcile({
+    paymentIntentId,
+    piPaymentId,
+    txid,
+  });
+
+  console.log("🟢 [RPC_OK]", rpcVerified);
+} catch (err) {
   console.error("⚠️ [RPC_FAIL_IGNORE]", {
     message: err instanceof Error ? err.message : err,
   });
@@ -162,12 +166,6 @@ export async function POST(req: Request) {
     skipped: true,
     reason: "RPC_FAILED",
   };
-}
-if (piVerified.alreadyFinalized) {
-  return NextResponse.json({
-    success: true,
-    already: true,
-  });
 }
     /* =========================
        STEP 3: FINALIZE DB (ONLY IF PI OK)
