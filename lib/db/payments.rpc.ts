@@ -224,31 +224,38 @@ export async function verifyRpcPaymentForReconcile({
 
   const tx = await fetchTransaction(txid);
 
-  const txHash =
-    tx?.txHash || "";
+const txHash = tx?.txHash || tx?.hash || "";
 
-  if (!txHash) {
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "TX_NOT_FOUND",
-      tx
-    );
-    throw new Error("RPC_TX_NOT_FOUND");
-  }
+if (!txHash) {
+  await logRpc(
+    paymentIntentId,
+    txid,
+    false,
+    "TX_NOT_FOUND",
+    tx
+  );
+  throw new Error("RPC_TX_NOT_FOUND");
+}
 
-  if (tx.successful !== true) {
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "TX_NOT_SUCCESSFUL",
-      tx
-    );
-    throw new Error("RPC_TX_FAILED");
-  }
+/**
+ * FIX CORE BUG:
+ * Pi RPC không đảm bảo có `successful`
+ * mà dùng `status: "SUCCESS"`
+ */
+const isSuccess =
+  tx.successful === true ||
+  (typeof tx.status === "string" && tx.status === "SUCCESS");
 
+if (!isSuccess) {
+  await logRpc(
+    paymentIntentId,
+    txid,
+    false,
+    "TX_NOT_SUCCESSFUL",
+    tx
+  );
+  throw new Error("RPC_TX_FAILED");
+}
   /* =====================================================
      4. FETCH OPS
   ===================================================== */
