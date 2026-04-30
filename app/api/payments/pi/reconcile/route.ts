@@ -153,11 +153,22 @@ export async function POST(req: Request) {
       });
 
       console.log("🟢 [RPC_OK]", rpcVerified);
-    } catch (err) {
-      console.error("⚠️ [RPC_FAIL_IGNORE]", err);
-      rpcVerified = { skipped: true };
-    }
+    catch (err) {
+  console.error("⚠️ [RPC_FAIL_IGNORE]", {
+    message: err instanceof Error ? err.message : err,
+  });
 
+  rpcVerified = {
+    skipped: true,
+    reason: "RPC_FAILED",
+  };
+}
+if (piVerified.alreadyFinalized) {
+  return NextResponse.json({
+    success: true,
+    already: true,
+  });
+}
     /* =========================
        STEP 3: FINALIZE DB (ONLY IF PI OK)
     ========================= */
@@ -169,15 +180,14 @@ export async function POST(req: Request) {
     console.log("🟡 [STEP_3_FINALIZE]");
 
     const paid = await finalizePaidOrderFromIntent({
-      paymentIntentId,
-      piPaymentId,
-      txid,
-      userId,
-      verifiedAmount: piVerified.verifiedAmount,
-      receiverWallet: piVerified.receiverWallet,
-      piPayload: piVerified.piPayload,
-      rpcPayload: rpcVerified,
-    });
+  paymentIntentId,
+  piPaymentId,
+  txid,
+  verifiedAmount: piVerified.verifiedAmount,
+  receiverWallet: piVerified.receiverWallet,
+  piPayload: piVerified.piPayload,
+  rpcPayload: rpcVerified,
+});
 
     console.log("🟢 [DB_OK]", paid);
 
