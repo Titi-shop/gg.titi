@@ -1,13 +1,6 @@
 import { query } from "@/lib/db";
 
 /* =========================================================
-   ENV
-========================================================= */
-
-const PI_RPC =
-  process.env.PI_RPC_URL || "https://rpc.testnet.minepi.com";
-
-/* =========================================================
    TYPES
 ========================================================= */
 
@@ -16,123 +9,72 @@ type VerifyRpcParams = {
   txid: string;
 };
 
-type RpcTransaction = {
+type RpcTx = {
   txHash: string;
-  successful: boolean;
+  successful?: boolean;
+  status?: string;
   ledger?: number;
   created_at?: string;
 };
 
-type RpcOperation = {
+type RpcOps = {
   type?: string;
   type_i?: number;
-
   to?: string;
   destination?: string;
-
-  amount?: number | string;
-  amount_value?: number | string;
-};
-
-type PaymentIntentRow = {
-  merchant_wallet: string;
-  total_amount: string;
+  amount?: string | number;
 };
 
 /* =========================================================
-   SAFE UTIL
+   CONFIG
 ========================================================= */
 
-function safeNumber(v: unknown): number {
-  const n = Number(v);
-  if (Number.isNaN(n)) throw new Error("INVALID_NUMBER");
-  return n;
-}
-
-function toTrimmedString(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
+const PI_RPC = process.env.PI_RPC_URL ?? "https://rpc.testnet.minepi.com";
 
 /* =========================================================
-   RPC CALL
+   SAFE RPC CLIENT
 ========================================================= */
 
-async function rpcCall<T>(
-  method: string,
-  params: unknown
-): Promise<T> {
-  console.log("🟡 [RPC_VERIFY] RPC_CALL", { method, params });
-
+async function rpcCall<T>(method: string, params: unknown): Promise<T> {
   const res = await fetch(PI_RPC, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: Date.now(),
       method,
       params,
     }),
-    cache: "no-store",
   });
 
-  const json: unknown = await res
-    .json()
-    .catch(() => null);
+  const text = await res.text();
 
-  if (!res.ok || !json) {
-    throw new Error("RPC_HTTP_FAIL");
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error("RPC_INVALID_JSON");
   }
 
-  const obj = json as { error?: unknown; result?: T };
-
-  if (obj.error) {
-    throw new Error("RPC_JSON_FAIL");
+  if (!res.ok || json?.error) {
+    throw new Error("RPC_HTTP_ERROR");
   }
 
-  if (!obj.result) {
-    throw new Error("RPC_EMPTY_RESULT");
-  }
-
-  return obj.result;
+  return json.result as T;
 }
 
 /* =========================================================
-   FETCH TX
+   HELPERS
 ========================================================= */
 
-async function fetchTransaction(
-  txid: string
-): Promise<RpcTransaction> {
-  const tx = await rpcCall<RpcTransaction>("getTransaction", {
-    hash: txid,
-  });
-
-  console.log("🟢 [RPC_VERIFY] TX_FETCH_OK", tx);
-
-  return tx;
+function toNumber(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) throw new Error("INVALID_NUMBER");
+  return n;
 }
 
 /* =========================================================
-   FETCH OPS
-========================================================= */
-
-async function fetchPaymentOps(
-  txid: string
-): Promise<RpcOperation[]> {
-  const ops = await rpcCall<RpcOperation[]>(
-    "getOperationsForTransaction",
-    { hash: txid }
-  );
-
-  console.log("🟢 [RPC_VERIFY] OPS_FETCH_OK", ops);
-
-  return Array.isArray(ops) ? ops : [];
-}
-
-/* =========================================================
-   LOG RPC
+   LOG
 ========================================================= */
 
 async function logRpc(
@@ -153,6 +95,8 @@ async function logRpc(
         payload
       )
       VALUES ($1,$2,$3,$4,$5)
+      ON CONFLICT (txid)
+      DO NOTHING
       `,
       [
         paymentIntentId,
@@ -162,47 +106,43 @@ async function logRpc(
         JSON.stringify(payload ?? {}),
       ]
     );
-  } catch (err) {
-    console.error("🔥 [RPC_VERIFY] LOG_FAIL", err);
+  } catch (e) {
+    console.error("[RPC_LOG_FAIL]", e);
   }
 }
 
 /* =========================================================
-   MAIN VERIFY
+   MAIN
 ========================================================= */
 
 export async function verifyRpcPaymentForReconcile({
   paymentIntentId,
   txid,
 }: VerifyRpcParams) {
-  console.log("🟡 [RPC_VERIFY] START", {
-    paymentIntentId,
-    txid,
-  });
+  console.log("🟡 [RECONCILE] START", { paymentIntentId, txid });
 
-  /* =====================================================
-     1. REPLAY CHECK
-  ===================================================== */
+  /* =========================
+     STEP 0: IDEMPOTENCY CHECK
+  ========================= */
 
-  const replay = await query(
-    `
-    SELECT id
-    FROM payment_receipts
-    WHERE txid = $1
-    LIMIT 1
-    `,
+  const receipt = await query(
+    `SELECT id FROM payment_receipts WHERE txid = $1 LIMIT 1`,
     [txid]
   );
 
-  if (replay.rows.length) {
-    throw new Error("TXID_ALREADY_USED");
+  if (receipt.rows.length > 0) {
+    console.log("🟢 [RECONCILE] ALREADY_SETLED");
+    return { ok: true, already: true };
   }
 
-  /* =====================================================
-     2. LOAD INTENT
-  ===================================================== */
+  /* =========================
+     LOAD INTENT
+  ========================= */
 
-  const db = await query<PaymentIntentRow>(
+  const db = await query<{
+    merchant_wallet: string;
+    total_amount: string;
+  }>(
     `
     SELECT merchant_wallet, total_amount
     FROM payment_intents
@@ -212,159 +152,101 @@ export async function verifyRpcPaymentForReconcile({
     [paymentIntentId]
   );
 
-  if (!db.rows.length) {
-    throw new Error("PAYMENT_INTENT_NOT_FOUND");
-  }
+  if (!db.rows.length) throw new Error("PAYMENT_INTENT_NOT_FOUND");
 
   const intent = db.rows[0];
 
-  /* =====================================================
-     3. FETCH TX
-  ===================================================== */
+  /* =========================
+     STEP 1: FETCH TX (SAFE)
+  ========================= */
 
-  const tx = await fetchTransaction(txid);
+  let tx: RpcTx;
 
-const txHash = tx?.txHash || tx?.hash || "";
+  try {
+    tx = await rpcCall<RpcTx>("getTransaction", { hash: txid });
+  } catch (e) {
+    await logRpc(paymentIntentId, txid, false, "RPC_TX_FAIL", e);
+    throw new Error("RPC_TX_FAILED");
+  }
 
-if (!txHash) {
-  await logRpc(
-    paymentIntentId,
-    txid,
-    false,
-    "TX_NOT_FOUND",
-    tx
-  );
-  throw new Error("RPC_TX_NOT_FOUND");
-}
+  if (!tx?.txHash) {
+    await logRpc(paymentIntentId, txid, false, "TX_NOT_FOUND", tx);
+    throw new Error("RPC_TX_NOT_FOUND");
+  }
 
-/**
- * FIX CORE BUG:
- * Pi RPC không đảm bảo có `successful`
- * mà dùng `status: "SUCCESS"`
- */
-const isSuccess =
-  tx.successful === true ||
-  (typeof tx.status === "string" && tx.status === "SUCCESS");
+  const isSuccess =
+    tx.successful === true ||
+    tx.status === "SUCCESS";
 
-if (!isSuccess) {
-  await logRpc(
-    paymentIntentId,
-    txid,
-    false,
-    "TX_NOT_SUCCESSFUL",
-    tx
-  );
-  throw new Error("RPC_TX_FAILED");
-}
-  /* =====================================================
-     4. FETCH OPS
-  ===================================================== */
+  if (!isSuccess) {
+    await logRpc(paymentIntentId, txid, false, "TX_NOT_SUCCESSFUL", tx);
+    throw new Error("RPC_TX_FAILED");
+  }
 
-  const ops = await fetchPaymentOps(txid);
+  /* =========================
+     STEP 2: FETCH OPS (SAFE)
+  ========================= */
+
+  let ops: RpcOps[] = [];
+
+  try {
+    ops = await rpcCall<RpcOps[]>(
+      "getOperationsForTransaction",
+      { hash: txid }
+    );
+  } catch (e) {
+    await logRpc(paymentIntentId, txid, false, "RPC_OPS_FAIL", e);
+    throw new Error("RPC_JSON_FAIL");
+  }
 
   const paymentOp = ops.find(
-    (o) =>
-      o.type === "payment" ||
-      o.type_i === 1
+    (o) => o.type === "payment" || o.type_i === 1
   );
 
   if (!paymentOp) {
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "PAYMENT_OP_NOT_FOUND",
-      ops
-    );
+    await logRpc(paymentIntentId, txid, false, "NO_PAYMENT_OP", ops);
     throw new Error("RPC_PAYMENT_OP_NOT_FOUND");
   }
 
-  /* =====================================================
-     5. EXTRACT DATA
-  ===================================================== */
+  /* =========================
+     STEP 3: VERIFY DATA
+  ========================= */
 
-  const rpcReceiver = toTrimmedString(
-    paymentOp.to ?? paymentOp.destination
-  );
+  const rpcReceiver = String(
+    paymentOp.to || paymentOp.destination || ""
+  ).trim();
 
-  const rpcAmount = safeNumber(
-    paymentOp.amount ?? paymentOp.amount_value ?? 0
-  );
+  const rpcAmount = toNumber(paymentOp.amount ?? 0);
 
-  const expectedAmount = safeNumber(
-    intent.total_amount
-  );
+  const expectedAmount = toNumber(intent.total_amount);
+  const expectedReceiver = intent.merchant_wallet.trim();
 
-  const expectedReceiver = toTrimmedString(
-    intent.merchant_wallet
-  );
-
-  /* =====================================================
-     6. COMPARE
-  ===================================================== */
-
-  console.log("🟡 [RPC_VERIFY] AMOUNT_COMPARE", {
-    expectedAmount,
-    rpcAmount,
-  });
-
-  console.log("🟡 [RPC_VERIFY] RECEIVER_COMPARE", {
-    expectedReceiver,
-    rpcReceiver,
-  });
-
-  if (
-    Number(expectedAmount.toFixed(7)) !==
-    Number(rpcAmount.toFixed(7))
-  ) {
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "RPC_AMOUNT_MISMATCH",
-      paymentOp
-    );
+  if (Number(rpcAmount.toFixed(6)) !== Number(expectedAmount.toFixed(6))) {
+    await logRpc(paymentIntentId, txid, false, "AMOUNT_MISMATCH", paymentOp);
     throw new Error("RPC_AMOUNT_MISMATCH");
   }
 
-  if (!rpcReceiver || rpcReceiver !== expectedReceiver) {
-    await logRpc(
-      paymentIntentId,
-      txid,
-      false,
-      "RPC_RECEIVER_MISMATCH",
-      paymentOp
-    );
+  if (rpcReceiver !== expectedReceiver) {
+    await logRpc(paymentIntentId, txid, false, "RECEIVER_MISMATCH", paymentOp);
     throw new Error("RPC_RECEIVER_MISMATCH");
   }
 
-  /* =====================================================
-     7. SUCCESS
-  ===================================================== */
+  /* =========================
+     STEP 4: FINAL LOG
+  ========================= */
 
-  await logRpc(
-    paymentIntentId,
-    txid,
-    true,
-    "VERIFIED",
-    {
-      tx,
-      paymentOp,
-    }
-  );
+  await logRpc(paymentIntentId, txid, true, "VERIFIED", {
+    tx,
+    paymentOp,
+  });
 
-  console.log("🟢 [RPC_VERIFY] VERIFIED_SUCCESS");
+  console.log("🟢 [RECONCILE] VERIFIED_OK");
 
   return {
     ok: true,
     txid,
-    verifiedAmount: rpcAmount,
-    receiverWallet: rpcReceiver,
-    rpcPayload: {
-      tx,
-      paymentOp,
-    },
-    rpcConfirmedAt:
-      tx.created_at ?? new Date().toISOString(),
+    amount: rpcAmount,
+    receiver: rpcReceiver,
+    ledger: tx.ledger,
   };
 }
