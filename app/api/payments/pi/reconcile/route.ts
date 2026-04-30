@@ -76,10 +76,6 @@ export async function POST(req: Request) {
   console.log("🟡 [RECONCILE] START");
 
   try {
-    /* =========================
-       AUTH
-    ========================= */
-
     const auth = await getUserFromBearer();
     if (!auth) {
       return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
@@ -87,32 +83,21 @@ export async function POST(req: Request) {
 
     const userId = auth.userId;
 
-    /* =========================
-       BODY
-    ========================= */
-
     const raw = await req.json().catch(() => null);
 
     if (!raw || typeof raw !== "object") {
       return NextResponse.json({ error: "INVALID_BODY" }, { status: 400 });
     }
 
-    const body = raw as Body;
+    const body = raw as {
+      payment_intent_id?: string;
+      pi_payment_id?: string;
+      txid?: string;
+    };
 
-    const paymentIntentId =
-      typeof body.payment_intent_id === "string"
-        ? body.payment_intent_id.trim()
-        : "";
-
-    const piPaymentId =
-      typeof body.pi_payment_id === "string"
-        ? body.pi_payment_id.trim()
-        : "";
-
-    const txid =
-      typeof body.txid === "string"
-        ? body.txid.trim()
-        : "";
+    const paymentIntentId = body.payment_intent_id?.trim() ?? "";
+    const piPaymentId = body.pi_payment_id?.trim() ?? "";
+    const txid = body.txid?.trim() ?? "";
 
     if (!isUUID(paymentIntentId)) {
       return NextResponse.json({ error: "INVALID_PAYMENT_INTENT" }, { status: 400 });
@@ -123,7 +108,7 @@ export async function POST(req: Request) {
     }
 
     /* =========================
-       STEP 1: PI VERIFY (SOURCE OF TRUTH)
+       STEP 1 PI VERIFY
     ========================= */
 
     console.log("🟡 [STEP_1_PI_VERIFY]");
@@ -135,39 +120,41 @@ export async function POST(req: Request) {
       txid,
     });
 
-    console.log("🟢 [PI_OK]", piVerified);
+    console.log("🟢 [PI_OK]", {
+      ok: piVerified.ok,
+      amount: piVerified.verifiedAmount,
+    });
 
     /* =========================
-       STEP 2: RPC VERIFY (AUDIT ONLY)
+       STEP 2 RPC VERIFY (SAFE AUDIT)
     ========================= */
 
+    console.log("🟡 [STEP_2_RPC_VERIFY]");
+
+    let rpcVerified: any;
+
+    try {
+      rpcVerified = await verifyRpcPaymentForReconcile({
+        paymentIntentId,
+        txid,
+      });
+
+      console.log("🟢 [RPC_OK]");
+    } catch (err) {
+      console.error("⚠️ [RPC_FAIL_IGNORE]", {
+        paymentIntentId,
+        txid,
+        message: err instanceof Error ? err.message : String(err),
+      });
+
+      rpcVerified = {
+        skipped: true,
+        reason: "RPC_FAILED",
+      };
+    }
+
     /* =========================
-   STEP 2: RPC VERIFY (AUDIT ONLY)
-========================= */
-
-console.log("🟡 [STEP_2_RPC_VERIFY]");
-
-let rpcVerified = null;
-
-try {
-  rpcVerified = await verifyRpcPaymentForReconcile({
-  paymentIntentId,
-  txid,
-});
-
-  console.log("🟢 [RPC_OK]", rpcVerified);
-} catch (err) {
-  console.error("⚠️ [RPC_FAIL_IGNORE]", {
-    message: err instanceof Error ? err.message : err,
-  });
-
-  rpcVerified = {
-    skipped: true,
-    reason: "RPC_FAILED",
-  };
-}
-    /* =========================
-       STEP 3: FINALIZE DB (ONLY IF PI OK)
+       STEP 3 FINALIZE
     ========================= */
 
     if (!piVerified?.ok) {
@@ -177,19 +164,19 @@ try {
     console.log("🟡 [STEP_3_FINALIZE]");
 
     const paid = await finalizePaidOrderFromIntent({
-  paymentIntentId,
-  piPaymentId,
-  txid,
-  verifiedAmount: piVerified.verifiedAmount,
-  receiverWallet: piVerified.receiverWallet,
-  piPayload: piVerified.piPayload,
-  rpcPayload: rpcVerified,
-});
+      paymentIntentId,
+      piPaymentId,
+      txid,
+      verifiedAmount: piVerified.verifiedAmount,
+      receiverWallet: piVerified.receiverWallet,
+      piPayload: piVerified.piPayload,
+      rpcPayload: rpcVerified,
+    });
 
     console.log("🟢 [DB_OK]", paid);
 
     /* =========================
-       STEP 4: PI COMPLETE
+       STEP 4 COMPLETE
     ========================= */
 
     console.log("🟡 [STEP_4_PI_COMPLETE]");
@@ -199,7 +186,7 @@ try {
     return NextResponse.json({
       success: true,
       order_id: paid.orderId,
-      rpc_verified: !!rpcVerified,
+      rpc_verified: !rpcVerified?.skipped,
     });
   } catch (err) {
     console.error("🔥 [RECONCILE_CRASH]", err);
