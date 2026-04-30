@@ -211,15 +211,21 @@ export async function verifyRpcPaymentForReconcile({
   ========================================================= */
 
   await logRpc({
-    paymentIntentId,
-    txid,
-    verified: true,
-    reason: "RPC_AUDIT_OK",
-    stage: "RPC",
-    amount: null,
-    receiver: null,
-    payload: tx,
-  });
+  paymentIntentId,
+  txid,
+  verified: true,
+  reason: "RPC_AUDIT_OK",
+  stage: "RPC",
+  amount: null,
+  receiver: null,
+  payload: {
+    tx,
+    extracted: {
+      amount: null,
+      receiver: null,
+    },
+  },
+});
 
   console.log("🟢 [RPC_VERIFY] DONE");
 
