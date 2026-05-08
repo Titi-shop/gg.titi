@@ -565,57 +565,53 @@ export async function finalizePaidOrderFromIntent({
     ===================================================== */
 
     await client.query(
-      `
-      INSERT INTO pi_payments (
-        user_id,
-        pi_payment_id,
-        txid,
-        amount,
-        status,
-        expected_amount,
-        verified_amount,
-        idempotency_key,
-        country,
-        zone,
-        order_id,
-        raw,
-        completed_at,
-        updated_at
-      )
-      VALUES (
-        $1,$2,$3,$4,
-        'completed',
-        $5,$6,$7,$8,$9,$10,$11,
-        now(),
-        now()
-      )
-     ON CONFLICT (pi_payment_id)
-        DO UPDATE SET
-        txid = EXCLUDED.txid,
-        status = 'completed',
-        verified_amount = EXCLUDED.verified_amount,
-        order_id = EXCLUDED.order_id,
-        raw = EXCLUDED.raw,
-        completed_at = now(),
-        updated_at = now()
-      `,
-      [
-        intent.buyer_id,
-        piPaymentId,
-        txid,
-        verifiedAmount,
-        expectedAmount,
-        verifiedAmount,
-        piPaymentId,
-        intent.country,
-        intent.zone,
-        orderId,
-        JSON.stringify({
-          pi: piPayload,
-          rpc: rpcPayload,
-        }),
-      ]
-    );
+  `
+  INSERT INTO pi_payments (
+    user_id,
+    pi_payment_id,
+    txid,
+    amount,
+    status,
+    expected_amount,
+    verified_amount,
+    idempotency_key,
+    country,
+    zone,
+    order_id,
+    raw,
+    completed_at,
+    updated_at
+  )
+  VALUES (
+    $1,$2,$3,$4,
+    'completed',
+    $5,$6,$7,$8,$9,$10,$11,
+    now(),
+    now()
+  )
+  ON CONFLICT (pi_payment_id)
+  DO UPDATE SET
+    txid = EXCLUDED.txid,
+    status = 'completed',
+    verified_amount = EXCLUDED.verified_amount,
+    order_id = EXCLUDED.order_id,
+    raw = EXCLUDED.raw,
+    updated_at = now()
+  `,
+  [
+    intent.buyer_id,
+    piPaymentId,
+    txid,
+    verifiedAmount,
+    expectedAmount,
+    verifiedAmount,
+    piPaymentId,
+    intent.country,
+    intent.zone,
+    orderId,
+    JSON.stringify({ pi: piPayload, rpc: rpcPayload }),
+  ]
+);
 
     console.log("🟢 [DB FINALIZE] PI_PAYMENT_LOGGED");
 
