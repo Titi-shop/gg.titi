@@ -10,7 +10,8 @@ export async function getOrdersByBuyer(userId: string) {
     SELECT
       o.id,
       o.order_number,
-      o.status,
+      o.payment_status,
+      o.fulfillment_status
       o.payment_status,
       o.total,
       o.currency,
@@ -76,11 +77,11 @@ export async function getBuyerOrderCounts(userId: string) {
   const { rows } = await query(
     `
     SELECT
-      COUNT(*) FILTER (WHERE status='pending')::int AS pending,
-      COUNT(*) FILTER (WHERE status='confirmed')::int AS confirmed,
-      COUNT(*) FILTER (WHERE status='shipping')::int AS shipping,
-      COUNT(*) FILTER (WHERE status='completed')::int AS completed,
-      COUNT(*) FILTER (WHERE status='cancelled')::int AS cancelled
+      COUNT(*) FILTER (WHERE payment_status='pending') AS pending_payment,
+COUNT(*) FILTER (WHERE fulfillment_status='pending_fulfillment') AS pending_fulfillment,
+COUNT(*) FILTER (WHERE fulfillment_status='shipped') AS shipping,
+COUNT(*) FILTER (WHERE fulfillment_status='completed') AS completed,
+COUNT(*) FILTER (WHERE fulfillment_status='cancelled') AS cancelled
     FROM orders
     WHERE buyer_id = $1
       AND deleted_at IS NULL
@@ -109,7 +110,8 @@ export async function getOrderByBuyerId(
     SELECT
       o.id,
       o.order_number,
-      o.status,
+      o.payment_status,
+      o.fulfillment_status
       o.payment_status,
 
       o.total,
@@ -241,7 +243,7 @@ export async function completeOrderByBuyer(
       }
 
       /* ================= INVALID STATUS ================= */
-      if (order.status !== "shipping") {
+      if (order.fulfillment_status !== "shipped") {
         console.warn("[ORDER][COMPLETE][INVALID_STATUS]", {
           orderId,
           status: order.status,
@@ -324,7 +326,7 @@ export async function cancelOrderByBuyer(
       }
 
       /* ================= INVALID STATUS ================= */
-      if (order.status !== "pending") {
+      if (order.payment_status !== "pending") {
         console.warn("[ORDER][CANCEL][INVALID_STATUS]", {
           orderId,
           status: order.status,
