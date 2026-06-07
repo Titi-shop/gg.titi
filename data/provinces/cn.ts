@@ -1,0 +1,37 @@
+const CN = [
+  "Beijing",
+  "Shanghai",
+  "Tianjin",
+  "Chongqing",
+
+  "Anhui",
+  "Fujian",
+  "Gansu",
+  "Guangdong",
+  "Guangxi",
+  "Guizhou",
+  "Hainan",
+  "Hebei",
+  "Heilongjiang",
+  "Henan",
+  "Hubei",
+  "Hunan",
+  "Jiangsu",
+  "Jiangxi",
+  "Jilin",
+  "Liaoning",
+  "Inner Mongolia",
+  "Ningxia",
+  "Qinghai",
+  "Shandong",
+  "Shanxi",
+  "Shaanxi",
+  "Sichuan",
+  "Yunnan",
+  "Zhejiang",
+
+  "Tibet",
+  "Xinjiang",
+] as const;
+
+export default CN;

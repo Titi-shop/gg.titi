@@ -1,0 +1,341 @@
+"use client";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+import useSWR from "swr";
+import {
+Suspense,
+useEffect,
+useMemo,
+useState,
+} from "react";
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
+import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
+import {
+PackagePlus,
+Package,
+ClipboardList,
+Clock,
+CheckCircle2,
+Truck,
+PackageCheck,
+RotateCcw,
+XCircle,
+RefreshCcw,
+} from "lucide-react";
+
+/* ================= PAGE ================= */
+
+function SellerOrdersContent() {
+const { t } = useTranslation();
+const { user, loading, piReady } = useAuth();
+
+// ✅ 1. khai báo trước
+const isSeller = user?.role === "seller";
+
+// ✅ 2. fetcher trước
+const fetcher = (url: string) =>
+apiAuthFetch(url, { cache: "no-store" }).then((res) =>
+res.ok ? res.json() : null
+);
+
+// ✅ 3. SWR sau
+const { data, isLoading } = useSWR(
+isSeller && piReady ? "/api/seller/orders/count" : null,
+fetcher,
+{
+revalidateOnFocus: false,
+dedupingInterval: 5000,
+keepPreviousData: true,
+}
+);
+
+const stats = useMemo(() => {
+  const pending =
+    Number(data?.pending ?? 0);
+
+  const processing =
+    Number(data?.processing ?? 0);
+
+  const shipped =
+    Number(data?.shipped ?? 0);
+
+  const completed =
+    Number(data?.completed ?? 0);
+
+  const returned =
+    Number(data?.returned ?? 0);
+
+  const cancelled =
+    Number(data?.cancelled ?? 0);
+
+  return {
+    pending,
+    processing,
+    shipped,
+    completed,
+    returned,
+    cancelled,
+
+    total:
+      pending +
+      processing +
+      shipped +
+      completed +
+      returned +
+      cancelled,
+  };
+}, [data]);
+
+if (loading || !piReady) {
+return (
+<main className="max-w-4xl mx-auto px-4 py-8 space-y-4">
+{Array.from({ length: 3 }).map((_, i) => (
+<div  
+key={i}  
+className="h-24 rounded-xl animate-pulse bg-card"
+/>
+))}
+</main>
+);
+}
+
+if (!isSeller) {
+return (
+<div className="flex justify-center mt-16 text-sm text-muted">
+{t.no_permission ?? "No permission"}
+</div>
+);
+}
+
+return (
+<main
+  className="max-w-4xl mx-auto px-4 py-8 space-y-8 min-h-screen transition-colors"
+  style={{
+    background: "var(--background)",
+    color: "var(--foreground)",
+  }}
+>
+{/* HEADER */}  
+  <div
+  className="rounded-xl p-3 mb-4 border"
+  style={{
+    background: "var(--card-bg)",
+    borderColor: "var(--nav-border)",
+  }}
+>
+<h2
+  className="text-xs font-semibold tracking-wide"
+  style={{ color: "var(--foreground)" }}
+> 
+{t.order_status ?? "ORDER STATUS"}  
+   </h2>  
+   </div>  
+
+  {/* MAIN ACTIONS */}  
+  <section className="grid grid-cols-2 md:grid-cols-4 gap-4">  
+    <MainCard  
+      href="/seller/post"  
+      icon={<PackagePlus size={18} />}  
+      label={t.post_product ?? "Post Product"}  
+    />  
+
+    <MainCard  
+      href="/seller/stock"  
+      icon={<Package size={18} />}  
+      label={t.stock ?? "Stock"}  
+    />  
+
+    <MainCard  
+      href="/seller/orders"  
+      icon={<ClipboardList size={18} />}  
+      label={t.all_orders ?? "All Orders"}  
+      badge={stats.total}  
+    />  
+    <MainCard  
+       href="/seller/returns"  
+      icon={<RefreshCcw size={18} />}  
+      label={t.returns ?? "Returns"}  
+      badge={stats.returned}  
+    />  
+  </section>  
+
+  {/* ORDER STATUS */}  
+  <section>  
+    <div
+  className="rounded-xl p-3 mb-4 border"
+  style={{
+    background: "var(--card-secondary)",
+    borderColor: "var(--nav-border)",
+  }}
+> 
+      <h2 className="text-xs font-semibold text-gray-700 tracking-wide">  
+        {t.order_status ?? "ORDER STATUS"}  
+      </h2>  
+    </div>  
+
+    <div className="grid grid-cols-3 md:grid-cols-6 gap-4">  
+      <StatusCard
+
+href="/seller/orders?tab=pending"
+icon={<Clock size={16} />}
+count={stats.pending}
+label={t.pending_orders ?? "Pending"}
+/>
+
+<StatusCard
+href="/seller/orders?tab=processing"
+icon={<CheckCircle2 size={16} />}
+count={stats.processing}
+label={t.confirmed_orders ?? "Confirmed"}
+/>
+
+<StatusCard
+href="/seller/orders?tab=shipped"
+icon={<Truck size={16} />}
+count={stats.shipped}
+label={t.shipping_orders ?? "Shipping"}
+/>
+
+<StatusCard
+href="/seller/orders?tab=completed"
+icon={<PackageCheck size={16} />}
+count={stats.completed}
+label={t.completed_orders ?? "Completed"}
+/>
+
+<StatusCard
+href="/seller/orders?tab=returned"
+icon={<RotateCcw size={16} />}
+count={stats.returned}
+label={t.returned_orders ?? "Returned"}
+/>
+
+<StatusCard
+href="/seller/orders?tab=cancelled"
+icon={<XCircle size={16} />}
+count={stats.cancelled}
+label={t.cancelled_orders ?? "Cancelled"}
+/>
+</div>
+</section>
+</main>
+);
+}
+
+/* ================= MAIN CARD ================= */
+
+function MainCard({
+href,
+icon,
+label,
+badge,
+}: {
+href: string;
+icon: React.ReactNode;
+label: string;
+badge?: number;
+}) {
+return (
+<Link href={href} className="block">
+<div
+  className="relative rounded-xl p-4 text-center shadow-sm h-[96px] flex flex-col justify-center hover:shadow-md transition border"
+  style={{
+    background: "var(--card-bg)",
+    borderColor: "var(--nav-border)",
+  }}
+>
+{badge !== undefined && badge > 0 && (
+<span className="absolute top-2 right-2 text-[10px] bg-primary text-white px-2 py-0.5 rounded-full">
+{badge}
+</span>
+)}
+
+  <div className="flex flex-col items-center gap-2">  
+    <div
+  className="w-9 h-9 rounded-full flex items-center justify-center"
+  style={{
+    background: "var(--card-secondary)",
+    color: "var(--foreground)",
+  }}
+>
+      {icon}  
+    </div>  <span
+  className="text-[12px] font-medium"
+  style={{ color: "var(--foreground)" }}
+>  
+  {label}  
+</span>
+
+  </div>  
+</div>  
+    </Link>  
+  );  
+}  /* ================= STATUS CARD ================= */
+
+function StatusCard({
+href,
+icon,
+count,
+label,
+}: {
+href: string;
+icon: React.ReactNode;
+count: number;
+label: string;
+}) {
+return (
+<Link href={href} className="block">
+<div
+  className="rounded-xl p-4 text-center shadow-sm h-[110px] flex flex-col justify-between hover:shadow-md transition border"
+  style={{
+    background: "var(--card-bg)",
+    borderColor: "var(--nav-border)",
+  }}
+>
+
+  <div
+  className="w-8 h-8 mx-auto rounded-full flex items-center justify-center"
+  style={{
+    background: "var(--card-secondary)",
+    color: "var(--foreground)",
+  }}
+>
+    {icon}  
+  </div>    <span
+  className="text-[11px]"
+  style={{ color: "var(--text-muted)" }}
+>  
+    {label}  
+  </span>   <span
+  className="text-sm font-semibold"
+  style={{ color: "var(--foreground)" }}
+>  
+    {count}  
+  </span>  
+</div>  
+    </Link>  
+  );  
+}  
+export default function SellerOrdersPage() {  
+  return (  
+    <Suspense  
+      fallback={  
+        <main
+  className="min-h-screen p-4 space-y-4"
+  style={{ background: "var(--background)" }}
+>
+          {Array.from({ length: 4 }).map((_, i) => (  
+            <div  
+              key={i}  
+              className="h-28 rounded-xl bg-card animate-pulse"  
+            />  
+          ))}  
+        </main>  
+      }  
+    >  
+      <SellerOrdersContent />  
+    </Suspense>  
+  );  
+}
