@@ -59,12 +59,19 @@ export function validateBeforePay({
   /* =========================
      USER CHECK
   ========================= */
-  if (!user) {
-    localStorage.setItem("pending_checkout", "1");
+if (!user) {
+  localStorage.setItem("pending_checkout", "1");
+  showMessage(
+    t.logging_in_pi ??
+      "Connecting to Pi account...",
+    "info"
+  );
+
+  setTimeout(() => {
     pilogin?.();
-    showMessage(t.please_login ?? "please_login");
-    return false;
-  }
+  }, 500);
+  return false;
+}
 
   /* =========================
      PI READY CHECK
@@ -146,7 +153,8 @@ export function useCheckoutPay(params: UseCheckoutPayParams) {
 
     processingRef.current = true;
     setProcessing(true);
-
+showMessage(
+     t.creating_order ??   "Creating order...",  "info");
     try {
       const token = await getPiAccessToken();
 
@@ -194,6 +202,12 @@ export function useCheckoutPay(params: UseCheckoutPayParams) {
         lockedAmount,
       });
 
+   showMessage(
+  t.opening_pi_wallet ??
+    "Opening Pi Wallet...",
+  "info"
+);
+      
       if (!window.Pi || typeof window.Pi.createPayment !== "function") {
         throw new Error("PI_SDK_NOT_READY");
       }
@@ -353,4 +367,4 @@ export function useCheckoutPay(params: UseCheckoutPayParams) {
     validate,
     showMessage,
   ]);
-}
+        }
