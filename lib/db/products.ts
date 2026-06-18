@@ -1,3 +1,7 @@
+Bạn giúp mình tách file này sạch lại .
+
+lib/db/products.ts
+
 import { query, withTransaction } from "@/lib/db";
 
 import type {
@@ -218,82 +222,96 @@ function mapRow(
   row: ProductRow
 ): ProductRecord {
   return {
-    ...row,
+  ...row,
 
-    price: safeNumber(
-      row.price
+  price:
+    row.price == null
+      ? null
+      : safeNumber(
+          row.price
+        ),
+
+  sale_price:
+    row.sale_price == null
+      ? null
+      : safeNullableNumber(
+          row.sale_price
+        ),
+
+  final_price:
+    row.final_price == null
+      ? null
+      : safeNumber(
+          row.final_price
+        ),
+
+  stock:
+    row.stock == null
+      ? null
+      : safeNumber(
+          row.stock
+        ),
+
+  sale_stock:
+    row.sale_stock == null
+      ? null
+      : safeNumber(
+          row.sale_stock
+        ),
+
+  sale_sold:
+    safeNumber(
+      row.sale_sold
     ),
 
-    sale_price:
-      safeNullableNumber(
-        row.sale_price
-      ),
-
-    final_price:
-      safeNumber(
-        row.final_price
-      ),
-
-    stock: safeNumber(
-      row.stock
-    ),
-
-    sale_stock:
-      safeNumber(
-        row.sale_stock
-      ),
-
-    sale_sold:
-      safeNumber(
-        row.sale_sold
-      ),
-
-    sold: safeNumber(
+  sold:
+    safeNumber(
       row.sold
     ),
 
-    views: safeNumber(
+  views:
+    safeNumber(
       row.views
     ),
 
-    rating_avg:
-      safeNumber(
-        row.rating_avg
-      ),
+  rating_avg:
+    safeNumber(
+      row.rating_avg
+    ),
 
-    rating_count:
-      safeNumber(
-        row.rating_count
-      ),
+  rating_count:
+    safeNumber(
+      row.rating_count
+    ),
 
-    images:
-      normalizeImages(
-        row.images
-      ),
+  images:
+    normalizeImages(
+      row.images
+    ),
 
-    detail_images:
-      normalizeImages(
-        row.detail_images
-      ),
+  detail_images:
+    normalizeImages(
+      row.detail_images
+    ),
 
-    is_active:
-      row.is_active === true,
+  is_active:
+    row.is_active === true,
 
-    is_featured:
-      row.is_featured === true,
+  is_featured:
+    row.is_featured === true,
 
-    is_digital:
-      row.is_digital === true,
+  is_digital:
+    row.is_digital === true,
 
-    is_unlimited:
-      row.is_unlimited === true,
+  is_unlimited:
+    row.is_unlimited === true,
 
-    sale_enabled:
-      row.sale_enabled === true,
+  sale_enabled:
+    row.sale_enabled === true,
 
-    has_variants:
-      row.has_variants === true,
-  };
+  has_variants:
+    row.has_variants === true,
+};
 }
 
 /* =========================================================
@@ -383,6 +401,43 @@ export async function getProductById(
       result.rows[0] ??
       null;
 
+    console.log(
+      "🧪 GET_BY_ID_DB_ROW",
+      {
+        id: row?.id,
+
+        category_id:
+          row?.category_id,
+
+        price:
+          row?.price,
+
+        sale_price:
+          row?.sale_price,
+
+        final_price:
+          row?.final_price,
+
+        stock:
+          row?.stock,
+
+        sale_stock:
+          row?.sale_stock,
+
+        sale_enabled:
+          row?.sale_enabled,
+
+        sale_start:
+          row?.sale_start,
+
+        sale_end:
+          row?.sale_end,
+
+        has_variants:
+          row?.has_variants,
+      }
+    );
+
     if (!row) {
       log(
         "GET_BY_ID_NOT_FOUND",
@@ -397,7 +452,47 @@ export async function getProductById(
       product_id
     );
 
-    return mapRow(row);
+    const mapped =
+      mapRow(row);
+
+    console.log(
+      "🧪 GET_BY_ID_MAPPED",
+      {
+        id: mapped.id,
+
+        category_id:
+          mapped.category_id,
+
+        price:
+          mapped.price,
+
+        sale_price:
+          mapped.sale_price,
+
+        final_price:
+          mapped.final_price,
+
+        stock:
+          mapped.stock,
+
+        sale_stock:
+          mapped.sale_stock,
+
+        sale_enabled:
+          mapped.sale_enabled,
+
+        sale_start:
+          mapped.sale_start,
+
+        sale_end:
+          mapped.sale_end,
+
+        has_variants:
+          mapped.has_variants,
+      }
+    );
+
+    return mapped;
   } catch (error) {
     logError(
       "GET_BY_ID_ERROR",
@@ -407,7 +502,6 @@ export async function getProductById(
     throw error;
   }
 }
-
 /* =========================================================
    GET PRODUCTS BY IDS
 ========================================================= */
@@ -581,39 +675,69 @@ export async function createProduct(
       );
     }
 
-    const price =
-      safeNumber(
-        input.price
-      );
+    const hasVariants =
+  input.has_variants === true;
 
-    if (price < 0) {
-      throw new Error(
-        "INVALID_PRODUCT_PRICE"
-      );
-    }
+const price = hasVariants
+  ? null
+  : safeNumber(input.price);
 
-    const salePrice =
-      safeNullableNumber(
-        input.sale_price
-      );
+const salePrice = hasVariants
+  ? null
+  : safeNullableNumber(
+      input.sale_price
+    );
 
-    if (
-      salePrice !== null &&
-      salePrice >= price
-    ) {
-      throw new Error(
-        "INVALID_SALE_PRICE"
-      );
-    }
+if (
+  !hasVariants &&
+  price !== null &&
+  price < 0
+) {
+  throw new Error(
+    "INVALID_PRODUCT_PRICE"
+  );
+}
 
-    const finalPrice =
-      calcFinalPrice({
-        price,
-        sale_price:
-          salePrice,
-        sale_enabled:
-          input.sale_enabled,
-      });
+if (
+  !hasVariants &&
+  price !== null &&
+  salePrice !== null &&
+  salePrice >= price
+) {
+  throw new Error(
+    "INVALID_SALE_PRICE"
+  );
+}
+
+const finalPrice = hasVariants
+  ? null
+  : calcFinalPrice({
+      price,
+      sale_price: salePrice,
+      sale_enabled:
+        input.sale_enabled,
+    });
+
+const stock = hasVariants
+  ? null
+  : safeNumber(
+      input.stock
+    );
+
+const saleStock = hasVariants
+  ? null
+  : safeNumber(
+      input.sale_stock
+    );
+
+const saleEnabled =
+  Boolean(input.sale_enabled);
+
+const saleStart =
+  input.sale_start ?? null;
+
+const saleEnd =
+  input.sale_end ?? null;
 
     const slug =
       await generateUniqueSlug(
@@ -671,89 +795,76 @@ export async function createProduct(
         RETURNING *
         `,
         [
-          seller_id,
-          input.name.trim(),
-          slug,
+          
+  seller_id,
+  input.name.trim(),
+  slug,
 
-          input.short_description ??
-            "",
+  input.short_description ??
+    "",
 
-          input.description ??
-            "",
+  input.description ??
+    "",
 
-          input.detail ??
-            "",
+  input.detail ??
+    "",
 
-          input.thumbnail ??
-            "",
+  input.thumbnail ??
+    "",
 
-          normalizeImages(
-            input.images
-          ),
+  normalizeImages(
+    input.images
+  ),
 
-          normalizeImages(
-            input.detail_images
-          ),
+  normalizeImages(
+    input.detail_images
+  ),
 
-          input.video_url ??
-            "",
+  input.video_url ??
+    "",
 
-          price,
+  price,
+  salePrice,
+  finalPrice,
+  "PI",
 
-          salePrice,
+  stock,
 
-          finalPrice,
+  Boolean(
+    input.is_unlimited
+  ),
 
-          "PI",
+  Boolean(
+    input.is_featured
+  ),
 
-          safeNumber(
-            input.stock
-          ),
+  Boolean(
+    input.is_digital
+  ),
 
-          Boolean(
-            input.is_unlimited
-          ),
+  status,
 
-          Boolean(
-            input.is_featured
-          ),
+  input.category_id ??
+    null,
 
-          Boolean(
-            input.is_digital
-          ),
+  saleStart,
+  saleEnd,
 
-          status,
+  saleEnabled,
 
-          input.category_id ??
-            null,
+  saleStock,
 
-          input.sale_start ??
-            null,
+  input.meta_title ??
+    "",
 
-          input.sale_end ??
-            null,
+  input.meta_description ??
+    "",
 
-          Boolean(
-            input.sale_enabled
-          ),
+  input.is_active !==
+    false,
 
-          safeNumber(
-            input.sale_stock
-          ),
-
-          input.meta_title ??
-            "",
-
-          input.meta_description ??
-            "",
-
-          input.is_active !==
-            false,
-
-          Boolean(
-            input.has_variants
-          ),
-        ]
+  hasVariants,
+]
       );
 
     const row =
@@ -828,46 +939,121 @@ export async function updateProductBySeller(
     }
 
     const current =
-      await getProductById(
-        product_id
-      );
+  await getProductById(
+    product_id
+  );
 
-    if (!current) {
-      return null;
-    }
+if (!current) {
+  return null;
+}
 
-    const nextPrice =
-      input.price !==
-      undefined
-        ? safeNumber(
-            input.price
-          )
-        : current.price;
+const hasVariants = Boolean(
+  input.has_variants ??
+  current.has_variants
+);
+    log(
+  "UPDATE_VARIANT_MODE",
+  {
+    current_has_variants:
+      current.has_variants,
 
-    const nextSalePrice =
-      input.sale_price !==
-      undefined
-        ? safeNullableNumber(
-            input.sale_price
-          )
-        : current.sale_price;
+    input_has_variants:
+      input.has_variants,
 
-    const nextSaleEnabled =
-      input.sale_enabled !==
-      undefined
-        ? Boolean(
-            input.sale_enabled
-          )
-        : current.sale_enabled;
+    final_has_variants:
+      hasVariants,
+  }
+);
 
-    const nextFinalPrice =
-      calcFinalPrice({
-        price: nextPrice,
+/* =========================
+   PRICE
+========================= */
+
+const nextPrice =
+  hasVariants
+    ? null
+    : input.price !== undefined
+    ? safeNumber(
+        input.price
+      )
+    : current.price;
+
+const nextSalePrice =
+  hasVariants
+    ? null
+    : input.sale_price !==
+        undefined
+    ? safeNullableNumber(
+        input.sale_price
+      )
+    : current.sale_price;
+
+const nextSaleEnabled =
+  input.sale_enabled !== undefined
+    ? Boolean(
+        input.sale_enabled
+      )
+    : current.sale_enabled;
+
+const nextFinalPrice =
+  hasVariants
+    ? null
+    : calcFinalPrice({
+        price:
+          safeNumber(
+            nextPrice
+          ),
         sale_price:
           nextSalePrice,
         sale_enabled:
           nextSaleEnabled,
       });
+log(
+  "UPDATE_PRICE_CALC",
+  {
+    nextPrice,
+    nextSalePrice,
+    nextSaleEnabled,
+    nextFinalPrice,
+  }
+);
+/* =========================
+   STOCK
+========================= */
+
+const nextStock =
+  hasVariants
+    ? null
+    : input.stock !==
+        undefined
+    ? safeNumber(
+        input.stock
+      )
+    : current.stock;
+
+const nextSaleStock =
+  hasVariants
+    ? null
+    : input.sale_stock !==
+        undefined
+    ? safeNumber(
+        input.sale_stock
+      )
+    : current.sale_stock;
+
+/* =========================
+   SALE WINDOW
+========================= */
+
+const nextSaleStart =
+  input.sale_start !== undefined
+    ? input.sale_start
+    : current.sale_start;
+
+const nextSaleEnd =
+  input.sale_end !== undefined
+    ? input.sale_end
+    : current.sale_end;
 
     const nextStatus =
       normalizeStatus(
@@ -949,17 +1135,9 @@ export async function updateProductBySeller(
             current.video_url,
 
           nextPrice,
-
           nextSalePrice,
-
           nextFinalPrice,
-
-          input.stock !==
-            undefined
-            ? safeNumber(
-                input.stock
-              )
-            : current.stock,
+          nextStock,
 
           input.is_unlimited !==
             undefined
@@ -989,24 +1167,11 @@ export async function updateProductBySeller(
             ? input.category_id
             : current.category_id,
 
-          input.sale_start !==
-            undefined
-            ? input.sale_start
-            : current.sale_start,
-
-          input.sale_end !==
-            undefined
-            ? input.sale_end
-            : current.sale_end,
-
+          nextSaleStart,
+          nextSaleEnd,
           nextSaleEnabled,
 
-          input.sale_stock !==
-            undefined
-            ? safeNumber(
-                input.sale_stock
-              )
-            : current.sale_stock,
+          nextSaleStock,
 
           input.meta_title ??
             current.meta_title,
@@ -1019,10 +1184,7 @@ export async function updateProductBySeller(
             ? input.is_active
             : current.is_active,
 
-          input.has_variants !==
-            undefined
-            ? input.has_variants
-            : current.has_variants,
+          hasVariants,
 
           product_id,
           seller_id,
