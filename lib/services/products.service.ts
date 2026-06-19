@@ -5,7 +5,6 @@ import {
   updateProductBySeller,
   deleteProductBySeller,
 } from "@/lib/db/products";
-
 import {
   getVariantsByProductId,
   replaceVariantsByProductId,
@@ -76,40 +75,6 @@ function getCategoryId(
   return body.category_id ?? null;
 }
 
-function calcFinalPrice(
-  variants: VariantInput[],
-  fallbackPrice: number
-): number {
-  if (!variants.length) {
-    return fallbackPrice;
-  }
-
-  return Math.min(
-    ...variants.map((variant) =>
-      Number(
-        variant.final_price ??
-          variant.sale_price ??
-          variant.price ??
-          0
-      )
-    )
-  );
-}
-
-function calcStock(
-  variants: VariantInput[],
-  fallbackStock: number
-): number {
-  if (!variants.length) {
-    return fallbackStock;
-  }
-
-  return variants.reduce(
-    (sum, variant) =>
-      sum + Number(variant.stock ?? 0),
-    0
-  );
-}
 
 function normalizeShippingRates(
   body: ProductRequestBody,
@@ -354,20 +319,22 @@ console.log(
         2
       )
     );
-const hasVariants = variants.length > 0;
-const finalPrice = calcFinalPrice(
-  variants,
-  Number(body.price ?? 0)
-);
+const hasVariants =
+  variants.length > 0;
 
-const stock = calcStock(
-  variants,
-  Number(body.stock ?? 0)
-);
+const productPrice =
+  hasVariants
+    ? null
+    : Number(body.price ?? 0);
+
+const stock =
+  hasVariants
+    ? null
+    : Number(body.stock ?? 0);
     console.log(
-      "🚀 CREATE_PRODUCT_DB",
-      {
-        finalPrice,
+  "🚀 CREATE_PRODUCT_DB",
+  {
+    productPrice,
         stock,
         sale_enabled:
           body.sale_enabled,
@@ -381,28 +348,83 @@ const stock = calcStock(
           variants.length,
       }
     );
+console.log(
+  "🧪 CREATE_PRODUCT_INPUT",
+  {
+    hasVariants,
 
+    price:
+      hasVariants
+        ? null
+        : Number(body.price ?? 0),
+
+    stock:
+      hasVariants
+        ? null
+        : Number(body.stock ?? 0),
+
+    sale_price:
+      hasVariants
+        ? null
+        : body.sale_price ?? null,
+
+    sale_stock:
+      hasVariants
+        ? null
+        : Number(body.sale_stock ?? 0),
+
+    sale_enabled:
+  Boolean(body.sale_enabled),
+
+sale_start:
+  body.sale_start ?? null,
+
+sale_end:
+  body.sale_end ?? null,
+  }
+);
     const product =
-      await createProduct(userId, {
-  name: body.name,
+  await createProduct(userId, {
+    name: body.name,
 
-  description: body.description ?? "",
-  detail: body.detail ?? "",
-  images: body.images ?? [],
-  thumbnail: body.thumbnail ?? "",
-  category_id: getCategoryId(body),
-  price: finalPrice,
-  stock,
-  sale_price: body.sale_price ?? null,
+    description: body.description ?? "",
+    detail: body.detail ?? "",
+    images: body.images ?? [],
+    thumbnail: body.thumbnail ?? "",
+    category_id: getCategoryId(body),
 
-  sale_start: body.sale_start ?? null,
-  sale_end: body.sale_end ?? null,
+    price:
+      hasVariants
+        ? null
+        : Number(body.price ?? 0),
 
-  sale_stock: Number(body.sale_stock ?? 0),
-  sale_enabled: Boolean(body.sale_enabled),
-  is_active: body.is_active !== false,
-  has_variants: hasVariants, 
-});
+    stock:
+      hasVariants
+        ? null
+        : Number(body.stock ?? 0),
+
+    sale_price:
+      hasVariants
+        ? null
+        : body.sale_price ?? null,
+
+    sale_stock:
+      hasVariants
+        ? null
+        : Number(body.sale_stock ?? 0),
+
+    sale_enabled:
+  Boolean(body.sale_enabled),
+
+sale_start:
+  body.sale_start ?? null,
+
+sale_end:
+  body.sale_end ?? null,
+
+    is_active: body.is_active !== false,
+    has_variants: hasVariants,
+  });
 
     console.log(
       "✅ PRODUCT_CREATED",
@@ -437,7 +459,10 @@ const stock = calcStock(
         body,
         body.primary_shipping_country
       );
-
+console.log(
+  "🧪 CREATE_SHIPPING_RATES",
+  cleanedRates
+);
     console.log(
       "🧪 SHIPPING_RATES",
       cleanedRates
@@ -452,7 +477,9 @@ const stock = calcStock(
         rates:
           cleanedRates,
       });
-
+console.log(
+  "✅ UPDATE_SHIPPING_SAVED"
+);
       console.log(
         "✅ SHIPPING_SAVED"
       );
@@ -489,6 +516,10 @@ export async function updateProductService(
 ) {
   const body =
   (await req.json()) as ProductRequestBody;
+  console.log(
+  "📦 UPDATE_PRODUCT_BODY",
+  JSON.stringify(body, null, 2)
+);
 
 /* =========================
    VALIDATE PRODUCT
@@ -505,17 +536,72 @@ const variants =
   normalizeVariants(
     body.variants ?? []
   );
+  console.log(
+  "🧪 UPDATE_VARIANTS",
+  JSON.stringify(
+    variants,
+    null,
+    2
+  )
+);
 const hasVariants =
   body.has_variants === true &&
   variants.length > 0;
- const finalPrice = hasVariants
-  ? 0
+  console.log(
+  "🧪 UPDATE_HAS_VARIANTS",
+  {
+    bodyHasVariants:
+      body.has_variants,
+
+    variantCount:
+      variants.length,
+
+    finalHasVariants:
+      hasVariants,
+  }
+);
+ const productPrice = hasVariants
+  ? null
   : Number(body.price ?? 0);
 
 const stock = hasVariants
-  ? 0
+  ? null
   : Number(body.stock ?? 0);
+console.log(
+  "🚀 UPDATE_PRODUCT_DB",
+  {
+    id: body.id,
 
+    hasVariants,
+
+    price:
+      hasVariants
+        ? null
+        : Number(
+            body.price ?? 0
+          ),
+
+    stock:
+      hasVariants
+        ? null
+        : Number(
+            body.stock ?? 0
+          ),
+
+    sale_price:
+      hasVariants
+        ? null
+        : body.sale_price,
+
+    sale_enabled:
+      hasVariants
+        ? false
+        : body.sale_enabled,
+
+    variantCount:
+      variants.length,
+  }
+);
   const updated =
     await updateProductBySeller(
       userId,
@@ -538,31 +624,35 @@ const stock = hasVariants
         category_id:
           getCategoryId(body),
 
-        price: finalPrice,
+        price: productPrice,
 
         stock,
 
         sale_price:
-          body.sale_price ??
-          null,
+  hasVariants
+    ? null
+    : body.sale_price ?? null,
 
-        sale_enabled:
-          Boolean(
-            body.sale_enabled
-          ),
+sale_enabled:
+  hasVariants
+    ? false
+    : Boolean(body.sale_enabled),
 
+sale_stock:
+  hasVariants
+    ? null
+    : Number(body.sale_stock ?? 0),
+        
         sale_start:
-          body.sale_start ??
-          null,
+  hasVariants
+    ? null
+    : body.sale_start ?? null,
 
-        sale_end:
-          body.sale_end ??
-          null,
+sale_end:
+  hasVariants
+    ? null
+    : body.sale_end ?? null,
 
-        sale_stock:
-          Number(
-            body.sale_stock ?? 0
-          ),
 
         is_active: body.is_active ?? true,
         has_variants: hasVariants,
@@ -574,11 +664,44 @@ const stock = hasVariants
       error: "NOT_FOUND",
     };
   }
+console.log(
+  "✅ UPDATE_PRODUCT_SUCCESS",
+  {
+    id: updated.id,
+    has_variants:
+      updated.has_variants,
 
-  await replaceVariantsByProductId(
-    body.id ?? "",
-    variants
-  );
+    price:
+      updated.price,
+
+    sale_price:
+      updated.sale_price,
+
+    final_price:
+      updated.final_price,
+
+    stock:
+      updated.stock,
+  }
+);
+  console.log(
+  "🧪 UPDATE_REPLACE_VARIANTS_START",
+  {
+    productId:
+      body.id,
+    count:
+      variants.length,
+  }
+);
+
+await replaceVariantsByProductId(
+  body.id ?? "",
+  variants
+);
+
+console.log(
+  "✅ UPDATE_REPLACE_VARIANTS_DONE"
+);
 
   const cleanedRates =
     normalizeShippingRates(
@@ -599,7 +722,7 @@ const stock = hasVariants
 
     data: {
       id: body.id,
-      price: finalPrice,
+      price: productPrice,
     },
   };
 }
