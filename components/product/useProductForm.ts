@@ -494,6 +494,21 @@ export function useProductForm(
       setSale_stock(stock);
     }
   }, [stock, sale_stock]);
+  /* =========================================================
+   AUTO DISABLE PRODUCT SALE WHEN HAS VARIANTS
+========================================================= */
+
+useEffect(() => {
+  if (variants.length === 0) {
+    return;
+  }
+
+  setSale_enabled(false);
+  setSale_price("");
+  setSale_stock(0);
+  setSale_start("");
+  setSale_end("");
+}, [variants.length]);
 
   /* =========================================================
      RETURN

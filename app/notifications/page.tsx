@@ -2,13 +2,10 @@
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-
 import { useEffect, useMemo, useState } from "react";
-
 import { useRouter } from "next/navigation";
-
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
+import AppLoading from "@/components/AppLoading";
 import { getPiAccessToken } from "@/lib/piAuth";
 
 /* ======================================================
@@ -167,96 +164,8 @@ export default function NotificationsPage() {
   ====================================================== */
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-[var(--background)] pb-32">
-
-        {/* HEADER */}
-        <div
-          className="
-            sticky top-0 z-20
-            border-b border-orange-500/10
-            bg-[var(--nav-bg)]
-            backdrop-blur
-          "
-        >
-          <div
-            className="
-              mx-auto flex max-w-2xl items-center gap-3
-              px-4 py-4
-            "
-          >
-            <div
-              className="
-                h-9 w-9 animate-pulse rounded-xl
-                bg-[var(--card-secondary)]
-              "
-            />
-
-            <div className="space-y-2">
-              <div
-                className="
-                  h-4 w-32 animate-pulse rounded
-                  bg-[var(--card-secondary)]
-                "
-              />
-
-              <div
-                className="
-                  h-3 w-20 animate-pulse rounded
-                  bg-[var(--card-secondary)]
-                "
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* SKELETON */}
-        <div className="mx-auto max-w-2xl space-y-4 p-4">
-          {Array.from({ length: 6 }).map(
-            (_, index) => (
-              <div
-                key={index}
-                className="
-                  rounded-2xl
-                  border border-orange-500/10
-                  bg-[var(--card-bg)]
-                  p-4
-                "
-              >
-                <div
-                  className="
-                    h-4 w-40 animate-pulse rounded
-                    bg-[var(--card-secondary)]
-                  "
-                />
-
-                <div
-                  className="
-                    mt-3 h-3 w-full animate-pulse rounded
-                    bg-[var(--card-secondary)]
-                  "
-                />
-
-                <div
-                  className="
-                    mt-2 h-3 w-2/3 animate-pulse rounded
-                    bg-[var(--card-secondary)]
-                  "
-                />
-
-                <div
-                  className="
-                    mt-4 h-3 w-24 animate-pulse rounded
-                    bg-[var(--card-secondary)]
-                  "
-                />
-              </div>
-            )
-          )}
-        </div>
-      </main>
-    );
-  }
+  return <AppLoading />;
+}
 
   /* ======================================================
      UI

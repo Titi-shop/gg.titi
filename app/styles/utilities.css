@@ -1,0 +1,141 @@
+/* =========================================================
+   UTILITIES
+========================================================= */
+
+@layer utilities {
+
+  /* =========================
+     BACKGROUND
+  ========================= */
+
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+
+  .bg-primary-dark {
+    background-color: var(--color-primary-dark);
+  }
+
+  .bg-card {
+    background-color: var(--card-bg);
+  }
+
+  .bg-surface-1 {
+    background-color: var(--surface-1);
+  }
+
+  .bg-surface-2 {
+    background-color: var(--surface-2);
+  }
+
+  .bg-surface-3 {
+    background-color: var(--surface-3);
+  }
+
+  /* =========================
+     TEXT
+  ========================= */
+
+  .text-primary {
+    color: var(--color-primary);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+
+  /* =========================
+     BORDER
+  ========================= */
+
+  .border-primary {
+    border-color: var(--color-primary);
+  }
+
+  .border-default {
+    border-color: var(--border-color);
+  }
+
+  /* =========================
+     STATUS
+  ========================= */
+
+  .text-success {
+    color: var(--success);
+  }
+
+  .text-warning {
+    color: var(--warning);
+  }
+
+  .text-danger {
+    color: var(--danger);
+  }
+
+  .text-info {
+    color: var(--info);
+  }
+
+  /* =========================
+     PI
+  ========================= */
+
+  .pi-price {
+  color: #ef4444;
+  font-weight: 900;
+}
+  /* =========================
+     GLASS
+  ========================= */
+
+  .glass {
+
+    background: var(--glass-bg);
+
+    backdrop-filter: blur(16px);
+
+    -webkit-backdrop-filter: blur(16px);
+
+    border: 1px solid var(--glass-border);
+  }
+
+  /* =========================
+     SHADOW
+  ========================= */
+
+  .shadow-soft {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow-medium {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-large {
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* =========================
+     RADIUS
+  ========================= */
+
+  .radius-sm {
+    border-radius: var(--radius-sm);
+  }
+
+  .radius-md {
+    border-radius: var(--radius-md);
+  }
+
+  .radius-lg {
+    border-radius: var(--radius-lg);
+  }
+
+  .radius-xl {
+    border-radius: var(--radius-xl);
+  }
+}

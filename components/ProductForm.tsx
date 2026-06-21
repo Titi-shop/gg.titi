@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FormEvent, useState } from "react";
@@ -254,16 +255,7 @@ setErrors((prev) => ({
 
     try {
       const hasVariants = form.variants.length > 0;
-if (
-  hasVariants &&
-  form.sale_enabled
-) {
-  alert(
-    t.variant_product_cannot_sale
-  );
-  setSubmitting(false);
-  return;
-}
+
       const hasSaleTime =
         Boolean(form.sale_start) &&
         Boolean(form.sale_end);
@@ -492,7 +484,59 @@ console.log(
     variants: normalizedVariants,
   }
 );
+/* =========================
+   VARIANT SALE VALIDATION
+========================= */
 
+if (
+  hasVariantSale &&
+  (
+    !form.sale_start ||
+    !form.sale_end
+  )
+) {
+  setErrors((prev) => ({
+    ...prev,
+    sale_start:
+      !form.sale_start,
+
+    sale_end:
+      !form.sale_end,
+  }));
+
+  alert(
+    t.sale_date_required ??
+    "Please select sale start and end date"
+  );
+
+  setSubmitting(false);
+
+  return;
+}
+
+/* =========================
+   INVALID SALE RANGE
+========================= */
+
+if (
+  hasVariantSale &&
+  form.sale_start &&
+  form.sale_end &&
+  new Date(
+    form.sale_start
+  ).getTime() >=
+    new Date(
+      form.sale_end
+    ).getTime()
+) {
+  alert(
+    t.invalid_sale_time
+  );
+
+  setSubmitting(false);
+
+  return;
+}
 console.log("🧪 FORM CATEGORY:", form.category_id);
 const payload: ProductPayload = {
   id:
@@ -526,7 +570,7 @@ const payload: ProductPayload = {
 
   sale_enabled:
   hasVariants
-    ? false
+    ? hasVariantSale
     : (
         form.sale_enabled &&
         hasSaleTime &&
@@ -546,17 +590,20 @@ const payload: ProductPayload = {
       : Number(form.sale_stock || 0),
 
   sale_start:
-    hasSaleTime
-      ? toUTCFromInput(form.sale_start)
-      : null,
+  hasSaleTime
+    ? toUTCFromInput(
+        form.sale_start
+      )
+    : null,
 
-  sale_end:
-    hasSaleTime
-      ? toUTCFromInput(form.sale_end)
-      : null,
+sale_end:
+  hasSaleTime
+    ? toUTCFromInput(
+        form.sale_end
+      )
+    : null,
 
   variants: normalizedVariants,
-
   idempotency_key: generateKey(),
 };
 

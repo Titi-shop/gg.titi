@@ -13,7 +13,7 @@ import {
 } from "react";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
+import PiTradingChart from "./PiTradingChart";
 interface PiPriceResponse {
   symbol: string;
   price_usd: number;
@@ -249,45 +249,10 @@ export default function PiPriceWidget() {
         </div>
 
         <div className="relative mt-3 overflow-hidden rounded-xl border border-white/5 bg-black/20 p-2 backdrop-blur-xl">
-          <svg
-            viewBox="0 0 600 70"
-            preserveAspectRatio="none"
-            className="h-[70px] w-full"
-          >
-            <defs>
-              <linearGradient
-                id="priceGradient"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="0%"
-                  stopColor={graphColor}
-                  stopOpacity="0.35"
-                />
-                <stop
-                  offset="100%"
-                  stopColor={graphColor}
-                  stopOpacity="0"
-                />
-              </linearGradient>
-            </defs>
-
-            <path
-              d={`${chartPath} L 600 70 L 0 140 Z`}
-              fill="url(#priceGradient)"
-            />
-
-            <path
-              d={chartPath}
-              fill="none"
-              stroke={graphColor}
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-          </svg>
+          <PiTradingChart
+         data={history}
+      color={graphColor}
+      />
         </div>
 
         <div className="mt-3 border-t border-white/5 py-2">

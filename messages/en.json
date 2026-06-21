@@ -651,7 +651,99 @@
   "change_address": "Tap to change address",
   "add_shipping": "Add shipping address",
   "shipping_zone": "Shipping Zone",
-  "no_shipping_zone": "No shipping zone available"
+  "no_shipping_zone": "No shipping zone available",
+  
+  "logging_in_pi": "Connecting to Pi account...",
+  "creating_order": "Creating order...",
+  "opening_pi_wallet": "Opening Pi Wallet...",
+  "authorizing_payment": "Authorizing payment...",
+  "payment_authorized": "Payment authorized",
+  "confirming_payment": "Confirming payment...",
+  "payment_cancelled": "Payment cancelled by user",
+  "payment_failed": "Payment failed. Please try again.",
+  "transaction_failed": "Transaction failed. Please try again.",
+  "order_created_success": "Payment successful. Order created successfully.",
+  
+
+
+  "return_orders": "Return Orders",
+  "return_detail": "Return Details",
+  "reason": "Reason",
+  "pending": "Pending",
+  "approved": "Approved",
+  "shipping_back": "Returning",
+  "received": "Received",
+  "refund_pending": "Refund Pending",
+  "refunded": "Refunded",
+  "rejected": "Rejected",
+  "approve": "Approve",
+  "reject": "Reject",
+  "mark_received": "Mark as Received",
+  "action_failed": "Action Failed",
+  "loading": "Loading...",
+  "qty": "Quantity",
+  "return_number": "Return Number",
+  "return_status": "Return Status",
+  "return_request": "Return Request",
+  "evidence_images": "Evidence Images",
+  "tracking_code": "Return Tracking Code",
+  "customer_returned_item": "Customer Returned Item",
+  "seller_received_item": "Seller Received Returned Item",
+  "waiting_customer_return": "Waiting for Customer Return",
+  "waiting_refund": "Waiting for Refund",
+  "refund_completed": "Refund Completed",
+  "return_rejected": "Return Request Rejected",
+  "no_return_orders": "No Return Orders Found",
+  "view_details": "View Details",
+  "confirm_received": "Confirm Receipt",
+  "approve_return_request": "Approve Return Request",
+  "reject_return_request": "Reject Return Request",
+
+  
+  "order": "Order",
+  "view_return": "View Return",
+  "ship_return": "Ship Return",
+  "view_order": "View Order",
+  "track_return": "Track Return",
+  "view_refund": "View Refund",
+  "view_reason": "View Reason",
+  "refund_amount": "Refund Amount",
+  "return_tracking": "Return Tracking",
+
+  "return_pending": "Pending",
+  "return_approved": "Approved",
+  "return_shipping_back": "Shipping Back",
+  "return_received": "Received",
+  "return_refund_pending": "Refund Pending",
+  "return_refunded": "Refunded",
+  "return_rejected": "Rejected",
+  "return_cancelled": "Cancelled",
+    "invalid_amount": "Invalid amount",
+    "invalid_wallet": "Invalid wallet address",
+    "invalid_response": "Invalid server response",
+    "withdraw_failed": "Withdraw failed",
+    "network_error": "Network error",
+
+    "INSUFFICIENT_BALANCE": "Insufficient balance",
+    "WITHDRAW_DISABLED": "Withdraw is disabled",
+    "INVALID_ADDRESS": "Invalid wallet address",
+  "wallet_withdraw": "Withdraw",
+  "wallet_withdraw_description": "Withdraw PI to another wallet",
+
+  "wallet_invalid_amount": "Invalid amount",
+  "wallet_address_required": "Wallet address required",
+  "wallet_withdraw_failed": "Withdraw failed",
+
+  "wallet_address": "Wallet Address",
+  "wallet_address_placeholder": "Pi Wallet Address",
+
+  "wallet_amount": "Amount",
+
+  "common_cancel": "Cancel",
+  "common_processing": "Processing...",
+  "sale_date_required": "Please select sale start and end date"
+
+
 
 
 

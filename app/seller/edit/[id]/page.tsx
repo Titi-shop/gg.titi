@@ -206,12 +206,7 @@ function mapProductToPayload(
       product.name || "",
 
     category_id:
-      typeof product.category_id ===
-        "string" &&
-      product.category_id.trim()
-        .length > 0
-        ? product.category_id
-        : undefined,
+  product.category_id ?? undefined,
 
     description:
       product.description || "",

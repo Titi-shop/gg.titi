@@ -208,16 +208,14 @@ export async function GET() {
               ),
 
             min_price:
-              typeof row.min_price ===
-              "number"
-                ? row.min_price
-                : undefined,
+  row.min_price != null
+    ? Number(row.min_price)
+    : undefined,
 
-            min_sale_price:
-              typeof row.min_sale_price ===
-              "number"
-                ? row.min_sale_price
-                : null,
+min_sale_price:
+  row.min_sale_price != null
+    ? Number(row.min_sale_price)
+    : null,
 
             /* ================= SHOP ================= */
 

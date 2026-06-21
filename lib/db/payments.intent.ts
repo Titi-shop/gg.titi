@@ -5,9 +5,9 @@ import type {
 } from "@/lib/payments/pricing.engine";
 
 import type {
-  CreatePiPaymentIntentParams,
   CreateIntentResult,
-} from "@/lib/payments/types";
+  PaymentIntentRow,
+} from "@/lib/payments/types/intent.type";
 /* =========================================================
    GLOBAL WALLET
 ========================================================= */
@@ -43,7 +43,11 @@ function makeInitialStatus(): PaymentIntentStatus {
 function makeInitialSettlement(): SettlementState {
   return "UNSETTLED";
 }
-
+function makeExpiresAt(): Date {
+  return new Date(
+    Date.now() + 30 * 60 * 1000
+  );
+}
 /* =========================================================
    MAIN
 ========================================================= */
@@ -94,16 +98,16 @@ export async function createPiPaymentIntent({
     ===================================================== */
 
     const ownerRes = await client.query<{
-      seller_id: string;
-    }>(
-      `
-      SELECT seller_id
-      FROM products
-      WHERE id = $1
-      LIMIT 1
-      `,
-      [productId]
-    );
+  seller_id: string;
+}>(
+  `
+  SELECT seller_id
+  FROM products
+  WHERE id = $1
+  LIMIT 1
+  `,
+  [productId]
+);
 
     if (!ownerRes.rows.length) {
       throw new Error("PRODUCT_NOT_FOUND");
@@ -127,25 +131,44 @@ export async function createPiPaymentIntent({
     const idempotencyKey = safeUUID();
 
     const memo = `ORDER-${paymentIntentId.slice(0, 8)}`;
-
+     const expiresAt = makeExpiresAt();
+    vlog("INITIAL_STATE", {
+  status: makeInitialStatus(),
+  settlement_state:
+    makeInitialSettlement(),
+  payment_state: "PENDING",
+  provider_status: "CREATED",
+  expiresAt,
+});
     /* =====================================================
        4. SNAPSHOT (TRUST PRICING ENGINE)
     ===================================================== */
 
     const shippingSnapshot = {
   buyer_shipping: shipping,
-  buyer_country: pricing.buyer_country,
-  buyer_zone: pricing.buyer_zone,
+  buyer_country:
+    pricing.buyer_country,
+  buyer_zone:
+    pricing.buyer_zone,
   pricing_snapshot: pricing,
   product_snapshot:
-    pricing.items?.[0] ?? null,
+    pricing.items[0] ?? null,
   variant_snapshot: null,
-};
+} as const;
+
 
     /* =====================================================
        5. INSERT INTENT
     ===================================================== */
-
+vlog("INSERT_PREPARE", {
+  paymentIntentId,
+  buyer_id: userId,
+  seller_id,
+  productId,
+  variantId,
+  quantity,
+  total: pricing.total,
+});
     await client.query(
       `
       INSERT INTO payment_intents (
@@ -176,7 +199,10 @@ export async function createPiPaymentIntent({
         merchant_wallet,
 
         status,
-        settlement_state
+        settlement_state,
+        payment_state,
+        provider_status,
+        expires_at
       )
       VALUES (
         $1,$2,$3,$4,
@@ -187,7 +213,7 @@ export async function createPiPaymentIntent({
         $15,
         $16,$17,
         $18,
-        $19,$20
+        $19,$20,$21,$22,$23
       )
       `,
       [
@@ -216,8 +242,12 @@ export async function createPiPaymentIntent({
 
         APP_MERCHANT_WALLET,
 
-        makeInitialStatus(),
-        makeInitialSettlement(),
+      makeInitialStatus(),
+      
+      makeInitialSettlement(),
+      "PENDING",
+      "CREATED",
+      expiresAt,
       ]
     );
 
@@ -242,11 +272,11 @@ export async function createPiPaymentIntent({
 /* =========================================================
    GET PAYMENT INTENT
 ========================================================= */
-
 export async function getPaymentIntent(
   id: string
-) {
-  const res = await query(
+): Promise<PaymentIntentRow | null> {
+  const res =
+  await query<PaymentIntentRow>(
     `
     SELECT *
     FROM payment_intents
@@ -256,7 +286,5 @@ export async function getPaymentIntent(
     [id]
   );
 
-  return (
-    res.rows[0] ?? null
-  );
+  return res.rows[0] ?? null;
 }

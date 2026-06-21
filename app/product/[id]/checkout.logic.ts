@@ -4,7 +4,6 @@ import { useCallback ,useRef} from "react";
 import { getPiAccessToken } from "@/lib/piAuth";
 import type {
   ShippingInfo,
-  Region,
   ValidateParams,
   UseCheckoutPayParams,
 } from "@/types/checkout";
@@ -39,7 +38,6 @@ export function validateBeforePay({
   user,
   piReady,
   shipping,
-  zone,
   item,
   quantity,
   maxStock,
@@ -51,7 +49,6 @@ export function validateBeforePay({
     user,
     piReady,
     shipping,
-    zone,
     item,
     quantity,
   });
@@ -61,19 +58,18 @@ export function validateBeforePay({
   ========================= */
 if (!user) {
   localStorage.setItem("pending_checkout", "1");
-
   showMessage(
     t.logging_in_pi ??
       "Connecting to Pi account...",
     "info"
   );
 
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     pilogin?.();
-  });
-
+  }, 500);
   return false;
 }
+
   /* =========================
      PI READY CHECK
   ========================= */
@@ -116,10 +112,6 @@ if (!user) {
      ZONE CHECK (NON-BLOCKING)
   ========================= */
 
-  if (!zone) {
-    console.warn("[CHECKOUT] zone missing → fallback rest_of_world");
-  }
-
   console.log("🟢 [VALIDATE] PASSED");
   return true;
 }
@@ -141,7 +133,6 @@ export function useCheckoutPay(params: UseCheckoutPayParams) {
     user,
     router,
     onClose,
-    zone,
     product,
     showMessage,
     validate,
@@ -170,7 +161,7 @@ showMessage(
           variant_id: product?.selectedVariant?.id ?? null,
           quantity,
           address_id: shipping?.id,
-          zone,
+        
         }),
       });
 
@@ -308,12 +299,17 @@ showMessage(
 
     callback?.();
 
-    showMessage(
-      t.order_created_success ??
-        "Order created successfully. Please check Pending orders.",
-      "success"
-    );
+    const successMessage =
+  t.order_created_success ??
+  "Order created successfully. Please check Pending orders.";
 
+showMessage(successMessage, "success");
+
+window.dispatchEvent(
+  new CustomEvent("global-alert", {
+    detail: successMessage,
+  })
+);
     setTimeout(() => {
       onClose();
     }, 1500);
@@ -333,14 +329,22 @@ showMessage(
             console.warn("🟡 [CHECKOUT] USER_CANCELLED");
             processingRef.current = false;
             setProcessing(false);
-            showMessage(t.payment_cancelled ?? "cancelled");
+            showMessage(
+            t.payment_cancelled ??
+            "Payment cancelled by user",
+            "error"
+);
           },
 
           onError: (err) => {
             console.error("🔥 [CHECKOUT] PI_SDK_ERROR", err);
             processingRef.current = false;
             setProcessing(false);
-            showMessage(t.payment_failed ?? "payment_failed");
+            showMessage(
+            t.payment_failed ??
+           "Payment failed. Please try again.",
+          "error"
+       );
           },
         }
       );
@@ -348,7 +352,11 @@ showMessage(
       console.error("🔥 [CHECKOUT] PAY_ERROR", err);
       processingRef.current = false;
       setProcessing(false);
-      showMessage(t.transaction_failed ?? "transaction_failed");
+      showMessage(
+    t.transaction_failed ??
+    "Transaction failed. Please try again.",
+  "error"
+   );
     }
   }, [
     item,
@@ -363,9 +371,8 @@ showMessage(
     user,
     router,
     onClose,
-    zone,
     product?.variant_id,
     validate,
     showMessage,
   ]);
-        }
+}

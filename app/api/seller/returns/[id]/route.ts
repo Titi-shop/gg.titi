@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSeller } from "@/lib/auth/guard";
+
 import {
   getReturnByIdForSeller,
-  updateReturnStatusBySeller,
 } from "@/lib/db/returns";
 
 export const runtime = "nodejs";
@@ -19,19 +19,28 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  console.log("📥 [SELLER RETURN][GET]");
+  try {
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+    const data = await getReturnByIdForSeller(
+      params.id,
+      auth.userId
+    );
 
-  const sellerId = auth.userId;
-  const returnId = params.id;
+    if (!data) {
+      return errorJson("NOT_FOUND", 404);
+    }
 
-  const data = await getReturnByIdForSeller(returnId, sellerId);
-console.log("📤 API RETURN:", data);
-  if (!data) return errorJson("NOT_FOUND", 404);
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("SELLER RETURN GET ERROR:", error);
 
-  return NextResponse.json(data);
+    return NextResponse.json(
+      { error: "INTERNAL_SERVER_ERROR" },
+      { status: 500 }
+    );
+  }
 }
 
 /* ================= PATCH ================= */
@@ -40,29 +49,50 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  console.log("🚀 [SELLER RETURN][PATCH]");
+  try {
+    const auth = await requireSeller();
+    if (!auth.ok) return auth.response;
 
-  const auth = await requireSeller();
-  if (!auth.ok) return auth.response;
+    const { action } = await req.json();
 
-  const sellerId = auth.userId;
-  const returnId = params.id;
+    if (
+      !["approve", "reject", "received"].includes(action)
+    ) {
+      return errorJson("INVALID_ACTION");
+    }
 
-  const body = await req.json();
+    const returnData = await getReturnByIdForSeller(
+      params.id,
+      auth.userId
+    );
 
-  const action = body.action;
+    if (!returnData) {
+      return errorJson("NOT_FOUND", 404);
+    }
 
-  console.log("🟡 ACTION:", action);
+    await updateReturnStatusBySeller(
+      params.id,
+      auth.userId,
+      action
+    );
 
-  if (!["approve", "reject", "received"].includes(action)) {
-    return errorJson("INVALID_ACTION");
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error(
+      "SELLER RETURN PATCH ERROR:",
+      error
+    );
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "UNKNOWN_ERROR";
+
+    return NextResponse.json(
+      { error: message },
+      { status: 400 }
+    );
   }
-
-  await updateReturnStatusBySeller(
-    returnId,
-    sellerId,
-    action
-  );
-
-  return NextResponse.json({ success: true });
 }

@@ -1,9 +1,11 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+
 import Image from "next/image";
 import useSWR from "swr";
 import { useParams, useRouter } from "next/navigation";
+
 import { getPiAccessToken } from "@/lib/piAuth";
 import { formatPi } from "@/lib/pi";
 import { useAuth } from "@/context/AuthContext";
@@ -21,41 +23,13 @@ type OrderStatus =
   | "completed"
   | "cancelled"
   | "refunded";
-
-interface ApiOrderItem {
-  id: string;
-
-  product_id: string | null;
-  product_name: string | null;
-  thumbnail: string | null;
-  quantity: number | string | null;
-  unit_price: number | string | null;
-  total_price: number | string | null;
-  fulfillment_status: string | null;
-}
-
-interface ApiOrder {
-  id: string;
-
-  order_number: string;
-  fulfillment_status: OrderStatus;
-
-  total: number | string;
-
-  created_at: string;
-  seller_message?: string | null;
-  seller_cancel_reason?: string | null;
-  shipping_name?: string | null;
-  shipping_phone?: string | null;
-  shipping_address_line?: string | null;
-  shipping_ward?: string | null;
-  shipping_district?: string | null;
-  shipping_region?: string | null;
-  shipping_country?: string | null;
-  shipping_postal_code?: string | null;
-
-  order_items?: ApiOrderItem[] | null;
-}
+type ReturnStatus =
+  | "pending"
+  | "approved"
+  | "shipping_back"
+  | "received"
+  | "refunded"
+  | "rejected";
 
 interface OrderItem {
   id: string;
@@ -74,221 +48,31 @@ interface Order {
   fulfillment_status: OrderStatus;
   total: number;
   created_at: string;
-  seller_message: string | null;
-  seller_cancel_reason: string | null;
-  shipping_name: string;
-  shipping_phone: string;
-
-  shipping_address_line: string;
-  shipping_ward: string | null;
-  shipping_district: string | null;
-  shipping_region: string | null;
-
-  shipping_country: string | null;
-  shipping_postal_code: string | null;
   order_items: OrderItem[];
-}
 
-interface OrderApiResponse {
-  ok: boolean;
-  order?: ApiOrder;
-  error?: string;
-}
-
-/* =====================================================
-   HELPERS
-===================================================== */
-
-function parseNumber(
-  value: number | string | null | undefined
-): number {
-  const n = Number(value ?? 0);
-
-  return Number.isFinite(n) ? n : 0;
-}
-
-function getStatusClass(status: string): string {
-  switch (status) {
-    case "pending_fulfillment":
-      return "text-orange-500";
-
-    case "processing":
-      return "text-primary";
-
-    case "shipping":
-      return "text-blue-500";
-
-    case "completed":
-      return "text-green-600";
-
-    case "cancelled":
-      return "text-red-500";
-
-    case "refunded":
-      return "text-gray-500";
-
-    default:
-      return "text-muted";
-  }
-}
-
-function getStatusBgClass(status: string): string {
-  switch (status) {
-    case "pending_fulfillment":
-      return "bg-orange-100";
-
-    case "processing":
-      return "bg-orange-50";
-
-    case "shipping":
-      return "bg-blue-50";
-
-    case "completed":
-      return "bg-green-50";
-
-    case "cancelled":
-      return "bg-red-50";
-
-    case "refunded":
-      return "bg-gray-100";
-
-    default:
-      return "bg-gray-100";
-  }
+  return_status?: ReturnStatus | null;
 }
 
 /* =====================================================
    FETCHER
 ===================================================== */
 
-const fetcher = async (
-  url: string
-): Promise<Order | null> => {
+const fetcher = async (url: string): Promise<Order | null> => {
   try {
-    console.log("[ORDER_DETAIL][FETCH_START]", {
-      url,
-    });
-
     const token = await getPiAccessToken();
-
-    if (!token) {
-      console.warn("[ORDER_DETAIL][NO_TOKEN]");
-
-      return null;
-    }
+    if (!token) return null;
 
     const res = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
 
-    if (!res.ok) {
-      console.warn("[ORDER_DETAIL][FETCH_FAILED]", {
-        status: res.status,
-      });
+    if (!res.ok) return null;
 
-      return null;
-    }
-
-    const json: OrderApiResponse =
-      await res.json();
-
-    if (!json?.ok || !json.order) {
-      return null;
-    }
-
-    const data = json.order;
-
-    return {
-      id: data.id,
-
-      order_number: data.order_number,
-
-      fulfillment_status:
-        data.fulfillment_status,
-
-      total: parseNumber(data.total),
-
-      created_at: data.created_at,
-
-      seller_message:
-        data.seller_message ?? null,
-
-      seller_cancel_reason:
-        data.seller_cancel_reason ?? null,
-
-      shipping_name:
-        data.shipping_name ?? "",
-
-      shipping_phone:
-        data.shipping_phone ?? "",
-
-      shipping_address_line:
-        data.shipping_address_line ?? "",
-
-      shipping_ward:
-        data.shipping_ward ?? null,
-
-      shipping_district:
-        data.shipping_district ?? null,
-
-      shipping_region:
-        data.shipping_region ?? null,
-
-      shipping_country:
-        data.shipping_country ?? null,
-
-      shipping_postal_code:
-        data.shipping_postal_code ?? null,
-
-      order_items: (
-        data.order_items ?? []
-      ).map(
-        (item): OrderItem => ({
-          id: item.id,
-
-          product_id:
-            item.product_id ?? "",
-
-          product_name:
-            item.product_name ?? "",
-
-          thumbnail:
-            item.thumbnail ?? "",
-
-          quantity: parseNumber(
-            item.quantity
-          ),
-
-          unit_price: parseNumber(
-            item.unit_price
-          ),
-
-          total_price: parseNumber(
-            item.total_price
-          ),
-
-          fulfillment_status:
-            item.fulfillment_status ??
-            "pending_fulfillment",
-        })
-      ),
-    };
-
+    const json = await res.json();
+    return json?.order ?? null;
   } catch (err) {
-    console.error(
-      "[ORDER_DETAIL][FETCH_ERROR]",
-      {
-        message:
-          err instanceof Error
-            ? err.message
-            : "UNKNOWN_ERROR",
-      }
-    );
-
+    console.error("[ORDER_FETCH_ERROR]", err);
     return null;
   }
 };
@@ -301,23 +85,15 @@ export default function OrderDetailPage() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useParams();
-  const { user, loading: authLoading } =
-    useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const orderId =
-    typeof params?.id === "string"
-      ? params.id
-      : Array.isArray(params?.id)
-      ? params.id[0]
-      : "";
+    typeof params?.id === "string" ? params.id : "";
 
-  const {
-    data: order,
-    isLoading,
-  } = useSWR<Order | null>(
-    user && orderId
-      ? `/api/orders/${orderId}`
-      : null,
+  const shouldFetch = !!user && !!orderId;
+
+  const { data: order, isLoading } = useSWR<Order | null>(
+    shouldFetch ? `/api/orders/${orderId}` : null,
     fetcher
   );
 
@@ -327,11 +103,8 @@ export default function OrderDetailPage() {
 
   if (isLoading || authLoading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm text-muted">
-          {t.loading_order ??
-            "Đang tải đơn hàng..."}
-        </p>
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted">
+        {t.loading_order ?? "Đang tải đơn hàng..."}
       </div>
     );
   }
@@ -342,15 +115,23 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm text-red-500">
-          {t.order_not_found ??
-            "Không tìm thấy đơn hàng"}
-        </p>
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-red-500">
+        {t.order_not_found ?? "Không tìm thấy đơn hàng"}
       </div>
     );
   }
 
+  /* =====================================================
+     RETURN LOGIC (QUAN TRỌNG)
+  ===================================================== */
+
+  const hasActiveReturn =
+  order.return_status &&
+  order.return_status !== "rejected";
+
+const canReturn =
+  order.fulfillment_status === "delivered" &&
+  !hasActiveReturn;
   /* =====================================================
      UI
   ===================================================== */
@@ -358,254 +139,108 @@ export default function OrderDetailPage() {
   return (
     <main className="min-h-screen bg-[var(--background)] pb-24">
 
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
-
+      {/* HEADER */}
       <div className="border-b border-black/5 bg-card px-4 py-4">
-
         <button
           onClick={() => router.back()}
-          className="mb-3 text-sm text-muted transition active:scale-95"
+          className="mb-3 text-sm text-muted active:scale-95 transition"
         >
           ← {t.back ?? "Quay lại"}
         </button>
 
-        <div className="flex items-start justify-between gap-3">
-
+        <div className="flex justify-between items-start">
           <div>
-
-            <p className="text-base font-bold">
+            <p className="font-bold text-base">
               #{order.order_number}
             </p>
 
-            <p className="mt-1 text-xs text-muted">
-              {new Date(
-                order.created_at
-              ).toLocaleString()}
+            <p className="text-xs text-muted mt-1">
+              {new Date(order.created_at).toLocaleString()}
             </p>
-
           </div>
-
-          <div
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBgClass(
-              order.fulfillment_status
-            )} ${getStatusClass(
-              order.fulfillment_status
-            )}`}
-          >
-            {t[
-              `order_fulfillment_status_${order.fulfillment_status}`
-            ] ??
-              order.fulfillment_status}
-          </div>
-
+<span className="text-xs px-3 py-1 rounded-full bg-orange-100 text-orange-600">
+  {order.return_status
+    ? `return_${order.return_status}`
+    : order.fulfillment_status}
+          </span>
         </div>
-
       </div>
 
-      {/* =====================================================
-          SHIPPING
-      ===================================================== */}
-
-      <div className="mt-3 bg-card px-4 py-4">
-
-        <p className="mb-3 text-sm font-bold">
-          📍{" "}
-          {t.shipping_address ??
-            "Địa chỉ nhận hàng"}
-        </p>
-
-        <p className="text-sm font-medium">
-          {order.shipping_name}
-        </p>
-
-        <p className="mt-1 text-sm text-muted">
-          {order.shipping_phone}
-        </p>
-
-        <p className="mt-2 text-sm leading-6 text-[var(--foreground)]">
-          {[
-            order.shipping_address_line,
-            order.shipping_ward,
-            order.shipping_district,
-            order.shipping_region,
-          ]
-            .filter(Boolean)
-            .join(", ")}
-        </p>
-
-        {(order.shipping_country ||
-          order.shipping_postal_code) && (
-          <p className="mt-2 text-xs text-muted">
-            {order.shipping_country}
-
-            {order.shipping_postal_code &&
-              ` · ${order.shipping_postal_code}`}
-          </p>
-        )}
-
-      </div>
-
-      {/* =====================================================
-          SELLER MESSAGE
-      ===================================================== */}
-
-      {order.seller_message && (
-        <div className="mt-3 border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          ✔ {order.seller_message}
-        </div>
-      )}
-
-      {order.seller_cancel_reason && (
-        <div className="mt-3 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          ✖ {order.seller_cancel_reason}
-        </div>
-      )}
-
-      {/* =====================================================
-          PRODUCTS
-      ===================================================== */}
-
-      <div className="mt-3 bg-card">
-
-        {order.order_items.map((item) => (
+      {/* ITEMS */}
+      <div className="bg-card mt-3">
+        {order.order_items?.map((item) => (
           <div
             key={item.id}
-            className="flex gap-3 border-b border-black/5 p-4 last:border-none"
+            className="flex gap-3 p-4 border-b border-black/5"
           >
-
             <Image
-              src={
-                item.thumbnail ||
-                "/placeholder.png"
-              }
+              src={item.thumbnail || "/placeholder.png"}
               alt={item.product_name}
-              width={88}
-              height={88}
-              className="h-[88px] w-[88px] rounded-xl border border-black/5 object-cover"
+              width={80}
+              height={80}
+              className="rounded-xl object-cover"
             />
 
-            <div className="min-w-0 flex-1">
-
-              <p className="line-clamp-2 text-sm font-semibold">
+            <div className="flex-1">
+              <p className="text-sm font-semibold line-clamp-2">
                 {item.product_name}
               </p>
 
-              <div className="mt-2 flex items-center justify-between">
-
-                <p className="text-xs text-muted">
-                  x{item.quantity}
-                </p>
-
-                <span
-                  className={`rounded-full px-2 py-1 text-[11px] font-medium ${getStatusBgClass(
-                    item.fulfillment_status
-                  )} ${getStatusClass(
-                    item.fulfillment_status
-                  )}`}
-                >
-                  {item.fulfillment_status}
-                </span>
-
-              </div>
-
-              <p className="pi-price mt-3 text-sm">
-                π
-                {formatPi(item.total_price)}
+              <p className="text-xs text-muted mt-1">
+                x{item.quantity}
               </p>
 
+              <p className="text-sm font-bold mt-2">
+                π{formatPi(item.total_price)}
+              </p>
             </div>
-
           </div>
         ))}
-
       </div>
 
-      {/* =====================================================
-          TOTAL
-      ===================================================== */}
+      {/* TOTAL */}
+      <div className="bg-card mt-3 px-4 py-4 flex justify-between">
+        <span className="text-sm text-muted">
+          {t.total ?? "Tổng cộng"}
+        </span>
 
-      <div className="mt-3 bg-card px-4 py-4">
-
-        <div className="flex items-center justify-between">
-
-          <p className="text-sm text-muted">
-            {t.total ?? "Tổng cộng"}
-          </p>
-
-          <p className="pi-price text-lg">
-            π{formatPi(order.total)}
-          </p>
-
-        </div>
-
+        <span className="font-bold">
+          π{formatPi(order.total)}
+        </span>
       </div>
 
-      {/* =====================================================
-          ACTIONS
-      ===================================================== */}
+      {/* ACTIONS */}
+      <div className="px-4 pt-4 space-y-3">
 
-      <div className="space-y-3 px-4 pt-4">
-  {order.fulfillment_status ===
-          "delivered" && (
-          <>
-            <button
-              onClick={() =>
-                router.push(
-                  `/customer/orders/${order.id}/return`
-                )
-              }
-              className="btn-primary w-full"
-            >
-              ↩{" "}
-              {t.request_return ??
-                "Trả hàng / Hoàn tiền"}
-            </button>
-
-            {order.order_items.length >
-              0 && (
-              <button
-                onClick={() =>
-                  router.push(
-                    `/product/${order.order_items[0]?.product_id}`
-                  )
-                }
-                className="w-full rounded-xl border border-black/10 bg-card py-3 text-sm font-semibold transition active:scale-95"
-              >
-                {t.buy_again ??
-                  "Mua lại"}
-              </button>
-            )}
-
-          </>
+        {/* RETURN BUTTON (SAFE) */}
+        {canReturn && (
+          <button
+            onClick={() =>
+              router.push(
+                `/customer/orders/${order.id}/return`
+              )
+            }
+            className="w-full btn-primary active:scale-95 transition"
+          >
+            ↩ {t.request_return ?? "Trả hàng / Hoàn tiền"}
+          </button>
         )}
 
-        {order.fulfillment_status ===
-          "cancelled" && (
-          <>
-            <button className="w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-600">
-              {t.view_cancel_detail ??
-                "Xem chi tiết huỷ"}
-            </button>
+        {/* BUY AGAIN */}
+        {order.order_items?.length > 0 && (
+          <button
+            onClick={() => {
+              const pid = order.order_items?.[0]?.product_id;
+              if (!pid) return;
 
-            {order.order_items.length >
-              0 && (
-              <button
-                onClick={() =>
-                  router.push(
-                    `/product/${order.order_items[0]?.product_id}`
-                  )
-                }
-                className="btn-primary w-full"
-              >
-                {t.buy_again ??
-                  "Mua lại"}
-              </button>
-            )}
-          </>
+              router.push(`/product/${pid}`);
+            }}
+            className="w-full border border-black/10 bg-card py-3 rounded-xl text-sm font-semibold active:scale-95 transition"
+          >
+            {t.buy_again ?? "Mua lại"}
+          </button>
         )}
       </div>
     </main>
   );
-         }
+}

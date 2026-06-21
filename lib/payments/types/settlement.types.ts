@@ -3,54 +3,164 @@ import type {
 } from "./common.types";
 
 /* =========================================================
+   ESCROW
+========================================================= */
+
+export type CreateEscrowInput = {
+  paymentIntentId: string;
+  orderId: string;
+
+  buyerId: string;
+  sellerId: string;
+
+  amount: number;
+
+  txid: string;
+  piPaymentId: string;
+};
+
+/* =========================================================
+   CREDIT SELLER
+========================================================= */
+
+export type CreditSellerInput = {
+  escrowId: string;
+
+  sellerId: string;
+
+  amount: number;
+
+  paymentIntentId?: string | null;
+  orderId?: string | null;
+
+  piPaymentId?: string | null;
+};
+
+/* =========================================================
+   REFUND BUYER
+========================================================= */
+
+export type RefundBuyerInput = {
+  escrowId: string;
+
+  buyerId: string;
+
+  amount: number;
+
+  reason?: string;
+
+  refundTxid?: string | null;
+
+  piPaymentId?: string | null;
+
+  approvedBy?: string | null;
+};
+
+/* =========================================================
+   WITHDRAW SELLER
+========================================================= */
+
+export type WithdrawSellerInput = {
+  sellerCreditId: string;
+
+  sellerId: string;
+
+  amount: number;
+
+  withdrawWallet: string;
+
+  txid?: string | null;
+};
+
+/* =========================================================
+   ESCROW RELEASE JOB
+========================================================= */
+
+export type EscrowReleaseRow = {
+  id: string;
+  order_id: string;
+  payment_intent_id: string | null;
+  seller_id: string;
+  amount: string;
+  status: string;
+  release_status: string;
+  release_after: Date | null;
+};
+
+/* =========================================================
+   RELEASE FLOW INPUT
+========================================================= */
+
+export type ReleaseEscrowFlowInput = {
+  client: {
+    query: (
+      sql: string,
+      params?: unknown[]
+    ) => Promise<unknown>;
+  };
+
+  escrow: EscrowReleaseRow;
+};
+
+/* =========================================================
    VERIFIED MONEY CONTEXT
 ========================================================= */
 
-export type VerifiedMoneyContext =
-  {
-    verifiedAmount: number;
-    receiverWallet: string;
-    piUid: string | null;
-  };
+export type VerifiedMoneyContext = {
+  verifiedAmount: number;
+
+  receiverWallet: string;
+
+  piUid: string | null;
+};
 
 /* =========================================================
    FINALIZE ORDER
 ========================================================= */
 
-export type FinalizePaidOrderParams =
-  {
-    paymentIntentId: string;
-    piPaymentId: string;
-    txid: string;
+export type FinalizePaidOrderParams = {
+  paymentIntentId: string;
 
-    verifiedAmount: number;
-    receiverWallet: string;
+  piPaymentId: string;
 
-    piUid?: string | null;
+  txid: string;
 
-    piPayload: unknown;
-    rpcPayload: unknown;
-  };
+  verifiedAmount: number;
+
+  receiverWallet: string;
+
+  piUid?: string | null;
+
+  piPayload: unknown;
+
+  rpcPayload: unknown;
+};
 
 export type FinalizeOrderResult =
   | {
       ok: true;
+
       already?: false;
 
       orderId: string;
+
       escrowId: string;
 
       buyerId: string;
+
       sellerId: string;
     }
   | {
       ok: true;
+
       already: true;
 
       orderId: string | null;
+
       escrowId?: string | null;
 
       buyerId: string;
+
       sellerId: string;
     };
 
@@ -58,27 +168,28 @@ export type FinalizeOrderResult =
    ORCHESTRATOR
 ========================================================= */
 
-export type RunPaymentSettlementInput =
-  {
-    paymentIntentId: string;
-    piPaymentId: string;
-    txid: string;
+export type RunPaymentSettlementInput = {
+  paymentIntentId: string;
 
-    userId?: string | null;
+  piPaymentId: string;
 
-    source: PaymentRunSource;
-  };
+  txid: string;
 
-export type PaymentSettlementResult =
-  {
-    ok: boolean;
+  userId?: string | null;
 
-    orderId: string | null;
+  source: PaymentRunSource;
+};
 
-    amount: number;
+export type PaymentSettlementResult = {
+  ok: boolean;
 
-    piCompleted: boolean;
-    rpcAudited: boolean;
+  orderId: string | null;
 
-    source: PaymentRunSource;
-  };
+  amount: number;
+
+  piCompleted: boolean;
+
+  rpcAudited: boolean;
+
+  source: PaymentRunSource;
+};

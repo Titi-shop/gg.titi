@@ -94,7 +94,6 @@ export interface ValidateParams {
   user: unknown;
   piReady: boolean;
   shipping: ShippingInfo | null;
-  zone: Region | null;
   item: CheckoutItem | null;
   quantity: number;
   maxStock: number;
@@ -126,8 +125,6 @@ export interface UseCheckoutPayParams {
   };
 
   onClose: () => void;
-
-  zone: Region | null;
 
   variantId?: string | null;
 

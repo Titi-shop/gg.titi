@@ -1,6 +1,8 @@
 "use client";
-
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
@@ -12,8 +14,47 @@ import CustomerMenu from "@/components/customerMenu";
 export default function AccountPage() {
   const { t } = useTranslation();
   const { user, loading, pilogin, logout, piReady } = useAuth();
-
   const [agreed, setAgreed] = useState(false);
+  useEffect(() => {
+
+  if (!user) {
+    return;
+  }
+
+  try {
+
+    const lastRun =
+      localStorage.getItem(
+        "jobs_process_last_run"
+      );
+
+    const now =
+      Date.now();
+
+    const fiveMinutes =
+      5 * 60 * 1000;
+
+    if (
+      !lastRun ||
+      now - Number(lastRun) >
+        fiveMinutes
+    ) {
+
+      fetch(
+        "/api/internal/jobs/process"
+      ).catch(() => {});
+
+      localStorage.setItem(
+        "jobs_process_last_run",
+        String(now)
+      );
+    }
+
+  } catch {
+    // silent
+  }
+
+}, [user]);
 
   /* =========================
      LOADING

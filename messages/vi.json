@@ -538,27 +538,19 @@
   "sold": "đã bán",
 
   "view_all": "Xem tất cả",
-
   "explore_now": "Khám phá ngay",
-
   "search_products": "Tìm kiếm sản phẩm...",
-
   "trending_now": "Xu hướng hôm nay",
-
   "discover_products": "Khám phá sản phẩm",
 
   "most_popular_products_today":
     "Sản phẩm phổ biến nhất hôm nay",
-
   "curated_products_for_you":
     "Sản phẩm được đề xuất cho bạn",
-
   "trending_marketplace":
     "Marketplace xu hướng",
-
   "discover_modern_products":
     "Khám phá sản phẩm từ nền tảng thương mại hiện đại",
-
   "smart_shopping_discovery":
   "Sản phẩm xu hướng, bộ sưu tập nổi bật và trải nghiệm mua sắm thông minh.",
 "please_select_variant": "Vui lòng chọn phân loại trước khi thêm vào giỏ hàng",
@@ -693,10 +685,105 @@
   "change_address": "Nhấn để thay đổi địa chỉ",
   "add_shipping": "Thêm địa chỉ giao hàng",
   "shipping_zone": "Khu vực vận chuyển",
-  "no_shipping_zone": "Không tìm thấy khu vực vận chuyển"
+  "no_shipping_zone": "Không tìm thấy khu vực vận chuyển",
+
+  "logging_in_pi": "Đang kết nối tài khoản Pi...",
+  "creating_order": "Đang tạo đơn hàng...",
+  "opening_pi_wallet": "Đang mở ví Pi...",
+  "authorizing_payment": "Đang xác thực thanh toán...",
+  "payment_authorized": "Thanh toán đã được xác thực",
+  "confirming_payment": "Đang xác nhận thanh toán...",
+  "payment_cancelled": "Bạn đã hủy thanh toán",
+  "payment_failed": "Thanh toán thất bại. Vui lòng thử lại.",
+  "transaction_failed": "Giao dịch thất bại. Vui lòng thử lại.",
+  "order_created_success": "Thanh toán thành công. Đơn hàng đã được tạo.",
+
+  "return_orders": "Đơn trả hàng",
+  "return_detail": "Chi tiết trả hàng",
+  "reason": "Lý do",
+
+  "all": "Tất cả",
+  "pending": "Chờ xử lý",
+  "approved": "Đã chấp nhận",
+  "shipping_back": "Đang gửi trả",
+  "received": "Đã nhận ",
+  "refund_pending": "Chờ hoàn tiền",
+  "refunded": "Đã hoàn tiền",
+  "rejected": "Từ chối",
+
+  "approve": "Chấp nhận",
+  "reject": "Từ chối",
+  "mark_received": "Đánh dấu đã nhận",
+
+  "action_failed": "Thao tác thất bại",
+
+  "loading": "Đang tải...",
+  "qty": "Số lượng",
+
+  "return_number": "Mã trả hàng",
+  "return_status": "Trạng thái trả hàng",
+  "return_request": "Yêu cầu trả hàng",
+  "evidence_images": "Hình ảnh minh chứng",
+  "tracking_code": "Mã vận đơn trả hàng",
+  "customer_returned_item": "Khách hàng đã gửi trả hàng",
+  "seller_received_item": "Người bán đã nhận được hàng trả",
+  "waiting_customer_return": "Đang chờ khách gửi trả hàng",
+  "waiting_refund": "Đang chờ hoàn tiền",
+  "refund_completed": "Hoàn tiền thành công",
+  "return_rejected": "Yêu cầu trả hàng bị từ chối",
+  "no_return_orders": "Không có đơn trả hàng nào",
+  "view_details": "Xem chi tiết",
+  "confirm_received": "Xác nhận đã nhận hàng trả",
+  "approve_return_request": "Chấp nhận yêu cầu trả hàng",
+  "reject_return_request": "Từ chối yêu cầu trả hàng",
 
 
+  "order": "Đơn hàng",
+  "view_return": "chi tiết hoàn trả",
+  "ship_return": "Gửi hàng ",
+  "view_order": "đơn hàng gốc",
+  "track_return": "Theo dõi đơn",
+  "view_refund": "Xem hoàn tiền",
+  "view_reason": "Xem lý do",
+  "refund_amount": "Số tiền hoàn",
+  "return_tracking": "Mã vận chuyển hoàn trả",
 
+  "return_pending": "Đang chờ duyệt",
+  "return_approved": "Đã duyệt",
+  "return_shipping_back": "Đang gửi trả",
+  "return_received": "Đã nhận hàng trả",
+  "return_refund_pending": "Đang xử lý hoàn tiền",
+  "return_refunded": "Đã hoàn tiền",
+  "return_rejected": "Từ chối hoàn trả",
+  "return_cancelled": "Đã hủy hoàn trả",
+
+  "processing": "Đang xử lý...",
+  "mark_as_received": "Xác nhận đã nhận hàng",
+
+    "invalid_amount": "Số tiền không hợp lệ",
+    "invalid_wallet": "Địa chỉ ví không hợp lệ",
+    "invalid_response": "Phản hồi máy chủ không hợp lệ",
+    "withdraw_failed": "Rút tiền thất bại",
+    "network_error": "Lỗi mạng",
+
+    "INSUFFICIENT_BALANCE": "Số dư không đủ",
+    "WITHDRAW_DISABLED": "Rút tiền hiện đang bị tắt",
+    "INVALID_ADDRESS": "Địa chỉ ví không hợp lệ",
+  "wallet_withdraw": "Rút tiền",
+  "wallet_withdraw_description": "Rút PI sang ví khác",
+
+  "wallet_invalid_amount": "Số tiền không hợp lệ",
+  "wallet_address_required": "Vui lòng nhập địa chỉ ví",
+  "wallet_withdraw_failed": "Rút tiền thất bại",
+
+  "wallet_address": "Địa chỉ ví",
+  "wallet_address_placeholder": "Địa chỉ ví Pi",
+
+  "wallet_amount": "Số lượng",
+
+  "common_cancel": "Hủy",
+  "common_processing": "Đang xử lý...",
+  "sale_date_required": "Vui lòng chọn thời gian bắt đầu và kết thúc khuyến mãi"
 
 
 

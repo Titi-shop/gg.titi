@@ -6,14 +6,21 @@ import {
   createProductService,
   updateProductService,
   deleteProductService,
-} from "@/lib/services/products.service";
+} from "@/lib/services/products";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /* ================= GET ================= */
 export async function GET(req: Request) {
+  const t0 = performance.now();
+
   const result = await listProductsService(req);
+  console.log(
+    "⏱️ API /products GET TOTAL:",
+    (performance.now() - t0).toFixed(2),
+    "ms"
+  );
   return NextResponse.json(result);
 }
 /* ================= POST ================= */

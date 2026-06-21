@@ -1,0 +1,161 @@
+/* =========================================================
+   TITI DESIGN SYSTEM 2026
+   THEME TOKENS
+========================================================= */
+
+/* =========================================================
+   ROOT TOKENS
+========================================================= */
+
+:root {
+
+  /* BRAND */
+  --color-primary: #f97316;
+  --color-primary-dark: #ea580c;
+  --color-primary-light: #fb923c;
+
+  /* STATUS */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  /* RADIUS */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+
+  /* SHADOW */
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.04);
+
+  --shadow-md:
+    0 4px 12px rgba(0, 0, 0, 0.06);
+
+  --shadow-lg:
+    0 10px 30px rgba(0, 0, 0, 0.10);
+}
+
+/* =========================================================
+   LIGHT MODE
+========================================================= */
+
+.theme-light {
+
+  /* BACKGROUND */
+  --background: #fafafa;
+  --foreground: #111827;
+
+  /* SURFACES */
+  --surface-1: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #f1f5f9;
+
+  /* CARDS */
+  --card-bg: #ffffff;
+  --card-secondary: #f8fafc;
+
+  /* BORDERS */
+  --border-color: rgba(0, 0, 0, 0.06);
+
+  /* TEXT */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+
+  /* NAVBAR */
+  --nav-bg: rgba(255, 255, 255, 0.92);
+  --nav-border: rgba(0, 0, 0, 0.06);
+
+  --nav-text: #111827;
+  --nav-muted: #6b7280;
+  --nav-active: #f97316;
+
+  /* HERO */
+  --hero-from: #f97316;
+  --hero-via: #fb923c;
+  --hero-to: #fdba74;
+
+  /* GLASS */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.4);
+}
+
+/* =========================================================
+   DARK MODE
+========================================================= */
+
+.theme-dark {
+
+  /* BACKGROUND */
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+
+  /* SURFACES */
+  --surface-1: #111827;
+  --surface-2: #1f2937;
+  --surface-3: #374151;
+
+  /* CARDS */
+  --card-bg: #111827;
+  --card-secondary: #1f2937;
+
+  /* BORDERS */
+  --border-color: rgba(255, 255, 255, 0.06);
+
+  /* TEXT */
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+
+  /* NAVBAR */
+  --nav-bg: rgba(10, 10, 10, 0.92);
+  --nav-border: rgba(255, 255, 255, 0.06);
+
+  --nav-text: #ffffff;
+  --nav-muted: #9ca3af;
+  --nav-active: #f97316;
+
+  /* HERO */
+  --hero-from: #f97316;
+  --hero-via: #fb923c;
+  --hero-to: #fdba74;
+
+  /* GLASS */
+  --glass-bg: rgba(17, 24, 39, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.05);
+}
+
+/* =========================================================
+   CUSTOMER THEME
+========================================================= */
+
+.theme-customer {
+  --color-primary: #f97316;
+  --color-primary-dark: #ea580c;
+}
+
+/* =========================================================
+   SELLER THEME
+========================================================= */
+
+.theme-seller {
+  --color-primary: #3b82f6;
+  --color-primary-dark: #2563eb;
+}
+
+/* =========================================================
+   TAILWIND v4 BRIDGE
+========================================================= */
+
+@theme {
+
+  --color-primary: #f97316;
+  --color-primary-dark: #ea580c;
+
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+}

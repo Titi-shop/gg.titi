@@ -88,22 +88,16 @@ function ProductCard({
     <div
   onClick={() => router.push(`/product/${product.id}`)}
   className={`
-    flex flex-col overflow-hidden rounded-2xl
-    bg-[var(--card-bg)]
-    border
-    shadow-sm
-    hover:shadow-md
+    card
+    flex flex-col
+    overflow-hidden
     active:scale-[0.98]
-    transition-all
-    duration-200
+    cursor-pointer
     ${compact ? "h-[270px]" : "h-[320px]"}
   `}
-  style={{
-    borderColor: "var(--nav-border)",
-  }}
 >
       {/* IMAGE - FIX PROPORTION */}
-      <div className="relative aspect-square w-full overflow-hidden bg-[var(--card-secondary)]">
+     <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
   <Image
     src={getMainImage(product)}
     alt={product.name}
@@ -132,7 +126,7 @@ function ProductCard({
         </p>
 
         {/* META */}
-        <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+        <div className="mt-1 flex items-center gap-1 text-[10px] text-muted">
           <Star size={11} className="fill-yellow-400 text-yellow-400" />
           {product.rating_avg || 5}
           <span>• {product.sold || 0}</span>
@@ -141,12 +135,7 @@ function ProductCard({
         {/* PRICE */}
         <div className="mt-auto flex items-end justify-between">
           <div className="flex flex-col">
-            <p
-  className="text-sm font-black"
-  style={{
-    color: "var(--color-primary)",
-  }}
->
+           <p className="text-sm font-black text-primary">
               {formatPi(product.final_price || product.price)} π
             </p>
 
@@ -163,23 +152,23 @@ function ProductCard({
 }
 function ProductSkeleton() {
   return (
-    <div className="overflow-hidden rounded-lg bg-white border border-gray-100">
+    <div className="card overflow-hidden">
       {/* IMAGE SKELETON */}
-      <div className="h-44 w-full bg-gray-200 animate-pulse relative overflow-hidden">
+     <div className="skeleton h-44 w-full relative overflow-hidden">
         <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
       </div>
 
       {/* TEXT */}
       <div className="p-2 space-y-2">
-        <div className="h-3 w-full bg-gray-200 rounded animate-pulse" />
-        <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
+        <div className="h-3 w-full bg-surface-2 rounded animate-pulse" />
+        <div className="h-3 w-3/4 bg-surface-2 rounded animate-pulse" />
 
         <div className="flex items-center gap-2 mt-2">
-          <div className="h-3 w-12 bg-gray-200 rounded animate-pulse" />
-          <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+          <div className="h-3 w-12 bg-surface-2 rounded animate-pulse" />
+          <div className="h-3 w-16 bg-surface-2 rounded animate-pulse" />
         </div>
 
-        <div className="h-4 w-20 bg-gray-200 rounded animate-pulse mt-2" />
+        <div className="h-4 w-20 bg-surface-2 rounded animate-pulse mt-2" />
       </div>
     </div>
   );
@@ -245,14 +234,6 @@ export default function HomePage() {
      EFFECTS
   ========================================================= */
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, []);
-  
 useEffect(() => {
   const hasSeenSplash = sessionStorage.getItem("splash_seen");
 

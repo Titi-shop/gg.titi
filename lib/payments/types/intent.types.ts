@@ -48,13 +48,27 @@ export type CreatePiPaymentIntentParams = {
 
 export type CreateIntentResult = {
   ok: boolean;
+
   payment_intent_id: string;
+
   amount: number;
   currency: "PI";
+
   merchant_wallet: string;
+
   memo: string;
+
+  payment_state?: string;
+  provider_status?: string;
+
+  expires_at?: string | Date;
+
   metadata: {
     payment_intent_id: string;
+
+    seller_id?: string;
+    product_id?: string;
+    variant_id?: string | null;
   };
 };
 
@@ -203,7 +217,19 @@ export type PaymentIntentRow = {
   merchant_wallet: string;
 
   status: string;
+
+  payment_state: string;
+  provider_status: string;
+
   settlement_state: string;
+
+  expires_at: string | null;
+  finalized_at: string | null;
+
+  forensic_hash?: string | null;
+
+  created_at?: string;
+  updated_at?: string;
 };
 
 /* =========================================================

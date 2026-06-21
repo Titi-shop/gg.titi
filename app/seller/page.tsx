@@ -22,7 +22,7 @@ Truck,
 PackageCheck,
 RotateCcw,
 XCircle,
-RefreshCcw,
+RefreshCcw,MapPin
 } from "lucide-react";
 
 /* ================= PAGE ================= */
@@ -135,6 +135,12 @@ return (
 
   {/* MAIN ACTIONS */}  
   <section className="grid grid-cols-2 md:grid-cols-4 gap-4">  
+    <MainCard
+  href="/seller/settings/addresses"
+  icon={<MapPin size={18} />}
+  label={t.addresses ?? "Addresses"}
+     />
+    
     <MainCard  
       href="/seller/post"  
       icon={<PackagePlus size={18} />}  

@@ -16,16 +16,29 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(
+      () => ({})
+    );
 
-    const result = await piAuthorizePayment({
-      userId: auth.userId,
-      body,
-      authorizationHeader: req.headers.get("authorization") || "",
-    });
+    const result =
+      await piAuthorizePayment({
+        userId: auth.userId,
+        body,
+        authorizationHeader:
+          req.headers.get(
+            "authorization"
+          ) || "",
+      });
 
-    return NextResponse.json(result);
+    return NextResponse.json(
+      result
+    );
   } catch (e) {
+    console.error(
+      "[AUTHORIZE_ROUTE_ERROR]",
+      e
+    );
+
     return NextResponse.json(
       {
         error:

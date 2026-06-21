@@ -1,0 +1,161 @@
+/* =========================================================
+   SHIMMER
+========================================================= */
+
+@keyframes shimmer {
+
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* =========================================================
+   TICKER
+========================================================= */
+
+@keyframes ticker {
+
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* =========================================================
+   SKELETON
+========================================================= */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.25),
+    transparent
+  );
+
+  animation: shimmer 1.5s infinite;
+}
+
+/* =========================================================
+   PI PRICE TICKER
+========================================================= */
+
+.ticker-track {
+
+  display: inline-flex;
+
+  width: max-content;
+
+  white-space: nowrap;
+
+  animation: ticker 18s linear infinite;
+
+  will-change: transform;
+}
+
+/* =========================================================
+   SCROLL X
+========================================================= */
+
+.scroll-x {
+
+  overflow-x: auto;
+
+  overflow-y: hidden;
+
+  -webkit-overflow-scrolling: touch;
+
+  scroll-behavior: smooth;
+
+  overscroll-behavior-x: contain;
+
+  touch-action: pan-x;
+
+  scrollbar-width: none;
+
+  scroll-snap-type: x proximity;
+}
+
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-x > * {
+  scroll-snap-align: start;
+}
+
+/* =========================================================
+   PERFORMANCE
+========================================================= */
+
+.pi-widget {
+  will-change: transform;
+}
+
+.product-image {
+
+  transform: translateZ(0);
+
+  backface-visibility: hidden;
+
+  will-change: transform;
+}
+
+/* =========================================================
+   FADE IN
+========================================================= */
+
+@keyframes fadeIn {
+
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn .25s ease-out;
+}
+
+/* =========================================================
+   SCALE IN
+========================================================= */
+
+@keyframes scaleIn {
+
+  from {
+    opacity: 0;
+    transform: scale(.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn .25s ease-out;
+}

@@ -646,7 +646,100 @@
   "change_address": "点击更改地址",
   "add_shipping": "添加收货地址",
   "shipping_zone": "配送区域",
-  "no_shipping_zone": "未找到配送区域"
+  "no_shipping_zone": "未找到配送区域",
+  
+  "logging_in_pi": "正在连接 Pi 账户...",
+  "creating_order": "正在创建订单...",
+  "opening_pi_wallet": "正在打开 Pi 钱包...",
+  "authorizing_payment": "正在授权支付...",
+  "payment_authorized": "支付已授权",
+  "confirming_payment": "正在确认支付...",
+  "payment_cancelled": "用户已取消支付",
+  "payment_failed": "支付失败，请重试。",
+  "transaction_failed": "交易失败，请重试。",
+  "order_created_success": "支付成功，订单已创建。",
+
+
+  
+  "return_orders": "退货订单",
+  "return_detail": "退货详情",
+  "reason": "退货原因",
+  "pending": "待处理",
+  "approved": "已批准",
+  "shipping_back": "退货运输中",
+  "received": "已收到退货",
+  "refund_pending": "等待退款",
+  "refunded": "已退款",
+  "rejected": "已拒绝",
+  "approve": "批准",
+  "reject": "拒绝",
+  "mark_received": "标记为已收到",
+  "action_failed": "操作失败",
+  "loading": "加载中...",
+  "qty": "数量",
+  "return_number": "退货编号",
+  "return_status": "退货状态",
+  "return_request": "退货申请",
+  "evidence_images": "凭证图片",
+  "tracking_code": "退货物流单号",
+  "customer_returned_item": "买家已寄回商品",
+  "seller_received_item": "卖家已收到退货",
+  "waiting_customer_return": "等待买家寄回商品",
+  "waiting_refund": "等待退款",
+  "refund_completed": "退款完成",
+  "return_rejected": "退货申请被拒绝",
+  "no_return_orders": "暂无退货订单",
+  "view_details": "查看详情",
+  "confirm_received": "确认收到退货",
+  "approve_return_request": "批准退货申请",
+  "reject_return_request": "拒绝退货申请",
+
+  
+  "order": "订单",
+  "view_return": "查看退货",
+  "ship_return": "寄回商品",
+  "view_order": "查看订单",
+  "track_return": "物流追踪",
+  "view_refund": "查看退款",
+  "view_reason": "查看原因",
+  "refund_amount": "退款金额",
+  "return_tracking": "退货物流单号",
+
+  "return_pending": "等待审核",
+  "return_approved": "已批准",
+  "return_shipping_back": "退货运输中",
+  "return_received": "已收到退货",
+  "return_refund_pending": "退款处理中",
+  "return_refunded": "已退款",
+  "return_rejected": "退货被拒绝",
+  "return_cancelled": "已取消退货",
+
+  "wallet_invalid_amount": "金额无效",
+  "wallet_invalid_wallet": "钱包地址无效",
+  "wallet_invalid_response": "服务器响应无效",
+  "wallet_withdraw_failed": "提现失败",
+  "wallet_network_error": "网络错误",
+
+  "wallet_insufficient_balance": "余额不足",
+  "wallet_withdraw_disabled": "提现功能已关闭",
+  "wallet_invalid_address": "钱包地址无效",
+  "wallet_withdraw": "提现",
+  "wallet_withdraw_description": "将 PI 提现到其他钱包",
+
+  "wallet_invalid_amount": "金额无效",
+  "wallet_address_required": "请输入钱包地址",
+  "wallet_withdraw_failed": "提现失败",
+
+  "wallet_address": "钱包地址",
+  "wallet_address_placeholder": "Pi 钱包地址",
+
+  "wallet_amount": "金额",
+
+  "common_cancel": "取消",
+  "common_processing": "处理中...",
+  "sale_date_required": "请选择促销开始和结束时间"
+
+
 
 
 }

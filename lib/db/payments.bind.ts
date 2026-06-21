@@ -7,25 +7,19 @@ import { withTransaction } from "@/lib/db";
 
 type BindParams = {
   userId: string;
-
   paymentIntentId: string;
-
   piPaymentId: string;
-
   piUid: string;
-
   verifiedAmount: number;
-
   piPayload: unknown;
 };
 
 type IntentRow = {
   id: string;
-
   buyer_id: string;
-
   status: string | null;
-
+  payment_state: string | null;
+  provider_status: string | null;
   pi_payment_id: string | null;
 };
 
@@ -59,11 +53,14 @@ function safeAmount(
 ): number {
   const n = Number(value);
 
-  if (!Number.isFinite(n)) {
-    throw new Error(
-      "INVALID_AMOUNT"
-    );
-  }
+  if (
+  !Number.isFinite(n) ||
+  n <= 0
+) {
+  throw new Error(
+    "INVALID_AMOUNT"
+  );
+}
 
   return n;
 }
@@ -145,13 +142,15 @@ export async function bindPiPaymentToIntent(
         await client.query<IntentRow>(
           `
           SELECT
-            id,
-            buyer_id,
-            status,
-            pi_payment_id
-          FROM payment_intents
-          WHERE id = $1
-          FOR UPDATE
+  id,
+  buyer_id,
+  status,
+  payment_state,
+  provider_status,
+  pi_payment_id
+FROM payment_intents
+WHERE id = $1
+FOR UPDATE
           `,
           [paymentIntentId]
         );
@@ -164,7 +163,11 @@ export async function bindPiPaymentToIntent(
 
       const intent =
         res.rows[0];
-
+       vlog("CURRENT_STATE", {
+  status: intent.status,
+  pi_payment_id:
+    intent.pi_payment_id,
+      });
       vlog("LOCK_OK", intent);
 
       /* ===============================================
@@ -178,21 +181,6 @@ export async function bindPiPaymentToIntent(
         throw new Error(
           "FORBIDDEN"
         );
-      }
-
-      /* ===============================================
-         PAID IDEMPOTENT
-      =============================================== */
-
-      if (
-        intent.status ===
-        "paid"
-      ) {
-        vlog(
-          "ALREADY_PAID_SKIP"
-        );
-
-        return;
       }
 
       /* ===============================================
@@ -228,33 +216,48 @@ export async function bindPiPaymentToIntent(
          UPDATE
       =============================================== */
 
-      vlog("UPDATE_START");
+      vlog("UPDATE_START", {
+  paymentIntentId,
+  piPaymentId,
+  piUid,
+  amount,
+});
+let payloadJson = "{}";
 
+try {
+  payloadJson = JSON.stringify(
+    piPayload ?? {}
+  );
+} catch (error) {
+  vlog(
+    "PAYLOAD_SERIALIZE_FAILED",
+    error
+  );
+}
       await client.query(
-        `
-        UPDATE payment_intents
-        SET
-          pi_payment_id = $2,
-          pi_user_uid = $3,
-          pi_verified_amount = $4,
-          pi_payment_payload = $5,
+  `
+  UPDATE payment_intents
+  SET
+    pi_payment_id = $2,
+    pi_user_uid = $3,
+    pi_verified_amount = $4,
+    pi_payment_payload = $5,
 
-          status = 'submitted',
+    status = 'submitted',
+payment_state = 'AUTHORIZED',
+provider_status = 'APPROVED',
+updated_at = now()
 
-          updated_at = now()
-
-        WHERE id = $1
-        `,
-        [
-          paymentIntentId,
-          piPaymentId,
-          piUid,
-          amount,
-          JSON.stringify(
-            piPayload ?? {}
-          ),
-        ]
-      );
+  WHERE id = $1
+  `,
+  [
+    paymentIntentId,
+    piPaymentId,
+    piUid,
+    amount,
+    payloadJson,
+  ]
+);
 
       vlog("UPDATE_OK", {
         paymentIntentId,

@@ -17,7 +17,7 @@ import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { formatPi } from "@/lib/pi";
 import type { Product } from "@/types/product";
 import type { Category } from "@/types/category";
-
+import AppLoading from "@/components/AppLoading";
 /* =========================================================
    FETCHER
 ========================================================= */
@@ -253,34 +253,9 @@ export default function CategoriesClient() {
      LOADING
   ========================================================= */
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-[#f5f7fb] p-4">
-        <div className="animate-pulse space-y-5">
-          <div className="h-14 rounded-2xl bg-white" />
-
-          <div className="flex gap-3 overflow-hidden">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="h-20 min-w-[90px] rounded-2xl bg-white"
-              />
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="h-72 rounded-[28px] bg-white"
-              />
-            ))}
-          </div>
-        </div>
-      </main>
-    );
-  }
-
+ if (loading) {
+  return <AppLoading />;
+}
   /* =========================================================
      UI
   ========================================================= */

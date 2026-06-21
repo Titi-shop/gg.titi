@@ -2,13 +2,13 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
 import { useCart } from "@/app/context/CartContext";
 import { apiAuthFetch } from "@/lib/api/apiAuthFetch";
-
+import AppLoading from "@/components/AppLoading";
 import { useProduct } from "./product.logic";
 import { ProductView } from "./product.components";
 import CheckoutSheet from "./CheckoutSheet";
@@ -67,20 +67,26 @@ const [initialScale, setInitialScale] =
   /* ================= DEFAULT VARIANT ================= */
 
   useEffect(() => {
-    if (!product) return;
+  if (!product) return;
 
-    const first =
-      product.variants?.find(
-        (v) => (v.is_active ?? true) && v.stock > 0
-      ) ?? null;
+  const first =
+    product.variants?.find(
+      (v) => (v.is_active ?? true) && v.stock > 0
+    ) ?? null;
 
-    setSelectedVariant(first);
-  }, [product]);
+  console.log("🧪 DEFAULT_VARIANT", {
+    found: !!first,
+    variant: first,
+  });
+
+  setSelectedVariant(first);
+}, [product]);
 
   /* ================= RELATED PRODUCTS ================= */
 
   useEffect(() => {
-    const load = async () => {
+  const loadRelatedProducts =
+    async (): Promise<void> => {
       if (!product?.category_id) return;
 
       try {
@@ -90,51 +96,66 @@ const [initialScale, setInitialScale] =
 
         if (!res.ok) return;
 
-        const data: ProductRecord[] = await res.json();
+        const data: ProductRecord[] =
+          await res.json();
 
-       const filtered = data
-  .filter((p) => p.id !== product.id)
-  .slice(0, 10);
+        const filtered = data
+          .filter((p) => p.id !== product.id)
+          .slice(0, 10);
 
-setRelated(filtered);
+        setRelated(filtered);
 
-console.log(
-  "[RELATED PRODUCTS]",
-  filtered.map((p) => ({
-    name: p.name,
-    has_variants: p.has_variants,
-    price: p.price,
-    sale_price: p.sale_price,
-    final_price: p.final_price,
-    variants: p.variants?.length,
-  }))
-);
+        if (
+          process.env.NODE_ENV ===
+          "development"
+        ) {
+          console.log(
+            "[RELATED PRODUCTS]",
+            filtered.map((p) => ({
+              name: p.name,
+              has_variants: p.has_variants,
+              price: p.price,
+              sale_price: p.sale_price,
+              final_price: p.final_price,
+              variants: p.variants?.length,
+            }))
+          );
+        }
       } catch (err) {
-        console.error("[RELATED ERROR]", err);
+        if (
+          process.env.NODE_ENV ===
+          "development"
+        ) {
+          console.error(
+            "[RELATED ERROR]",
+            err
+          );
+        }
       }
     };
 
-    load();
-  }, [product?.category_id]);
+  void loadRelatedProducts();
+}, [product?.category_id]);
 
-  /* ================= GUARD ================= */
+/* ================= GUARD ================= */
 
-  if (isLoading) {
-    return (
-      <div className="p-4 text-center text-gray-400">
-        {t.loading ?? "Loading..."}
-      </div>
-    );
-  }
+if (isLoading) {
+  return <AppLoading />;
+}
 
-  if (!product) {
-    return (
-      <div className="p-4 text-center text-gray-500">
-        {t.product_not_found ?? "Product not found"}
-      </div>
-    );
-  }
-
+if (!product) {
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{
+        background: "var(--background)",
+        color: "var(--text-muted)",
+      }}
+    >
+      {t.product_not_found ?? "Product not found"}
+    </div>
+  );
+}
   /* ================= LOGIC ================= */
 
   const hasVariants = product.has_variants;
@@ -180,7 +201,7 @@ console.log(
     quantity: 1,
   });
 
-  const add = () => {
+  const add = (): void => {
     if (!requireVariant()) return;
     if (!canBuy) return;
 
@@ -188,7 +209,7 @@ console.log(
     router.push("/cart");
   };
 
-  const buy = () => {
+  const buy = (): void => {
     if (!requireVariant()) return;
     if (!canBuy) return;
 
@@ -229,7 +250,6 @@ setInitialDistance={setInitialDistance}
 initialScale={initialScale}
 setInitialScale={setInitialScale}
       />
-
 <CheckoutSheet
   open={openCheckout}
   onClose={() => setOpenCheckout(false)}
@@ -242,13 +262,27 @@ setInitialScale={setInitialScale}
         ? `${product.name} - ${selectedVariant.option1}`
         : product.name,
 
-    price: product.price,
-    sale_price: product.sale_price,
-    final_price: product.final_price,
+    price:
+      selectedVariant?.price ??
+      product.price,
+
+    sale_price:
+      selectedVariant?.sale_price ??
+      product.sale_price,
+
+    final_price:
+      selectedVariant?.final_price ??
+      product.final_price,
+
     thumbnail: product.thumbnail,
+
     stock,
-    shipping_rates: product.shipping_rates,
-    variant_id: selectedVariant?.id ?? null,
+
+    shipping_rates:
+      product.shipping_rates,
+
+    variant_id:
+      selectedVariant?.id ?? null,
   }}
 />
     </>

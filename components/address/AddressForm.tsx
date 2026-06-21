@@ -2,10 +2,8 @@
 
 import useSWR from "swr";
 import { ChangeEvent } from "react";
-
 import { countries } from "@/data/countries";
 import { useTranslationClient as useTranslation } from "@/app/lib/i18n/client";
-
 /* ======================================================
    TYPES
 ====================================================== */

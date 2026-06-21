@@ -124,17 +124,47 @@ async function loadProduct(productId: string) {
   if (p.is_active === false) throw new Error("PRODUCT_INACTIVE");
 
   const product = {
-    id: String(p.id),
-    name: p.name,
-    price: safeNumber(p.price),
-    sale_price: p.sale_price ? safeNumber(p.sale_price) : null,
-    sale_start: p.sale_start ?? null,
-    sale_end: p.sale_end ?? null,
-    stock: p.stock ?? null,
-    is_unlimited: !!p.is_unlimited,
-    is_digital: !!p.is_digital,
-    seller_country: p.domestic_country_code ?? null,
-  };
+  id: String(p.id),
+  name: p.name,
+
+  price:
+  p.price !== null
+    ? safeNumber(p.price)
+    : null,
+
+  sale_price:
+    p.sale_price !== null
+      ? safeNumber(p.sale_price)
+      : null,
+
+  final_price:
+  p.final_price !== null
+    ? safeNumber(p.final_price)
+    : null,
+
+  sale_start: p.sale_start ?? null,
+  sale_end: p.sale_end ?? null,
+
+  stock: p.stock ?? null,
+
+  is_unlimited: !!p.is_unlimited,
+  is_digital: !!p.is_digital,
+
+  seller_country:
+    p.domestic_country_code ?? null,
+};
+
+if (
+  !p.has_variants &&
+  (
+    !Number.isFinite(product.final_price) ||
+    product.final_price <= 0
+  )
+) {
+  throw new Error(
+    "PRODUCT_PRICE_CORRUPTED"
+  );
+}
 
   log("PRODUCT_OK", product);
 
@@ -154,21 +184,41 @@ async function loadVariant(variantId: string, productId: string) {
   if (v.product_id !== productId) throw new Error("VARIANT_PRODUCT_MISMATCH");
 
   const variant = {
-    id: String(v.id),
-    price: safeNumber(v.price),
-    sale_price: v.sale_price ? safeNumber(v.sale_price) : null,
-    stock: v.stock ?? null,
-    is_unlimited: !!v.is_unlimited,
-  };
+  id: String(v.id),
+
+  price: safeNumber(v.price),
+
+  sale_price:
+    v.sale_price !== null
+      ? safeNumber(v.sale_price)
+      : null,
+
+  final_price: safeNumber(
+    v.final_price
+  ),
+
+  stock: v.stock ?? null,
+
+  is_unlimited:
+    !!v.is_unlimited,
+};
+
+if (
+  !Number.isFinite(
+    variant.final_price
+  ) ||
+  variant.final_price <= 0
+) {
+  throw new Error(
+    "VARIANT_PRICE_CORRUPTED"
+  );
+}
 
   log("VARIANT_OK", variant);
 
   return variant;
 }
 
-/* =========================================================
-   SHIPPING (DOMESTIC PRIORITY FIXED)
-========================================================= */
 /* =========================================================
    SHIPPING
 ========================================================= */
@@ -277,52 +327,59 @@ export async function calculatePricing(
       }
     }
 
-    let price = product.price;
-    const saleActive = isSaleActive(
-      product.sale_start,
-      product.sale_end
+   let price = product.final_price;
+
+if (item.variant_id) {
+  const variant = await loadVariant(
+    item.variant_id,
+    product.id
+  );
+
+  const vPrice =
+    variant.final_price;
+
+  if (
+    !Number.isFinite(vPrice) ||
+    vPrice <= 0
+  ) {
+    throw new Error(
+      "INVALID_VARIANT_PRICE"
     );
+  }
 
-    if (saleActive && product.sale_price && product.sale_price < price) {
-      price = product.sale_price;
-    }
+  if (
+    !variant.is_unlimited &&
+    variant.stock !== null &&
+    variant.stock < qty
+  ) {
+    throw new Error(
+      "VARIANT_OUT_OF_STOCK"
+    );
+  }
 
-    if (
-      !product.is_unlimited &&
-      product.stock !== null &&
-      product.stock < qty
-    ) {
-      throw new Error("OUT_OF_STOCK");
-    }
+  price = vPrice;
+} else {
+  if (
+    !Number.isFinite(price) ||
+    price <= 0
+  ) {
+    throw new Error(
+      "INVALID_PRODUCT_PRICE"
+    );
+  }
 
-    if (item.variant_id) {
-      const variant = await loadVariant(
-        item.variant_id,
-        product.id
-      );
+  if (
+    !product.is_unlimited &&
+    product.stock !== null &&
+    product.stock < qty
+  ) {
+    throw new Error(
+      "OUT_OF_STOCK"
+    );
+  }
+}
 
-      let vPrice = variant.price;
-
-      if (
-        saleActive &&
-        variant.sale_price &&
-        variant.sale_price < vPrice
-      ) {
-        vPrice = variant.sale_price;
-      }
-
-      if (
-        !variant.is_unlimited &&
-        variant.stock !== null &&
-        variant.stock < qty
-      ) {
-        throw new Error("VARIANT_OUT_OF_STOCK");
-      }
-
-      price = vPrice;
-    }
-
-    const line = price * qty;
+const line = price * qty;
     subtotal += line;
 
     if (!product.is_digital) {

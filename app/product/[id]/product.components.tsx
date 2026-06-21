@@ -59,6 +59,7 @@ availableVariants: ProductVariantView[];
 };
 export function ProductView(props: ProductViewProps) {
   const [activeImage, setActiveImage] = useState<string | null>(null);
+
   const {
     product,
     t,
@@ -87,16 +88,27 @@ export function ProductView(props: ProductViewProps) {
     hasVariants,
     relatedProducts,
   } = props;
-   const variantOnSale =
-  selectedVariant?.sale_price != null &&
-  selectedVariant.sale_price < selectedVariant.price;
+
+  console.log("🧪 SALE_BADGE_CHECK", {
+    hasVariants,
+
+    productPrice: product?.price,
+    productSalePrice: product?.sale_price,
+    productFinalPrice: product?.final_price,
+
+    selectedVariant: selectedVariant
+      ? {
+          id: selectedVariant.id,
+          price: selectedVariant.price,
+          sale_price: selectedVariant.sale_price,
+          final_price: selectedVariant.final_price,
+        }
+      : null,
+  });
+
   /* ================= SAFE ================= */
   if (!product) return null;
-
-  /* ================= DOUBLE TAP FIX ================= */
-  const [lastTap, setLastTap] =
-  useState(0);
-if (!product) return null;
+const [lastTap, setLastTap] = useState(0);
 
   /* ================= IMAGES ================= */
   const displayImages = [
@@ -117,15 +129,36 @@ if (!product) return null;
       <div
   className="relative" style={{  backgroundColor: "var(--card-bg)",  }}
 >
-        {product.sale_price &&
- product.final_price < product.price && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white px-2 py-1 text-xs rounded z-10">
-            -{calcSalePercent(
-            product.price,
-           product.final_price
-           )}%
-          </div>
+        {(
+  hasVariants
+    ? selectedVariant &&
+      selectedVariant.sale_enabled &&
+      selectedVariant.final_price <
+        selectedVariant.price
+    : product.sale_enabled &&
+      product.final_price <
+        product.price
+) && (
+  <div
+    className="absolute top-3 right-3 px-2 py-1 text-xs rounded z-10"
+    style={{
+      background: "var(--danger)",
+      color: "#fff",
+    }}
+  >
+    -
+    {hasVariants && selectedVariant
+      ? calcSalePercent(
+          selectedVariant.price,
+          selectedVariant.final_price
+        )
+      : calcSalePercent(
+          product.price,
+          product.final_price
         )}
+    %
+  </div>
+)}
 
         <Swiper modules={[Pagination]} pagination={{ clickable: true }}>
           {gallery.map((img: string, i: number) => (
@@ -241,68 +274,89 @@ let newScale =
   </h2>
 
   <div className="text-right">
-    {hasVariants ? (
-      selectedVariant ? (
-        <>
-          <p className="text-xl font-black text-red-500">
-            π{" "}
-            {formatPi(
-              selectedVariant.final_price ??
-                selectedVariant.sale_price ??
-                selectedVariant.price
-            )}
-          </p>
-
-          {(selectedVariant.sale_price ??
-            0) > 0 &&
-            selectedVariant.final_price <
-              selectedVariant.price && (
-              <p className="text-sm text-gray-400 line-through">
-                π{" "}
-                {formatPi(
-                  selectedVariant.price
-                )}
-              </p>
-            )}
-        </>
-      ) : (
-        <p className="text-xl font-black text-red-500">
-          π{" "}
-          {formatPi(
-            product.final_price ??
-              product.sale_price ??
-              product.price ??
-              0
-          )}
-        </p>
-      )
-    ) : (
+  {hasVariants ? (
+    selectedVariant ? (
       <>
-        <p className="text-xl font-black text-red-500">
+        <p
+          className="text-xl font-black"
+          style={{
+            color: "var(--color-primary)",
+          }}
+        >
           π{" "}
           {formatPi(
-            product.final_price ??
-              product.sale_price ??
-              product.price ??
-              0
+            selectedVariant.final_price ??
+              selectedVariant.sale_price ??
+              selectedVariant.price
           )}
         </p>
 
-        {(product.sale_price ?? 0) >
-          0 &&
-          (product.final_price ??
-            product.price) <
-            product.price && (
-            <p className="text-sm text-gray-400 line-through">
+        {(selectedVariant.sale_price ?? 0) > 0 &&
+          selectedVariant.final_price <
+            selectedVariant.price && (
+            <p
+              className="text-sm line-through"
+              style={{
+                color: "var(--text-muted)",
+              }}
+            >
               π{" "}
               {formatPi(
-                product.price
+                selectedVariant.price
               )}
             </p>
           )}
       </>
-    )}
-  </div>
+    ) : (
+      <p
+        className="text-xl font-black"
+        style={{
+          color: "var(--color-primary)",
+        }}
+      >
+        π{" "}
+        {formatPi(
+          product.final_price ??
+            product.sale_price ??
+            product.price ??
+            0
+        )}
+      </p>
+    )
+  ) : (
+    <>
+      <p
+        className="text-xl font-black"
+        style={{
+          color: "var(--color-primary)",
+        }}
+      >
+        π{" "}
+        {formatPi(
+          product.final_price ??
+            product.sale_price ??
+            product.price ??
+            0
+        )}
+      </p>
+
+      {(product.sale_price ?? 0) > 0 &&
+        (product.final_price ??
+          product.price) <
+          product.price && (
+          <p
+            className="text-sm line-through"
+            style={{
+              color: "var(--text-muted)",
+            }}
+          >
+            π{" "}
+            {formatPi(product.price)}
+          </p>
+        )}
+    </>
+  )}
+</div>
 </div>
 
       {/* ===== META ===== */}
@@ -331,7 +385,11 @@ let newScale =
       product.rating_avg ?? 0
     ).toFixed(1)}
 
-    <span className="text-gray-400">
+   <span
+  style={{
+    color: "var(--text-muted)",
+  }}
+>
       ({product.rating_count ?? 0})
     </span>
   </span>
@@ -345,7 +403,11 @@ let newScale =
   }}
 >
   {canBuy ? (
-    <span className="text-green-600">
+   <span
+  style={{
+    color: "var(--success)",
+  }}
+>
       ✅ {t.in_stock}{" "}
       {hasVariants
         ? selectedVariant
@@ -354,7 +416,11 @@ let newScale =
         : product.stock}
     </span>
   ) : (
-    <span className="text-red-500">
+    <span
+  style={{
+    color: "var(--danger)",
+  }}
+>
       ❌ {t.out_of_stock}
     </span>
   )}
@@ -371,6 +437,7 @@ let newScale =
       }}
     >
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+       
         {availableVariants.map((v) => {
           const isSelected =
             selectedVariant?.id ===
@@ -378,7 +445,10 @@ let newScale =
 
           const isDisabled =
             v.stock <= 0;
-
+      console.log(
+  "🧪 AVAILABLE_VARIANTS",
+     availableVariants
+      );
           return (
             <button
               key={v.id}
@@ -398,16 +468,24 @@ let newScale =
                   }
                 }
               }}
-              className={`
-              rounded border px-2 py-2 text-sm transition
-              ${
-                isDisabled
-                  ? "bg-gray-100 text-gray-400"
-                  : isSelected
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-[var(--nav-border)] bg-[var(--card-bg)] text-[var(--foreground)]"
-              }
-            `}
+              className="rounded border px-2 py-2 text-sm transition"
+style={{
+  background: isDisabled
+    ? "var(--surface-2)"
+    : isSelected
+    ? "rgba(249,115,22,.10)"
+    : "var(--card-bg)",
+
+  color: isDisabled
+    ? "var(--text-muted)"
+    : isSelected
+    ? "var(--color-primary)"
+    : "var(--foreground)",
+
+  borderColor: isSelected
+    ? "var(--color-primary)"
+    : "var(--nav-border)",
+}}
             >
               <div className="flex flex-col items-center gap-1">
                 {v.image && (
@@ -423,7 +501,12 @@ let newScale =
                     "Option"}
                 </span>
 
-                <span className="text-[10px] text-gray-400">
+                <span
+  className="text-[10px]"
+  style={{
+    color: "var(--text-muted)",
+  }}
+>
                   {v.stock}
                 </span>
               </div>
@@ -492,12 +575,22 @@ let newScale =
                   {p.name}
                 </p>
 
-                <p className="text-sm font-semibold text-primary">
+              <p
+  className="text-sm font-semibold"
+  style={{
+    color: "var(--color-primary)",
+  }}
+>
                   π {formatPi(p.final_price ?? p.price)}
                 </p>
 
                 {p.sale_price && p.final_price < p.price && (
-                  <p className="text-xs text-gray-400 line-through">
+                 <p
+  className="text-xs line-through"
+  style={{
+    color: "var(--text-muted)",
+  }}
+>
                     π {formatPi(p.price)}
                   </p>
                 )}
@@ -526,12 +619,15 @@ let newScale =
     <button
       onClick={add}
       className="
-        flex-1 h-8
-        bg-primary text-white
-        rounded-lg
-        text-xs font-medium
-        active:scale-95 transition
-      "
+  flex-1 h-8
+  rounded-lg
+  text-xs font-medium
+  active:scale-95 transition
+"
+style={{
+  background: "var(--color-primary)",
+  color: "#fff",
+}}
     >
       {t.add_to_cart}
     </button>
@@ -542,17 +638,27 @@ let newScale =
     buy();
   }}
   disabled={hasVariants && !selectedVariant}
-  className={`
-    flex-1 h-8 rounded-lg text-xs font-semibold transition
-    ${
+  className="
+    flex-1 h-8
+    rounded-lg
+    text-xs
+    font-semibold
+    transition
+  "
+  style={{
+    background:
       hasVariants && !selectedVariant
-        ? "bg-gray-300 text-gray-500"
-        : "bg-primary-dark text-white active:scale-95"
-    }
-  `}
+        ? "var(--surface-3)"
+        : "var(--color-primary-dark)",
+
+    color:
+      hasVariants && !selectedVariant
+        ? "var(--text-muted)"
+        : "#fff",
+  }}
 >
-      {t.buy_now}
-    </button>
+  {t.buy_now}
+</button>
   </div>
 </div>
     </div> 

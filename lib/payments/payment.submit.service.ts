@@ -57,9 +57,13 @@ function normalizeSubmitBody(raw: unknown): SubmitPaymentBody {
     throw new Error("INVALID_PI_PAYMENT_ID");
   }
 
-  if (!txid) {
-    throw new Error("INVALID_TXID");
-  }
+  if (
+  !/^[a-f0-9]{32,}$/i.test(txid)
+) {
+  throw new Error(
+    "INVALID_TXID"
+  );
+}
 
   return {
     payment_intent_id: paymentIntentId,
@@ -78,19 +82,33 @@ export async function submitPiPaymentFromRequest({
   requestId,
 }: SubmitRequestInput) {
   const body = normalizeSubmitBody(raw);
-
+console.log(
+  "[PAYMENT][SUBMIT] NORMALIZED",
+  body
+);
   console.log("[PAYMENT][SUBMIT_START]", {
     requestId,
     paymentIntentId: body.payment_intent_id,
     piPaymentId: body.pi_payment_id,
   });
 
+  try {
   await markPaymentVerifying({
-    paymentIntentId: body.payment_intent_id,
+    paymentIntentId:
+      body.payment_intent_id,
     userId,
-    piPaymentId: body.pi_payment_id,
+    piPaymentId:
+      body.pi_payment_id,
     txid: body.txid,
   });
+} catch (error) {
+  console.error(
+    "[PAYMENT][SUBMIT_FAIL]",
+    error
+  );
+
+  throw error;
+}
 
   console.log("[PAYMENT][SUBMIT_VERIFYING_LOCKED]", {
     requestId,

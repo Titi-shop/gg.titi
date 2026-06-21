@@ -41,6 +41,19 @@ type CreateOrderInput = {
     region?: string | null;
     postal_code?: string | null;
   };
+   pricing: {
+  subtotal: number;
+  shipping_fee: number;
+  total: number;
+
+  items: {
+    product_id: string;
+    variant_id: string | null;
+    quantity: number;
+    unit_price: number;
+    subtotal: number;
+  }[];
+};
 };
 
 function isUUID(v: string): boolean {
@@ -61,6 +74,27 @@ export async function createOrder(input: CreateOrderInput) {
   const country = input.country?.trim().toUpperCase();
 
   return withTransaction(async (client) => {
+     const existingOrder =
+  await client.query<{ id: string }>(
+    `
+    SELECT id
+    FROM orders
+    WHERE idempotency_key = $1
+    LIMIT 1
+    `,
+    [input.idempotencyKey]
+  );
+
+if (existingOrder.rows.length) {
+  console.log(
+    "[ORDER][IDEMPOTENT_HIT]",
+    existingOrder.rows[0].id
+  );
+
+  return {
+    orderId: existingOrder.rows[0].id,
+  };
+}
     console.log("🟡 [ORDER][V7][PAID_FLOW] START", {
       userId,
       itemsCount: items.length,
@@ -82,6 +116,7 @@ export async function createOrder(input: CreateOrderInput) {
              thumbnail, is_active, deleted_at, stock
       FROM products
       WHERE id = ANY($1::uuid[])
+      FOR UPDATE
       `,
       [productIds]
     );
@@ -98,9 +133,16 @@ export async function createOrder(input: CreateOrderInput) {
       variantIds.length > 0
         ? await client.query<any>(
             `
-            SELECT id, product_id, price, sale_price, stock
-            FROM product_variants
-            WHERE id = ANY($1::uuid[])
+            SELECT
+  id,
+  product_id,
+  price,
+  sale_price,
+  stock,
+  is_active
+FROM product_variants
+WHERE id = ANY($1::uuid[])
+FOR UPDATE
             `,
             [variantIds]
           )
@@ -111,119 +153,213 @@ export async function createOrder(input: CreateOrderInput) {
     /* =========================================================
        CALCULATE
     ========================================================= */
-
-    let subtotal = 0;
     let totalQuantity = 0;
 
     const orderItems: OrderItemInternal[] = [];
+const subtotal =
+  Number(input.pricing.subtotal);
 
+const shippingFee =
+  Number(input.pricing.shipping_fee);
+
+const total =
+  Number(input.pricing.total);
     for (const item of items) {
       if (!isUUID(item.product_id)) {
         throw new Error("INVALID_PRODUCT_ID");
       }
 
       const p = productMap.get(item.product_id);
-      if (!p) throw new Error("INVALID_PRODUCT");
 
-      if (!p.is_active || p.deleted_at) {
-        throw new Error("PRODUCT_NOT_AVAILABLE");
-      }
+if (!p) {
+  throw new Error("INVALID_PRODUCT");
+}
 
-      const qty = Math.max(item.quantity, 1);
+const qty = Math.max(item.quantity, 1);
 
-      let price = Number(p.price);
+if (
+  p.stock !== null &&
+  Number(p.stock) < qty &&
+  !item.variant_id
+) {
+  throw new Error("OUT_OF_STOCK");
+}
 
-      if (item.variant_id) {
-        const v = variantMap.get(item.variant_id);
-        if (!v) throw new Error("INVALID_VARIANT");
+if (!p.is_active || p.deleted_at) {
+  throw new Error("PRODUCT_NOT_AVAILABLE");
+}
 
-        price = v.sale_price ? Number(v.sale_price) : Number(v.price);
-      }
+/* =========================================
+   VALIDATE VARIANT
+========================================= */
 
-      const total = price * qty;
+if (item.variant_id) {
+  const v = variantMap.get(
+    item.variant_id
+  );
 
-      subtotal += total;
+  if (!v) {
+    throw new Error(
+      "INVALID_VARIANT"
+    );
+  }
+
+  if (v.product_id !== p.id) {
+    throw new Error(
+      "VARIANT_PRODUCT_MISMATCH"
+    );
+  }
+
+  if (!v.is_active) {
+    throw new Error(
+      "VARIANT_DISABLED"
+    );
+  }
+
+  if (
+    v.stock !== null &&
+    Number(v.stock) < qty
+  ) {
+    throw new Error(
+      "OUT_OF_STOCK"
+    );
+  }
+}
+
+/* =========================================
+   PRICE FROM PAYMENT INTENT
+========================================= */
+
+const pricingItem =
+  input.pricing.items.find(
+    (x) =>
+      x.product_id === item.product_id &&
+      (x.variant_id ?? null) ===
+        (item.variant_id ?? null)
+  );
+
+if (!pricingItem) {
+  throw new Error(
+    "PRICING_ITEM_NOT_FOUND"
+  );
+}
+
+const price =
+  Number(pricingItem.unit_price);
+
+const lineTotal =
+  Number(pricingItem.subtotal);
       totalQuantity += qty;
-
       orderItems.push({
-        product: {
-          id: p.id,
-          seller_id: p.seller_id,
-          name: p.name,
-          thumbnail: p.thumbnail ?? null,
-        },
-        variant_id: item.variant_id ?? null,
-        price,
-        qty,
-        total,
-      });
+  product: {
+    id: p.id,
+    seller_id: p.seller_id,
+    name: p.name,
+    thumbnail: p.thumbnail ?? null,
+  },
+  variant_id: item.variant_id ?? null,
+  price,
+  qty,
+  total: lineTotal,
+});
 
       console.log("🧾 [ORDER][ITEM]", {
-        productId: p.id,
-        qty,
-        price,
-        total,
-      });
+  productId: p.id,
+  qty,
+  price,
+  total: lineTotal,
+});
     }
 
     /* =========================================================
-       SHIPPING
-    ========================================================= */
+   STOCK DEDUCTION (STRICT)
+========================================================= */
 
-    const { rows: shippingRows } = await client.query<any>(
+for (const item of orderItems) {
+  let res;
+
+  if (item.variant_id) {
+    console.log(
+      "[ORDER][STOCK][VARIANT]",
+      {
+        variantId: item.variant_id,
+        qty: item.qty,
+      }
+    );
+
+    res = await client.query(
       `
-      SELECT sr.product_id, sr.price
-      FROM shipping_rates sr
-      JOIN shipping_zones sz ON sz.id = sr.zone_id
-      WHERE sr.product_id = ANY($1::uuid[])
-      AND sz.code = $2
+      UPDATE product_variants
+      SET stock = stock - $1
+      WHERE id = $2
+      AND stock >= $1
       `,
-      [productIds, zone]
+      [
+        item.qty,
+        item.variant_id,
+      ]
     );
 
-    const shippingMap = new Map(
-      shippingRows.map((r) => [r.product_id, Number(r.price)])
-    );
-
-    let shippingFee = 0;
-
-    for (const item of items) {
-      const fee = shippingMap.get(item.product_id);
-      if (fee === undefined) throw new Error("SHIPPING_NOT_AVAILABLE");
-      shippingFee += fee;
-    }
-
-    const total = subtotal + shippingFee;
-
-    console.log("💰 [ORDER][TOTAL]", {
-      subtotal,
-      shippingFee,
-      total,
-    });
-
-    /* =========================================================
-       STOCK DEDUCTION (STRICT)
-    ========================================================= */
-
-    for (const item of orderItems) {
-      const res = await client.query(
+    if (res.rowCount) {
+      await client.query(
         `
         UPDATE products
-        SET stock = stock - $1,
-            sold = sold + $1
-        WHERE id = $2 AND stock >= $1
+        SET sold = sold + $1
+        WHERE id = $2
         `,
-        [item.qty, item.product.id]
+        [
+          item.qty,
+          item.product.id,
+        ]
       );
-
-      if (!res.rowCount) {
-        console.error("❌ [ORDER][STOCK] OUT_OF_STOCK", {
-          productId: item.product.id,
-          qty: item.qty,
-        });
-        throw new Error("OUT_OF_STOCK");
-      }
     }
+  } else {
+    console.log(
+      "[ORDER][STOCK][PRODUCT]",
+      {
+        productId: item.product.id,
+        qty: item.qty,
+      }
+    );
+
+    res = await client.query(
+      `
+      UPDATE products
+      SET
+        stock = stock - $1,
+        sold = sold + $1
+      WHERE id = $2
+      AND stock >= $1
+      `,
+      [
+        item.qty,
+        item.product.id,
+      ]
+    );
+  }
+
+  if (!res.rowCount) {
+    console.error(
+      "[ORDER][STOCK_FAIL]",
+      {
+        productId: item.product.id,
+        variantId: item.variant_id,
+        qty: item.qty,
+      }
+    );
+
+    throw new Error("OUT_OF_STOCK");
+  }
+
+  console.log(
+    "[ORDER][STOCK_OK]",
+    {
+      productId: item.product.id,
+      variantId: item.variant_id,
+      qty: item.qty,
+    }
+  );
+}
 
     /* =========================================================
        CREATE ORDER (PAID ONLY FLOW)

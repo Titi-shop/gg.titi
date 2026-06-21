@@ -254,72 +254,170 @@ export async function startShippingBySeller(
   orderId: string,
   sellerId: string
 ): Promise<boolean> {
+
   try {
-    return await withTransaction(async (client) => {
 
-      /* =========================
-         1. UPDATE ITEMS → SHIPPED
-      ========================= */
-      const res = await client.query(
-        `
-        UPDATE order_items
-        SET
-          fulfillment_status = 'shipped',
-          shipped_at = NOW(),
-          updated_at = NOW()
-        WHERE order_id = $1
-          AND seller_id = $2
-          AND fulfillment_status = 'processing'
-        `,
-        [orderId, sellerId]
-      );
+    return await withTransaction(
+      async (client) => {
 
-      if (res.rowCount === 0) {
-        console.warn("[ORDER][SELLER][SHIP][NO_ITEMS]", {
-          orderId,
-          sellerId,
-        });
-        return false;
+        /* =====================================================
+           1. UPDATE ORDER ITEMS → SHIPPED
+
+           FLOW:
+           processing → shipped
+        ===================================================== */
+
+        const res =
+          await client.query(
+            `
+            UPDATE order_items
+
+            SET
+              fulfillment_status = 'shipped',
+
+              shipped_at = NOW(),
+
+              updated_at = NOW()
+
+            WHERE order_id = $1
+              AND seller_id = $2
+              AND fulfillment_status = 'processing'
+            `,
+            [
+              orderId,
+              sellerId,
+            ]
+          );
+
+        if (
+          res.rowCount === 0
+        ) {
+
+          console.warn(
+            "[ORDER][SELLER][SHIP][NO_ITEMS]",
+            {
+              orderId,
+              sellerId,
+            }
+          );
+
+          return false;
+        }
+
+        /* =====================================================
+           2. UPDATE MAIN ORDER
+
+           IMPORTANT:
+           buyer app reads:
+           orders.fulfillment_status
+        ===================================================== */
+
+        await client.query(
+          `
+          UPDATE orders
+
+          SET
+            fulfillment_status = 'shipped',
+            shipped_at = NOW(),
+            updated_at = NOW()
+          WHERE id = $1
+            AND fulfillment_status IN (
+              'pending',
+              'processing'
+            )
+          `,
+          [orderId]
+        );
+
+        /* =====================================================
+           3. SET AUTO RELEASE TIMER
+
+           IMPORTANT:
+           - NO payout here
+           - NO wallet update here
+           - only schedule release timing
+
+           FLOW:
+           shipped
+           → wait 10 hours
+           → cron auto complete
+        ===================================================== */
+
+        const escrowUpdate =
+  await client.query(
+    `
+    UPDATE escrow_entries
+
+    SET
+      release_after =
+        NOW() + interval '1 hours',
+
+      updated_at = NOW()
+
+    WHERE order_id = $1
+      AND seller_id = $2
+
+    RETURNING
+      id,
+      status,
+      release_status,
+      release_after
+    `,
+    [
+      orderId,
+      sellerId,
+    ]
+  );
+
+console.log(
+  "[ORDER][SELLER][SHIP][ESCROW_TIMER]",
+  {
+    rowCount:
+      escrowUpdate.rowCount,
+
+    rows:
+      escrowUpdate.rows,
+  }
+);
+
+        /* =====================================================
+           4. GLOBAL STATUS SYNC
+        ===================================================== */
+
+        await syncOrderFulfillmentStatus(
+          client,
+          orderId
+        );
+
+        console.log(
+          "[ORDER][SELLER][SHIP][SUCCESS]",
+          {
+            orderId,
+            sellerId,
+          }
+        );
+
+        return true;
       }
-
-      /* =========================
-         2. FORCE UPDATE ORDER → SHIPPED
-         (QUAN TRỌNG NHẤT)
-      ========================= */
-      await client.query(
-        `
-        UPDATE orders
-        SET
-          fulfillment_status = 'shipped',
-          shipped_at = NOW(),
-          updated_at = NOW()
-        WHERE id = $1
-          AND fulfillment_status = 'processing'
-        `,
-        [orderId]
-      );
-
-      /* =========================
-         3. SYNC (optional safety)
-      ========================= */
-      await syncOrderFulfillmentStatus(client, orderId);
-
-      console.log("[ORDER][SELLER][SHIP][SUCCESS]", {
-        orderId,
-      });
-
-      return true;
-    });
+    );
 
   } catch (err) {
-    console.error("[ORDER][SELLER][SHIP][DB_ERROR]", {
-      message: err instanceof Error ? err.message : "UNKNOWN",
-    });
 
-    throw new Error("DB_ERROR");
+    console.error(
+      "[ORDER][SELLER][SHIP][DB_ERROR]",
+      {
+        message:
+          err instanceof Error
+            ? err.message
+            : "UNKNOWN",
+      }
+    );
+
+    throw new Error(
+      "DB_ERROR"
+    );
   }
 }
-
 /* =========================================================
    SELLER — CANCEL ORDER
 ========================================================= */

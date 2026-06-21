@@ -1,27 +1,68 @@
-import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth/guard";
-import { getWalletByUserId } from "@/lib/db/wallet";
+import {
+  NextResponse,
+} from "next/server";
 
-export const runtime = "nodejs";
+import {
+  requireAuth,
+} from "@/lib/auth/guard";
+
+import {
+  getWalletByUserId,
+} from "@/lib/db/wallet";
+
+export const runtime =
+  "nodejs";
 
 export async function GET() {
+
   try {
-    const auth = await requireAuth();
 
-    if (!auth.ok) return auth.response;
+    const auth =
+      await requireAuth();
 
-    const wallet = await getWalletByUserId(auth.userId);
+    if (!auth.ok) {
+      return auth.response;
+    }
+
+    const wallet =
+      await getWalletByUserId(
+        auth.userId
+      );
 
     return NextResponse.json({
-      balance: wallet?.balance ?? 0,
+      balance:
+        wallet.balance,
+
+      availableBalance:
+        wallet.availableBalance,
+
+      pendingBalance:
+        wallet.pendingBalance,
+
+      frozenBalance:
+        wallet.frozenBalance,
     });
 
-  } catch (err) {
-    console.error("🔥 [WALLET API ERROR]", err);
+  } catch (error) {
+
+    console.error(
+      "[WALLET][GET_FAILED]",
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "UNKNOWN_ERROR",
+      }
+    );
 
     return NextResponse.json(
-      { error: "INTERNAL_ERROR" },
-      { status: 500 }
+      {
+        error:
+          "INTERNAL_ERROR",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }

@@ -116,33 +116,56 @@ export async function GET(
        SUCCESS LOG
     ===================================================== */
     console.log("[ORDER][DETAIL][SUCCESS]", {
-      orderId: order.id,
-      userId,
-      orderNumber: order.order_number ?? null,
-      status: order.fulfillment_status ?? null,
-      settlementStatus: order.settlement_status ?? null,
-      paymentStatus: order.payment_status ?? null,
-      currency: order.currency ?? null,
-      total: order.total ?? null,
-      itemsCount: Array.isArray(order.order_items)
-        ? order.order_items.length
-        : 0,
-      durationMs: Date.now() - startedAt,
-    });
+  orderId: order.id,
+  userId,
+
+  orderNumber:
+    order.order_number ?? null,
+
+  fulfillmentStatus:
+    order.fulfillment_status ??
+    null,
+
+  returnStatus:
+    order.return_status ??
+    null,
+
+  paymentStatus:
+    order.payment_status ??
+    null,
+
+  currency:
+    order.currency ?? null,
+
+  total:
+    order.total ?? null,
+
+  itemsCount:
+    Array.isArray(order.order_items)
+      ? order.order_items.length
+      : 0,
+
+  durationMs:
+    Date.now() - startedAt,
+});
 
     /* =====================================================
        RESPONSE
     ===================================================== */
     return NextResponse.json({
   ok: true,
+
   order: {
     ...order,
+
+    return_status:
+      order.return_status ?? null,
+
     order_items: Array.isArray(order.order_items)
-      ? order.order_items
-      : [],
+  ? order.order_items
+  : [],
   },
 });
-
   } catch (err) {
     /* =====================================================
        ERROR
