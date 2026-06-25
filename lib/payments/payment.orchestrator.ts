@@ -58,6 +58,8 @@ function emptyRpc(): RpcAuditResult {
     payload: {},
     createdAt: null,
     memo: null,
+    verified: false,
+verifyStatus: "manual_review",
   };
 }
 function emptyRpcPayload(): RpcAuditResult {
@@ -76,6 +78,8 @@ function emptyRpcPayload(): RpcAuditResult {
     payload: {},
     createdAt: null,
     memo: null,
+    verified: false,
+verifyStatus: "manual_review",
   };
 }
 /* =========================================================
@@ -256,13 +260,11 @@ async function safeCompletePi(
 /* =========================================================
    SAFE LEDGER PIPELINE
 ========================================================= */
-
 async function safeLedger(
   paid: FinalizePaidOrderResult,
   paymentIntentId: string,
   piPaymentId: string,
-  txid: string,
-  rpcVerified: RpcAuditResult
+  txid: string
 ): Promise<boolean> {
   try {
     if (!paid.orderId) {
@@ -309,9 +311,10 @@ async function safeLedger(
 
     await markPiVerified(escrowId);
 
-    if (rpcVerified.confirmed) {
-      await markRpcVerified(escrowId);
-    }
+await markRpcVerified(
+  paymentIntentId,
+  escrowId
+);
 
     await linkOrder(
       escrowId,
@@ -603,15 +606,18 @@ export async function runPaymentSettlement({
   console.log("[PAYMENT][SETTLEMENT] FINALIZE_ORDER_START", {
     paymentIntentId,
   });
-    const latestIntent =
+    const intentRow =
   await getPaymentIntent(
     paymentIntentId
   );
 
-if (
-  latestIntent?.status ===
-  "paid"
-) {
+if (!intentRow) {
+  throw new Error(
+    "INTENT_NOT_FOUND_FINALIZE"
+  );
+}
+
+if (intentRow.status === "paid") {
   console.log(
     "[PAYMENT][SETTLEMENT] ALREADY_FINALIZED"
   );
@@ -619,13 +625,14 @@ if (
   return successResult(
     null,
     Number(
-      latestIntent.total_amount
+      intentRow.total_amount
     ),
     rpcVerified.ok,
     source
   );
 }
-  await writePaymentAudit({
+
+await writePaymentAudit({
   paymentIntentId,
   eventCode: "FINALIZE_STARTED",
   stage: "FINALIZE",
@@ -639,11 +646,6 @@ if (
     step: "FINALIZE_ORDER_FROM_INTENT",
   },
 });
-    const intentRow = await getPaymentIntent(paymentIntentId);
-
-if (!intentRow) {
-  throw new Error("INTENT_NOT_FOUND_FINALIZE");
-}
   const paid = await finalizePaidOrderFromIntent({
   paymentIntentId,
   piPaymentId,
@@ -706,8 +708,7 @@ const ledgerOk = await safeLedger(
   paid,
   paymentIntentId,
   piPaymentId,
-  txid,
-  rpcVerified
+  txid
 );
 
 if (!ledgerOk) {
